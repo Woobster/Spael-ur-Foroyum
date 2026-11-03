@@ -1,5 +1,5 @@
 <!doctype html>
-<html lang="fo">
+<html lang="en">
 <head>
 <meta charset="utf-8">
 <meta name="viewport" content="width=device-width,initial-scale=1,viewport-fit=cover">
@@ -75,6 +75,12 @@ footer{text-align:center;padding:0 16px calc(28px + env(safe-area-inset-bottom,0
 footer .stripe{display:block;width:72px;height:6px;margin:0 auto 14px;border-radius:99px;
   background:linear-gradient(90deg,var(--blue) 0 33%,var(--red) 33% 66%,var(--blue) 66%)}
 
+/* Language switch */
+.langT{position:absolute;z-index:4;top:calc(14px + env(safe-area-inset-top,0px));right:max(14px,env(safe-area-inset-right,0px));display:inline-flex;padding:3px;border-radius:999px;background:var(--paper);backdrop-filter:blur(8px);-webkit-backdrop-filter:blur(8px);box-shadow:0 2px 10px rgba(53,47,69,.12)}
+.langT button{border:0;background:transparent;font:800 13px var(--ui);letter-spacing:.06em;color:var(--ink-soft);padding:6px 12px;border-radius:999px;cursor:pointer}
+.langT button[aria-pressed="true"]{background:var(--blue);color:var(--white)}
+.langT button:focus-visible{outline:3px solid var(--blue);outline-offset:2px}
+
 @media (max-width:600px){
   .hero{min-height:520px}
   main{margin-top:-90px}
@@ -86,6 +92,7 @@ footer .stripe{display:block;width:72px;height:6px;margin:0 auto 14px;border-rad
 <body>
 
 <header class="hero">
+  <div class="langT" role="group" aria-label="Language / Mál"><button type="button" data-lang="en" aria-pressed="true">EN</button><button type="button" data-lang="fo" aria-pressed="false">FO</button></div>
   <div class="cloud c1"></div><div class="cloud c2"></div>
   <div class="hero-inner">
     <span class="flag">
@@ -93,7 +100,7 @@ footer .stripe{display:block;width:72px;height:6px;margin:0 auto 14px;border-rad
       Føroyar
     </span>
     <h1>Spæl úr Føroyum</h1>
-    <p class="tag">Cosy little games from the Faroe Islands. Free to play in your browser.</p>
+    <p class="tag" data-t="tag">Cosy little games from the Faroe Islands. Free to play in your browser.</p>
   </div>
   <svg class="land" viewBox="0 0 1440 400" preserveAspectRatio="none" aria-hidden="true">
     <path d="M0 160 L120 110 L230 150 L360 60 L470 120 L560 90 L700 150 L820 70 L930 130 L1050 80 L1170 140 L1300 70 L1440 120 V400 H0Z" fill="#b9aecf"/>
@@ -138,13 +145,13 @@ footer .stripe{display:block;width:72px;height:6px;margin:0 auto 14px;border-rad
           <!-- crosshair -->
           <g transform="translate(300 110)" fill="none" stroke="#fff" stroke-width="3"><circle r="20"/><circle r="2.5" fill="#fff"/></g>
         </svg>
-        <span class="chip">Idle · 3D</span>
+        <span class="chip" data-t="hare.chip">Idle · 3D</span>
       </div>
       <div class="body">
-        <div class="title"><h2>Hare Season</h2><span>Harrajakt</span></div>
-        <p>Hunt hares across the November hillsides with your sheepdog. Earn krónur, buy upgrades, bring the neighbours along, and look out for the rare snow-white hares.</p>
+        <div class="title"><h2 data-t="hare.title">Hare Season</h2><span data-t="hare.alt">Haruveiða</span></div>
+        <p data-t="hare.text">Hunt hares across the November hillsides with your sheepdog. Earn krónur, buy upgrades, bring the neighbours along, and look out for the rare snow-white hares.</p>
         <ul class="places"><li>Vestmanna</li><li>Saksun</li><li>Funningur</li><li>Sørvágur</li><li>Slættaratindur</li></ul>
-        <span class="play"><svg viewBox="0 0 24 24"><path d="M7 4.5v15l12-7.5z"/></svg>Play</span>
+        <span class="play"><svg viewBox="0 0 24 24"><path d="M7 4.5v15l12-7.5z"/></svg><span data-t="play">Play</span></span>
       </div>
     </a>
 
@@ -178,25 +185,45 @@ footer .stripe{display:block;width:72px;height:6px;margin:0 auto 14px;border-rad
             <ellipse cx="20" cy="0" rx="22" ry="9" fill="#cfe0ef"/><path d="M-2 0 L-16 -9 L-16 9Z" fill="#cfe0ef"/>
           </g>
         </svg>
-        <span class="chip">Idle · Fishing</span>
+        <span class="chip" data-t="fish.chip">Idle · Fishing</span>
       </div>
       <div class="body">
-        <div class="title"><h2>Fish Season</h2><span>Fiskiskapur</span></div>
-        <p>Cast for trout, saithe, mackerel, haddock and halibut from lakes and harbours around the islands. Upgrade your rod and bait, get a rowing boat, and ride the herring run.</p>
+        <div class="title"><h2 data-t="fish.title">Fish Season</h2><span data-t="fish.alt">Fiskiskapur</span></div>
+        <p data-t="fish.text">Cast for trout, saithe, mackerel, haddock and halibut from lakes and harbours around the islands. Upgrade your rod and bait, get a rowing boat, and ride the herring run.</p>
         <ul class="places"><li>Leitisvatn</li><li>Gjógv</li><li>Skálafjørður</li><li>Klaksvík</li><li>Mykines</li></ul>
-        <span class="play"><svg viewBox="0 0 24 24"><path d="M7 4.5v15l12-7.5z"/></svg>Play</span>
+        <span class="play"><svg viewBox="0 0 24 24"><path d="M7 4.5v15l12-7.5z"/></svg><span data-t="play">Play</span></span>
       </div>
     </a>
 
   </div>
 
-  <p class="about">Both games save your progress in your own browser, so you can come back any time. <b>Góða skemtan!</b></p>
+  <p class="about"><span data-t="about">Both games save your progress in your own browser, so you can come back any time.</span> <b>Góða skemtan!</b></p>
 </main>
 
 <footer>
   <span class="stripe"></span>
-  Made in the Faroe Islands
+  <span data-t="made">Made in the Faroe Islands</span>
 </footer>
 
+<script>
+/* ===== LANGUAGE / MÁL — fix words here. Shared with the games as "spael-lang". ===== */
+const TEXT={
+ en:{tag:'Cosy little games from the Faroe Islands. Free to play in your browser.',play:'Play',
+  'hare.chip':'Idle · 3D','hare.title':'Hare Season','hare.alt':'Haruveiða',
+  'hare.text':'Hunt hares across the November hillsides with your sheepdog. Earn krónur, buy upgrades, bring the neighbours along, and look out for the rare snow-white hares.',
+  'fish.chip':'Idle · Fishing','fish.title':'Fish Season','fish.alt':'Fiskiskapur',
+  'fish.text':'Cast for trout, saithe, mackerel, haddock and halibut from lakes and harbours around the islands. Upgrade your rod and bait, get a rowing boat, and ride the herring run.',
+  about:'Both games save your progress in your own browser, so you can come back any time.',made:'Made in the Faroe Islands'},
+ fo:{tag:'Hugnalig smá spøl úr Føroyum. Ókeypis at spæla í kaganum.',play:'Spæl',
+  'hare.chip':'Idle · 3D','hare.title':'Haruveiða','hare.alt':'Hare Season',
+  'hare.text':'Skjót harur í novemberlíðunum saman við seyðahundinum. Vinn krónur, keyp betringar, tak grannarnar við, og hygg eftir sjáldsomu kavhvítu harunum.',
+  'fish.chip':'Idle · Fiskiskapur','fish.title':'Fiskiskapur','fish.alt':'Fish Season',
+  'fish.text':'Kasta eftir aurriða, upsa, makreli, hýsu og kalva úr vøtnum og havnum kring oyggjarnar. Betra um stongina og agnið, fá tær róðrarbát, og fylg sildatorvuni.',
+  about:'Spølini goyma, hvussu langt tú ert komin, í tínum egna kaga, so tú kanst koma aftur nær tú vilt.',made:'Gjørt í Føroyum'}
+};
+(function(){let L='en';try{const v=localStorage.getItem('spael-lang');L=v==='fo'||v==='en'?v:((navigator.language||'').toLowerCase().startsWith('fo')?'fo':'en');}catch(e){}
+ function apply(){document.documentElement.lang=L;document.querySelectorAll('[data-t]').forEach(el=>{const v=TEXT[L][el.dataset.t];if(v!==undefined)el.textContent=v;});document.querySelectorAll('.langT button').forEach(b=>b.setAttribute('aria-pressed',b.dataset.lang===L?'true':'false'));}
+ document.querySelectorAll('.langT button').forEach(b=>b.addEventListener('click',()=>{L=b.dataset.lang;try{localStorage.setItem('spael-lang',L);}catch(e){}apply();}));apply();})();
+</script>
 </body>
 </html>

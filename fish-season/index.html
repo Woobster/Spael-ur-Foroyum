@@ -21,6 +21,11 @@ button{font-family:Figtree,system-ui,sans-serif;color:var(--ink)}
 #moneyV{font:400 25px 'Bagel Fat One';line-height:1}
 #rate{font-weight:700;font-size:12px;opacity:.6;margin-top:2px}
 #chip{padding:8px 14px;border-radius:14px;font-weight:700;font-size:14px;cursor:pointer;border:0}
+.toprow{display:flex;gap:6px;align-items:center;flex-wrap:wrap}
+.langT{display:inline-flex;padding:3px;border-radius:999px}
+.langT button{border:0;background:transparent;font:800 12px Figtree,system-ui,sans-serif;letter-spacing:.06em;color:#6c6580;padding:5px 10px;border-radius:999px;cursor:pointer}
+.langT button[aria-pressed="true"]{background:var(--blue);color:#fff}
+.langT button:focus-visible{outline:3px solid var(--blue);outline-offset:2px}
 #chip b{color:var(--red)}
 #prog{width:250px;padding:8px 12px 10px;border-radius:14px}
 #prog .lbl{font-size:12px;font-weight:700;display:flex;justify-content:space-between;gap:8px;margin-bottom:6px}
@@ -124,29 +129,29 @@ button{font-family:Figtree,system-ui,sans-serif;color:var(--ink)}
 <body>
 <div id="tl">
   <div id="money" class="panel"><div class="coin">kr</div><div><div id="moneyV">0 kr</div><div id="rate">+0 kr/min</div></div></div>
-  <button id="chip" class="panel"></button>
+  <div class="toprow"><button id="chip" class="panel"></button><div class="langT panel" role="group" aria-label="Language / Mál"><button type="button" data-lang="en" aria-pressed="true">EN</button><button type="button" data-lang="fo" aria-pressed="false">FO</button></div></div>
   <div id="prog" class="panel"><div class="lbl"><span id="progL"></span><span id="progR"></span></div><div class="bar"><i id="progBar"></i></div></div>
 </div>
 <div id="combo"></div>
-<div id="counter"><span id="cn">0</span><span id="cu">fish</span></div>
+<div id="counter"><span id="cn">0</span><span id="cu" data-t="hud.fish">fish</span></div>
 <div id="hint" class="panel">Tap the water to cast 🎣</div>
 <div id="banner"><div class="bk"></div><div class="bt"></div><div class="bs"></div></div>
 <div id="frenzy"></div>
 <div id="fx"></div>
 <div id="shop" class="panel">
-  <h2>Tackle shop <small>prices × level</small></h2>
+  <h2><span data-t="shop.title">Tackle shop</span> <small data-t="shop.sub">prices × level</small></h2>
   <div id="ups"></div>
-  <div id="foot"><button id="snd" class="sbtn">🔊 Sound on</button><button id="reset" class="sbtn">Start over</button></div>
+  <div id="foot"><button id="snd" class="sbtn">🔊 Sound on</button><button id="reset" class="sbtn" data-t="reset">Start over</button></div>
 </div>
-<button id="shopToggle">🎣 Shop</button>
-<div id="modal" class="hide"><div class="mcard"><div class="mhead"><h2>Føroyar · Map</h2><button class="x" id="mclose">✕</button></div><div id="areas"></div></div></div>
+<button id="shopToggle" data-t="shop.open">🎣 Shop</button>
+<div id="modal" class="hide"><div class="mcard"><div class="mhead"><h2 data-t="map.title">Føroyar · Map</h2><button class="x" id="mclose">✕</button></div><div id="areas"></div></div></div>
 <div id="ending" class="hide"><div class="endc">
   <span class="flag"><i></i></span>
   <h2>Stóri Kalvi!</h2>
-  <p>You landed the giant halibut off Mykines, at the westernmost edge of the Faroe Islands. From trout in Leitisvatn to the open Atlantic — that's a whole Fish Season.</p>
-  <div class="stats"><div><b id="eFish">0</b><span>fish caught</span></div><div><b id="eKr">0</b><span>kr earned</span></div><div><b id="eTime">0</b><span>minutes</span></div></div>
-  <p style="font-size:13px;opacity:.7">The halibut comes back every 200 catches at Mykines.</p>
-  <button id="eGo">Keep fishing</button>
+  <p data-t="end.text">You landed the giant halibut off Mykines, at the westernmost edge of the Faroe Islands. From trout in Leitisvatn to the open Atlantic — that's a whole Fish Season.</p>
+  <div class="stats"><div><b id="eFish">0</b><span data-t="end.fish">fish caught</span></div><div><b id="eKr">0</b><span data-t="end.kr">kr earned</span></div><div><b id="eTime">0</b><span data-t="end.min">minutes</span></div></div>
+  <p style="font-size:13px;opacity:.7" data-t="end.note">The halibut comes back every 200 catches at Mykines.</p>
+  <button id="eGo" data-t="end.go">Keep fishing</button>
 </div></div>
 <div id="flash"></div>
 <div id="err" class="hide"></div>
@@ -155,6 +160,90 @@ button{font-family:Figtree,system-ui,sans-serif;color:var(--ink)}
 <script>
 (function(){
 'use strict';
+/* ================= LANGUAGE / MÁL =================
+   Every text in the game lives here. To fix a word, change it in the FO (or EN) list.
+   Functions get numbers in: (a,b) => `${a} ...`
+   The choice is saved as "spael-lang" and shared by every game on the site. */
+const TEXT={
+ en:{
+  'hud.fish':'fish','hud.map':'Map','hud.rate':r=>`+${r} kr/min`,
+  'hint':['Tap the water to cast 🎣','Wait for the nibble… tap when the float dips!','Strike fast for a PERFECT bonus ⭐','Keep fishing!'],
+  'shop.title':'Tackle shop','shop.sub':'prices × level','shop.open':'🎣 Shop','shop.lvl':l=>`lvl ${l}`,'shop.max':'MAX','shop.maxed':'max',
+  'snd.on':'🔊 Sound on','snd.off':'🔈 Sound off','reset':'Start over','reset.confirm':'Tap again to reset',
+  'map.title':'Føroyar · Map','map.here':"You're here",'map.go':'Travel','map.unlock':c=>`Unlock · ${c} kr`,'map.locked':'Locked','map.value':v=>`×${v} value`,
+  'next.next':n=>`Next: ${n}`,'next.boss':'Stóri Kalvi is here!','next.bossName':'Stóri Kalvi','next.cast':'cast!','next.all':'All of Føroyar open','next.goM':'Go to Mykines',
+  'fx.reach':'Out of reach','fx.water':'Aim at the water','fx.early':'Too early!','fx.slow':'Too slow!','fx.perfect':'PERFECT!','fx.strike':'STRIKE!',
+  'fx.multi':n=>`${n} on the line!`,'fx.frenzy':'FRENZY!','fx.combo':n=>`×${n} combo`,'fx.abbi':'Abbi joins you!','fx.friend':'A friend joins Abbi!',
+  'boss.sub':'The giant halibut of Mykines','boss.kicker':'LEGEND','boss.appears':'A giant halibut circles the float…','boss.appearsK':'Legend appears',
+  'area.new':'New area · ',
+  'end.text':"You landed the giant halibut off Mykines, at the westernmost edge of the Faroe Islands. From trout in Leitisvatn to the open Atlantic — that's a whole Fish Season.",
+  'end.fish':'fish caught','end.kr':'kr earned','end.min':'minutes','end.note':'The halibut comes back every 200 catches at Mykines.','end.go':'Keep fishing',
+  'u.rod':'Longer rod','u.rod.d':'Cast further. More time to strike.',
+  'u.bait':'Better bait','u.bait.d':'Fish smell it from further and bite sooner.','u.bait.e':s=>`bite ~${s}s`,
+  'u.shoal':'Bigger shoals','u.shoal.d':'Gulls lead more fish into your water.','u.shoal.e':n=>`${n} fish`,
+  'u.rig':'Feather rig','u.rig.d':'Extra hooks snag nearby fish on every strike.','u.rig.e':n=>`${n} hook${n>1?'s':''}`,
+  'u.abbi':'Abbi on the rocks','u.abbi.d':'Grandad fishes beside you. Friends join at lvl 4 and 7.',
+  'u.boat':'Rowing boat','u.boat.d':'A Faroese boat hauls fish while you idle.',
+  'u.hjallur':'Hjallur','u.hjallur.d':'Wind-dried fish from the drying shed sells for more.','u.hjallur.e':v=>`×${v} value`,
+  'u.herring':'Herring run','u.herring.d':'Frenzies come sooner and last longer.','u.herring.e':(n,s)=>`combo ${n} · ${s}s`,
+  'u.none':'none',
+  'l0.date':'1 November','l0.sub':'Brown trout in the biggest lake of the Faroes',
+  'l0.facts':['Largest lake in the Faroe Islands: about 3.4 km².','Up to 59 m deep, 27.5 m on average.','Two names: Sørvágur folk say Sørvágsvatn, Miðvágur folk say Leitisvatn.','Its water spills into the ocean at the Bøsdalafossur waterfall.','Trælanípan, the Slave Cliff, towers over the outlet.','Known for brown trout fishing.'],
+  'l1.date':'3 November','l1.sub':'Saithe in the 200 m sea gorge',
+  'l1.facts':['The village is named after its 200 m sea gorge: gjógv means gorge.','Boats are hauled up a ramp to keep them safe from the surf.','First mentioned in 1584.','The village sheep herd: 1,155 animals.','The northernmost village on Eysturoy, facing the sheer west side of Kalsoy.'],
+  'l2.date':'5 November','l2.sub':'Mackerel and haddock in the longest fjord',
+  'l2.facts':['The longest fjord in the Faroes: 13 km.','Up to about 70 m deep, with a threshold at c. 25 m.','The river Fjarðará meets the fjord at a sandy beach.','The Eysturoy Tunnel beneath it has an underwater roundabout.'],
+  'l3.date':'8 November','l3.sub':'Cod and ling in the fishing capital',
+  'l3.facts':['Second largest town of the Faroes: 5,156 people (2026).','Often called the fishing capital of the Faroes.','The town sits between two inlets lying back to back.','Fish made up DKK 10.4 of 11.4 billion in exports (Jan–Nov 2022).','The pyramid peak of Kunoy shelters the harbour.'],
+  'l4.date':'10 November','l4.sub':'Halibut off the westernmost island',
+  'l4.facts':['The westernmost of the 18 main islands.','A 40 m footbridge crosses Holmgjógv to Mykineshólmur.','Mykineshólmur lighthouse was built in 1909.','It flashes 3 times every 20 seconds — watch it.','Gannets leave Mykineshólmur around 11 November.','The Holmgjógv sound is about 50 m deep.']
+ },
+ fo:{
+  'hud.fish':'fiskar','hud.map':'Kort','hud.rate':r=>`+${r} kr/min`,
+  'hint':['Trýst á vatnið fyri at kasta 🎣','Bíða eftir nappinum… trýst, tá ið flotið søkkur!','Rykk skjótt fyri FULLKOMNAN bonus ⭐','Halt fram at fiska!'],
+  'shop.title':'Fiskihandil','shop.sub':'prísir × stig','shop.open':'🎣 Handil','shop.lvl':l=>`stig ${l}`,'shop.max':'MAX','shop.maxed':'fult',
+  'snd.on':'🔊 Ljóð á','snd.off':'🔈 Ljóð av','reset':'Byrja av nýggjum','reset.confirm':'Trýst aftur at strika alt',
+  'map.title':'Føroyar · Kort','map.here':'Tú ert her','map.go':'Far','map.unlock':c=>`Lat upp · ${c} kr`,'map.locked':'Læst','map.value':v=>`×${v} virði`,
+  'next.next':n=>`Næsta: ${n}`,'next.boss':'Stóri Kalvi er her!','next.bossName':'Stóri Kalvi','next.cast':'kasta!','next.all':'Allar Føroyar eru opnar','next.goM':'Far til Mykines',
+  'fx.reach':'Ov langt burtur','fx.water':'Sikta á vatnið','fx.early':'Ov tíðliga!','fx.slow':'Ov seint!','fx.perfect':'FULLKOMIÐ!','fx.strike':'FASTUR!',
+  'fx.multi':n=>`${n} á krókunum!`,'fx.frenzy':'ÆÐI!','fx.combo':n=>`×${n} á rað`,'fx.abbi':'Abbi kemur við!','fx.friend':'Ein vinur kemur við Abba!',
+  'boss.sub':'Stóri kalvin í Mykinesi','boss.kicker':'GOÐSØGN','boss.appears':'Ein risastórur kalvi svimur kring flotið…','boss.appearsK':'Goðsøgnin kemur',
+  'area.new':'Nýtt øki · ',
+  'end.text':'Tú fekst stóra kalvan úti fyri Mykinesi, vestast í Føroyum. Frá aurriða í Leitisvatni út á opna Atlantshavið — tað er ein heil fiskiárstíð.',
+  'end.fish':'fiskar fingnir','end.kr':'kr vunnið','end.min':'minuttir','end.note':'Kalvin kemur aftur fyri hvørjar 200 fiskar í Mykinesi.','end.go':'Halt fram at fiska',
+  'u.rod':'Longri stong','u.rod.d':'Kasta longri. Meira tíð at rykkja.',
+  'u.bait':'Betri agn','u.bait.d':'Fiskurin roynir agnið longri burturfrá og bítur skjótari.','u.bait.e':s=>`bit ~${s}s`,
+  'u.shoal':'Størri torvur','u.shoal.d':'Másarnir leiða fleiri fiskar inn til tín.','u.shoal.e':n=>`${n} fiskar`,
+  'u.rig':'Fjaðrakrókar','u.rig.d':'Fleiri krókar taka fiskar nærindis við hvørt rykk.','u.rig.e':n=>n>1?`${n} krókar`:`${n} krókur`,
+  'u.abbi':'Abbi á bergunum','u.abbi.d':'Abbi fiskar við lið av tær. Vinir koma við á stigi 4 og 7.',
+  'u.boat':'Róðrarbátur','u.boat.d':'Ein føroyskur bátur fiskar, meðan tú hvílir teg.',
+  'u.hjallur':'Hjallur','u.hjallur.d':'Ræstur fiskur úr hjallinum selst fyri meira.','u.hjallur.e':v=>`×${v} virði`,
+  'u.herring':'Sildatorva','u.herring.d':'Æðið kemur fyrr og varir longri.','u.herring.e':(n,s)=>`á rað ${n} · ${s}s`,
+  'u.none':'eingin',
+  'l0.date':'1. november','l0.sub':'Aurriði í stórsta vatni í Føroyum',
+  'l0.facts':['Stórsta vatn í Føroyum: umleið 3,4 km².','Upp í 59 m djúpt, 27,5 m í miðal.','Tvey nøvn: Sørvágsfólk siga Sørvágsvatn, Miðvágsfólk siga Leitisvatn.','Vatnið rennur út í havið við Bøsdalafoss.','Trælanípan reisist yvir útfallinum.','Kent fyri aurriðafiskiskap.'],
+  'l1.date':'3. november','l1.sub':'Upsi í 200 m langu gjónni',
+  'l1.facts':['Bygdin hevur navn eftir 200 m langu gjónni.','Bátarnir verða drignir upp eftir eini rennu, so brimið ikki tekur teir.','Fyrst nevnd í 1584.','Seyðurin í bygdini: 1.155 dýr.','Norðasta bygd á Eysturoy, beint yvir av bratta vesturbakkanum á Kalsoy.'],
+  'l2.date':'5. november','l2.sub':'Makrelur og hýsa í longsta firðinum',
+  'l2.facts':['Longsti fjørður í Føroyum: 13 km.','Upp í umleið 70 m djúpur, við gáttu á umleið 25 m.','Áin Fjarðará rennur út í fjørðin við eina sandvík.','Eysturoyartunnilin undir firðinum hevur ringvegamót undir sjónum.'],
+  'l3.date':'8. november','l3.sub':'Toskur og longa í fiskivinnubýnum',
+  'l3.facts':['Næststørsti býur í Føroyum: 5.156 fólk (2026).','Ofta nevndur fiskivinnuhøvuðsstaður Føroya.','Býurin liggur millum tveir vágar, ið venda bakið hvør í annan.','Fiskur var 10,4 av 11,4 milliardum kr í útflutninginum (jan–nov 2022).','Pyramidutindurin á Kunoy skýlir havnini.'],
+  'l4.date':'10. november','l4.sub':'Kalvi úti fyri vestastu oynni',
+  'l4.facts':['Vestasta av teimum 18 oyggjunum.','Ein 40 m long gongubrúgv gongur um Hólmgjógv til Mykineshólm.','Vitin á Mykineshólmi varð bygdur í 1909.','Hann blinkar 3 ferðir hvørjar 20 sekund — hygg eftir.','Súlan fer av Mykineshólmi um 11. november.','Hólmgjógv er umleið 50 m djúp.']
+ }
+};
+const LANG_KEY='spael-lang';
+let LANG='en';
+try{const sv=localStorage.getItem(LANG_KEY);LANG=sv==='fo'||sv==='en'?sv:((navigator.language||'').toLowerCase().startsWith('fo')?'fo':'en');}catch(e){}
+function tt(k,...a){const v=(TEXT[LANG]&&TEXT[LANG][k]!==undefined)?TEXT[LANG][k]:TEXT.en[k];if(v===undefined)return k;return typeof v==='function'?v(...a):v;}
+const dec=(v,d)=>{const x=v.toFixed(d);return LANG==='fo'?x.replace('.',','):x;};
+const langHooks=[];
+function setLang(l){LANG=l;try{localStorage.setItem(LANG_KEY,l);}catch(e){}applyStatic();langHooks.forEach(f=>{try{f();}catch(e){}});}
+function applyStatic(){document.documentElement.lang=LANG;document.querySelectorAll('[data-t]').forEach(el=>{el.textContent=tt(el.dataset.t);});document.querySelectorAll('.langT button').forEach(b=>{b.setAttribute('aria-pressed',b.dataset.lang===LANG?'true':'false');});}
+document.querySelectorAll('.langT button').forEach(b=>b.addEventListener('click',e=>{e.stopPropagation();setLang(b.dataset.lang);}));
+applyStatic();
+/* ================= end of language ================= */
+
 const $=id=>document.getElementById(id);
 let errN=0;
 function showErr(msg,stack){errN++;const el=$('err');el.classList.remove('hide');
@@ -270,16 +359,18 @@ const LEVELS=[
   facts:['The westernmost of the 18 main islands.','A 40 m footbridge crosses Holmgjógv to Mykineshólmur.','Mykineshólmur lighthouse was built in 1909.','It flashes 3 times every 20 seconds — watch it.','Gannets leave Mykineshólmur around 11 November.','The Holmgjógv sound is about 50 m deep.']}
 ];
 const UPS=[
- {k:'rod',icon:'🎣',bg:'#dfe8f3',name:'Longer rod',desc:'Cast further. More time to strike.',base:30,mul:1.55,max:20,eff:l=>`${range(l)} m · ${win(l).toFixed(2)}s`},
- {k:'bait',icon:'🪱',bg:'#f6e3dc',name:'Better bait',desc:'Fish smell it from further and bite sooner.',base:45,mul:1.6,max:20,eff:l=>`bite ~${biteDelay(l).toFixed(1)}s`},
- {k:'shoal',icon:'🐟',bg:'#dfeef0',name:'Bigger shoals',desc:'Gulls lead more fish into your water.',base:70,mul:1.65,max:16,eff:l=>`${shoal(l)} fish`},
- {k:'rig',icon:'🪶',bg:'#efe9f6',name:'Feather rig',desc:'Extra hooks snag nearby fish on every strike.',base:180,mul:2.3,max:8,eff:l=>`${1+l} hook${l?'s':''}`},
- {k:'abbi',icon:'👴',bg:'#e6eedc',name:'Abbi on the rocks',desc:'Grandad fishes beside you. Friends join at lvl 4 and 7.',base:150,mul:1.7,max:25,eff:l=>l?`${anglers(l)} × ${(60/anglerInt(l)).toFixed(1)}/min`:'none'},
- {k:'boat',icon:'🚣',bg:'#dde6f4',name:'Rowing boat',desc:'A Faroese boat hauls fish while you idle.',base:1200,mul:1.8,max:25,eff:l=>l?`${boatsN(l)} × ${(60/boatInt(l)).toFixed(1)}/min`:'none'},
- {k:'hjallur',icon:'🏚️',bg:'#efe6d6',name:'Hjallur',desc:'Wind-dried fish from the drying shed sells for more.',base:400,mul:1.95,max:20,eff:l=>`×${hjMul(l).toFixed(2)} value`},
- {k:'herring',icon:'🌊',bg:'#fbefd2',name:'Herring run',desc:'Frenzies come sooner and last longer.',base:350,mul:2,max:10,eff:l=>`combo ${frNeed(l)} · ${frDur(l).toFixed(1)}s`}
+ {k:'rod',icon:'🎣',bg:'#dfe8f3',name:'Longer rod',desc:'Cast further. More time to strike.',base:30,mul:1.55,max:20,eff:l=>`${range(l)} m · ${dec(win(l),2)}s`},
+ {k:'bait',icon:'🪱',bg:'#f6e3dc',name:'Better bait',desc:'Fish smell it from further and bite sooner.',base:45,mul:1.6,max:20,eff:l=>tt('u.bait.e',dec(biteDelay(l),1))},
+ {k:'shoal',icon:'🐟',bg:'#dfeef0',name:'Bigger shoals',desc:'Gulls lead more fish into your water.',base:70,mul:1.65,max:16,eff:l=>tt('u.shoal.e',shoal(l))},
+ {k:'rig',icon:'🪶',bg:'#efe9f6',name:'Feather rig',desc:'Extra hooks snag nearby fish on every strike.',base:180,mul:2.3,max:8,eff:l=>tt('u.rig.e',1+l)},
+ {k:'abbi',icon:'👴',bg:'#e6eedc',name:'Abbi on the rocks',desc:'Grandad fishes beside you. Friends join at lvl 4 and 7.',base:150,mul:1.7,max:25,eff:l=>l?`${anglers(l)} × ${dec(60/anglerInt(l),1)}/min`:tt('u.none')},
+ {k:'boat',icon:'🚣',bg:'#dde6f4',name:'Rowing boat',desc:'A Faroese boat hauls fish while you idle.',base:1200,mul:1.8,max:25,eff:l=>l?`${boatsN(l)} × ${dec(60/boatInt(l),1)}/min`:tt('u.none')},
+ {k:'hjallur',icon:'🏚️',bg:'#efe6d6',name:'Hjallur',desc:'Wind-dried fish from the drying shed sells for more.',base:400,mul:1.95,max:20,eff:l=>tt('u.hjallur.e',dec(hjMul(l),2))},
+ {k:'herring',icon:'🌊',bg:'#fbefd2',name:'Herring run',desc:'Frenzies come sooner and last longer.',base:350,mul:2,max:10,eff:l=>tt('u.herring.e',frNeed(l),dec(frDur(l),1))}
 ];
 const UPD={};UPS.forEach(u=>UPD[u.k]=u);
+function locData(){LEVELS.forEach((L,i)=>{L.date=tt('l'+i+'.date');L.sub=tt('l'+i+'.sub');L.facts=tt('l'+i+'.facts');});UPS.forEach(u=>{u.name=tt('u.'+u.k);u.desc=tt('u.'+u.k+'.d');});}
+locData();
 const range=l=>14+2*l, win=l=>0.75+0.05*l, biteDelay=l=>2.6/(1+0.2*l), lure=l=>7+1.4*l, shoal=l=>7+2*l,
  anglers=l=>l?Math.min(3,Math.ceil(l/3)):0, anglerInt=l=>8/(1+0.22*(l-1)), boatsN=l=>l?Math.min(3,1+Math.floor((l-1)/4)):0,
  boatInt=l=>6/(1+0.25*(l-1)), hjMul=l=>1+0.3*l, frNeed=l=>Math.max(4,10-l), frDur=l=>6+1.2*l;
@@ -718,9 +809,9 @@ function floatText(txt,wp,cls){const v=wp.clone().project(camera);if(v.z>1)retur
 // ---------- Combo / frenzy / earning
 let combo=0,comboT=0,shake=0;const frenzy={on:false,t:0};const elog=[];
 function startFrenzy(){frenzy.on=true;frenzy.t=frDur(up.herring);$('frenzy').classList.add('on');SFX.frenzy();shake=Math.max(shake,0.35);
- floatText('FRENZY!',camera.localToWorld(new THREE.Vector3(0,0.3,-5)),'gold big');}
+ floatText(tt('fx.frenzy'),camera.localToWorld(new THREE.Vector3(0,0.3,-5)),'gold big');}
 function endFrenzy(){frenzy.on=false;$('frenzy').classList.remove('on');}
-function setCombo(n){combo=n;const el=$('combo');if(combo>=2){el.textContent='×'+combo+' combo';el.classList.add('on');el.classList.toggle('hot',frenzy.on);el.classList.remove('bump');void el.offsetWidth;el.classList.add('bump');}else el.classList.remove('on');}
+function setCombo(n){combo=n;const el=$('combo');if(combo>=2){el.textContent=tt('fx.combo',combo);el.classList.add('on');el.classList.toggle('hot',frenzy.on);el.classList.remove('bump');void el.offsetWidth;el.classList.add('bump');}else el.classList.remove('on');}
 function fishValue(f,perfect){let v=f.sp.v*cur.mult*hjMul(up.hjallur);if(f.boss)v=2500*cur.mult*hjMul(up.hjallur);if(f.golden)v*=10;if(perfect)v*=1.5;if(frenzy.on)v*=2;return Math.max(1,Math.round(v*(1+Math.min(combo,50)*0.02)));}
 function earn(v,p,golden,small){money+=v;earned+=v;fishCaught++;elog.push([performance.now()/1000,v]);
  floatText('+'+fmt(v)+' kr',p,golden?'gold big':(small?'':''));const c=$('counter');$('cn').textContent=fmt(fishCaught);c.classList.remove('bump');void c.offsetWidth;c.classList.add('bump');
@@ -735,7 +826,7 @@ function screenToWater(cx,cy){ndc.set(cx/innerWidth*2-1,-(cy/innerHeight)*2+1);r
 function cast(p){
  const dx=p.x-camBase.x,dz=p.z-camBase.z,d=Math.hypot(dx,dz),r=range(up.rod);
  if(d>r){p.x=camBase.x+dx/d*r;p.z=camBase.z+dz/d*r;}
- if(!isWater(p.x,p.z,0.5)){floatText(d>r?'Out of reach':'Aim at the water',p.clone().setY(0.5),'small');return;}
+ if(!isWater(p.x,p.z,0.5)){floatText(d>r?tt('fx.reach'):tt('fx.water'),p.clone().setY(0.5),'small');return;}
  if(line.fish&&line.fish.state!=='flying'){if(line.fish.state==='nibble'||line.fish.state==='bite')scare(line.fish);else line.fish.state='wander';}
  line.fish=null;line.state='flying';line.t=0;line.x=p.x;line.z=p.z;rodTip.getWorldPosition(line.from);line.to.set(p.x,0,p.z);line.dur=0.35+d*0.012;
  bobber.visible=true;lineObj.visible=true;rodAnim.type='cast';rodAnim.t=0;SFX.cast();
@@ -750,8 +841,8 @@ function strike(){
   const to=camera.localToWorld(new THREE.Vector3(-0.9+((k%5)*0.45),-0.15+Math.floor(k/5)*0.4,-4.6));
   launch(o,from,to,o.boss?6:3.2+k*0.3,o.boss?1.3:0.75,k*0.09,p=>{removeFish(o);pop(p,o.boss?3:(o.golden?2:1));earn(val,p,o.golden||o.boss);SFX.pop(combo+k);if(o.golden)SFX.coin();
    if(o.boss)bossCaught(p);});});
- floatText(perfect?'PERFECT!':'STRIKE!',new THREE.Vector3(line.x,0.8,line.z),perfect?'gold big':'');
- if(caught.length>1)floatText(caught.length+' on the line!',new THREE.Vector3(line.x,2,line.z),'gold');
+ floatText(perfect?tt('fx.perfect'):tt('fx.strike'),new THREE.Vector3(line.x,0.8,line.z),perfect?'gold big':'');
+ if(caught.length>1)floatText(tt('fx.multi',caught.length),new THREE.Vector3(line.x,2,line.z),'gold');
  SFX.strike();shake=Math.max(shake,f.boss?0.6:0.18+caught.length*0.04);rodAnim.type='strike';rodAnim.t=0;
  line.fish=null;line.state='reel';line.t=0;line.from.set(line.x,0,line.z);
  if(!frenzy.on&&combo>=frNeed(up.herring))startFrenzy();
@@ -762,7 +853,7 @@ function onPointer(e){initAudio();
  if(innerWidth<=760&&$('shop').classList.contains('open')){$('shop').classList.remove('open');return;}
  aim.set(e.clientX/innerWidth*2-1,-(e.clientY/innerHeight)*2+1);
  if(line.state==='bite'){strike();return;}
- if(line.state==='nibble'){floatText('Too early!',new THREE.Vector3(line.x,0.8,line.z),'small');scare(line.fish);line.fish=null;line.state='waiting';line.seek=0;setCombo(0);SFX.miss();return;}
+ if(line.state==='nibble'){floatText(tt('fx.early'),new THREE.Vector3(line.x,0.8,line.z),'small');scare(line.fish);line.fish=null;line.state='waiting';line.seek=0;setCombo(0);SFX.miss();return;}
  if(line.state==='reel')return;
  const p=screenToWater(e.clientX,e.clientY);if(p)cast(p);}
 renderer.domElement.addEventListener('pointerdown',onPointer);
@@ -790,7 +881,7 @@ function updateLine(dt){
    floatText('!',new THREE.Vector3(line.x,1.3,line.z),'red');rodAnim.type='bend';rodAnim.t=0;}}
  else if(line.state==='bite'){line.biteT+=dt;y=-0.32+Math.sin(T*30)*0.05;bobber.rotation.z=Math.sin(T*24)*0.25;
   const w=line.fish&&line.fish.boss?1.6:win(up.rod)*(frenzy.on?1.4:1);
-  if(line.biteT>w){floatText('Too slow!',new THREE.Vector3(line.x,0.8,line.z),'small');scare(line.fish);line.fish=null;line.state='waiting';line.seek=0;setCombo(0);SFX.miss();}}
+  if(line.biteT>w){floatText(tt('fx.slow'),new THREE.Vector3(line.x,0.8,line.z),'small');scare(line.fish);line.fish=null;line.state='waiting';line.seek=0;setCombo(0);SFX.miss();}}
  bobber.position.set(line.x,y,line.z);
  updateLineGeo(tipW,bobber.position,0.25+Math.hypot(line.x-tipW.x,line.z-tipW.z)*0.03);
 }
@@ -844,39 +935,39 @@ function updateHelpers(dt){
 }
 
 // ---------- Boss & ending
-function bossCaught(p){bossProg=0;banner('Stóri Kalvi!','The giant halibut of Mykines','LEGEND');SFX.fanfare();shake=0.8;pop(p,3);
+function bossCaught(p){bossProg=0;banner('Stóri Kalvi!',tt('boss.sub'),tt('boss.kicker'));SFX.fanfare();shake=0.8;pop(p,3);
  if(!ended){ended=true;setTimeout(showEnding,1600);}save();}
 function showEnding(){$('eFish').textContent=fmt(fishCaught);$('eKr').textContent=fmt(earned);$('eTime').textContent=Math.max(1,Math.round(playTime/60));$('ending').classList.remove('hide');}
 $('eGo').onclick=()=>$('ending').classList.add('hide');
 
 // ---------- HUD / UI
 let hudDirty=true;
-function updateChip(){$('chip').innerHTML=`${cur.name} · ${cur.date} · <b>Map</b>`;}
+function updateChip(){$('chip').innerHTML=`${cur.name} · ${cur.date} · <b>${tt('hud.map')}</b>`;}
 function updateHUD(){
- $('moneyV').textContent=fmt(money)+' kr';$('rate').textContent='+'+fmt(rateNow())+' kr/min';$('cn').textContent=fmt(fishCaught);
+ $('moneyV').textContent=fmt(money)+' kr';$('rate').textContent=tt('hud.rate',fmt(rateNow()));$('cn').textContent=fmt(fishCaught);
  let lbl,right,frac;
- if(unlocked<LEVELS.length){const n=LEVELS[unlocked];lbl='Next: '+n.name;right=fmt(Math.min(money,n.cost))+' / '+fmt(n.cost)+' kr';frac=money/n.cost;}
- else if(curIdx===4){const boss=fishes.some(f=>f.boss);lbl=boss?'Stóri Kalvi is here!':'Stóri Kalvi';right=boss?'cast!':bossProg+' / '+BOSS_GOAL;frac=boss?1:bossProg/BOSS_GOAL;}
- else{lbl='All of Føroyar open';right='Go to Mykines';frac=1;}
+ if(unlocked<LEVELS.length){const n=LEVELS[unlocked];lbl=tt('next.next',n.name);right=fmt(Math.min(money,n.cost))+' / '+fmt(n.cost)+' kr';frac=money/n.cost;}
+ else if(curIdx===4){const boss=fishes.some(f=>f.boss);lbl=boss?tt('next.boss'):tt('next.bossName');right=boss?tt('next.cast'):bossProg+' / '+BOSS_GOAL;frac=boss?1:bossProg/BOSS_GOAL;}
+ else{lbl=tt('next.all');right=tt('next.goM');frac=1;}
  $('progL').textContent=lbl;$('progR').textContent=right;$('progBar').style.width=clamp(frac*100,0,100)+'%';
  document.querySelectorAll('.buy').forEach(b=>{const u=UPD[b.dataset.k];b.disabled=up[u.k]>=u.max||money<cost(u);});
 }
 function renderShop(){$('ups').innerHTML=UPS.map(u=>{const l=up[u.k],mx=l>=u.max;
- return `<div class="up" id="u-${u.k}"><div class="ic" style="background:${u.bg}">${u.icon}</div><div><div class="nm">${u.name}<span class="lv">lvl ${l}</span></div><div class="ds">${u.desc}</div><div class="ef">${mx?u.eff(l)+' · max':u.eff(l)+' → '+u.eff(l+1)}</div></div><button class="buy" data-k="${u.k}" ${mx?'disabled':''}>${mx?'MAX':fmt(cost(u))+' kr'}</button></div>`;}).join('');hudDirty=true;}
+ return `<div class="up" id="u-${u.k}"><div class="ic" style="background:${u.bg}">${u.icon}</div><div><div class="nm">${u.name}<span class="lv">${tt('shop.lvl',l)}</span></div><div class="ds">${u.desc}</div><div class="ef">${mx?u.eff(l)+' · '+tt('shop.maxed'):u.eff(l)+' → '+u.eff(l+1)}</div></div><button class="buy" data-k="${u.k}" ${mx?'disabled':''}>${mx?tt('shop.max'):fmt(cost(u))+' kr'}</button></div>`;}).join('');hudDirty=true;}
 $('ups').addEventListener('click',e=>{const b=e.target.closest('.buy');if(!b||b.disabled)return;const u=UPD[b.dataset.k];const c=cost(u);if(money<c||up[u.k]>=u.max)return;
  money-=c;up[u.k]++;SFX.buy();if(['abbi','boat','hjallur','rod'].includes(u.k))refreshHelpers();renderShop();const row=$('u-'+u.k);if(row){row.classList.add('flash');}
- if(u.k==='abbi'&&(up.abbi===1||up.abbi===4||up.abbi===7))floatText(up.abbi===1?'Abbi joins you!':'A friend joins Abbi!',camera.localToWorld(new THREE.Vector3(0,0.4,-5)),'gold');
+ if(u.k==='abbi'&&(up.abbi===1||up.abbi===4||up.abbi===7))floatText(up.abbi===1?tt('fx.abbi'):tt('fx.friend'),camera.localToWorld(new THREE.Vector3(0,0.4,-5)),'gold');
  save();});
-function setHint(){const h=$('hint');const t=['Tap the water to cast 🎣','Wait for the nibble… tap when the float dips!','Strike fast for a PERFECT bonus ⭐','Keep fishing!'][hintStep]||'';
+function setHint(){const h=$('hint');const t=tt('hint')[hintStep]||'';
  h.textContent=t;h.style.opacity=hintStep>=3?0:1;}
 let bannerT=null;
 function banner(title,sub,kicker){const b=$('banner');b.querySelector('.bt').textContent=title;b.querySelector('.bs').textContent=sub;const k=b.querySelector('.bk');k.textContent=kicker||'';k.style.display=kicker?'':'none';
  b.classList.remove('show');void b.offsetWidth;b.classList.add('show');}
 function renderMap(){$('areas').innerHTML=LEVELS.map((L,i)=>{const here=i===curIdx,open=i<unlocked,next=i===unlocked;
- let btn;if(here)btn=`<button class="go here" disabled>You're here</button>`;else if(open)btn=`<button class="go" data-go="${i}">Travel</button>`;
- else if(next)btn=`<button class="go" data-unlock="${i}" ${money<L.cost?'disabled':''}>Unlock · ${fmt(L.cost)} kr</button>`;else btn=`<button class="go" disabled>Locked</button>`;
- return `<div class="area ${here?'here':''} ${!open&&!next?'locked':''}"><h3>${L.name}</h3><div class="meta">${L.island} · ${L.date}</div><div><span class="pill">×${L.mult} value</span></div>
- <div class="fishes">${L.fish.map(([k])=>`<span>${SP[k].fo} · ${SP[k].en}</span>`).join('')}</div><ul>${L.facts.map(f=>`<li>${f}</li>`).join('')}</ul>${btn}</div>`;}).join('');}
+ let btn;if(here)btn=`<button class="go here" disabled>${tt('map.here')}</button>`;else if(open)btn=`<button class="go" data-go="${i}">${tt('map.go')}</button>`;
+ else if(next)btn=`<button class="go" data-unlock="${i}" ${money<L.cost?'disabled':''}>${tt('map.unlock',fmt(L.cost))}</button>`;else btn=`<button class="go" disabled>${tt('map.locked')}</button>`;
+ return `<div class="area ${here?'here':''} ${!open&&!next?'locked':''}"><h3>${L.name}</h3><div class="meta">${L.island} · ${L.date}</div><div><span class="pill">${tt('map.value',L.mult)}</span></div>
+ <div class="fishes">${L.fish.map(([k])=>`<span>${LANG==='fo'?SP[k].fo:SP[k].fo+' · '+SP[k].en}</span>`).join('')}</div><ul>${L.facts.map(f=>`<li>${f}</li>`).join('')}</ul>${btn}</div>`;}).join('');}
 $('chip').onclick=()=>{renderMap();$('modal').classList.remove('hide');};
 $('mclose').onclick=()=>$('modal').classList.add('hide');
 $('modal').addEventListener('pointerdown',e=>{if(e.target.id==='modal')$('modal').classList.add('hide');});
@@ -884,12 +975,13 @@ $('areas').addEventListener('click',e=>{const b=e.target.closest('button');if(!b
  if(b.dataset.unlock){const i=+b.dataset.unlock,L=LEVELS[i];if(money<L.cost||i!==unlocked)return;money-=L.cost;unlocked++;travel(i,true);}
  else if(b.dataset.go)travel(+b.dataset.go,false);});
 function travel(i,isNew){$('modal').classList.add('hide');$('flash').classList.add('on');endFrenzy();setCombo(0);
- setTimeout(()=>{buildLevel(i);save();$('flash').classList.remove('on');const L=LEVELS[i];banner(L.name,L.sub,(isNew?'New area · ':'')+L.island+' · '+L.date);SFX.fanfare();hudDirty=true;},380);}
+ setTimeout(()=>{buildLevel(i);save();$('flash').classList.remove('on');const L=LEVELS[i];banner(L.name,L.sub,(isNew?tt('area.new'):'')+L.island+' · '+L.date);SFX.fanfare();hudDirty=true;},380);}
 $('shopToggle').onclick=()=>$('shop').classList.toggle('open');
-function setSound(){$('snd').textContent=soundOn?'🔊 Sound on':'🔈 Sound off';if(master)master.gain.value=soundOn?0.55:0;}
+function setSound(){$('snd').textContent=tt(soundOn?'snd.on':'snd.off');if(master)master.gain.value=soundOn?0.55:0;}
 $('snd').onclick=()=>{soundOn=!soundOn;initAudio();setSound();save();};
 let resetArm=0;$('reset').onclick=()=>{const b=$('reset');if(Date.now()-resetArm<3000){try{localStorage.removeItem(SAVE);}catch(e){}location.reload();return;}
- resetArm=Date.now();b.textContent='Tap again to reset';b.classList.add('warn');setTimeout(()=>{b.textContent='Start over';b.classList.remove('warn');},3000);};
+ resetArm=Date.now();b.textContent=tt('reset.confirm');b.classList.add('warn');setTimeout(()=>{b.textContent=tt('reset');b.classList.remove('warn');},3000);};
+langHooks.push(()=>{locData();renderShop();updateChip();setHint();setSound();$('reset').textContent=tt('reset');if(!$('modal').classList.contains('hide'))renderMap();hudDirty=true;});
 
 // ---------- Loop
 const camBase=new THREE.Vector3(0,3,7),look=new THREE.Vector3(0,0,-22);let T=0,last=performance.now(),hudT=0,saveT=0,gullT=8;
@@ -914,7 +1006,7 @@ function update(dt){
  updateRod(dt);updateLine(dt);
  for(const f of fishes)updateFish(f,dt);
  fishSpawnT-=dt;if(fishes.length<shoalCount()&&fishSpawnT<=0){spawnFish(false);fishSpawnT=frenzy.on?0.15:0.5;}
- if(curIdx===4&&bossProg>=BOSS_GOAL&&!fishes.some(f=>f.boss)){if(spawnFish(false,true)){bossProg=0;banner('Stóri Kalvi','A giant halibut circles the float…','Legend appears');SFX.frenzy();}}
+ if(curIdx===4&&bossProg>=BOSS_GOAL&&!fishes.some(f=>f.boss)){if(spawnFish(false,true)){bossProg=0;banner('Stóri Kalvi',tt('boss.appears'),tt('boss.appearsK'));SFX.frenzy();}}
  updateFlyers(dt);updateParts(dt);updateRings(dt);updateHelpers(dt);
  if(comboT>0){comboT-=dt;if(comboT<=0)setCombo(0);}
  if(frenzy.on){frenzy.t-=dt;if(frenzy.t<=0)endFrenzy();}

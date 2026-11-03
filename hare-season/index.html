@@ -46,7 +46,11 @@ body{margin:0;-webkit-user-select:none;user-select:none;-webkit-tap-highlight-co
 .rl i{position:absolute;inset:0 auto 0 0;width:0;background:var(--gold)}
 .rl b{position:relative;display:block;text-align:center;line-height:22px;font-size:11px;letter-spacing:.14em}
 .ammo.reloading .shells{display:none}.ammo.reloading .rl{display:block}
-.ammo.inf .shells{display:none}.ammo.inf::after{content:"∞ FREE SHELLS";letter-spacing:.1em;color:var(--accent)}
+.ammo.inf .shells{display:none}.ammo.inf::after{content:attr(data-free);letter-spacing:.1em;color:var(--accent)}
+.langT{pointer-events:auto;display:inline-flex;background:var(--paper);backdrop-filter:blur(8px);-webkit-backdrop-filter:blur(8px);border-radius:999px;padding:3px;box-shadow:0 2px 10px rgba(53,47,69,.12)}
+.langT button{border:0;background:transparent;font:800 12px var(--ui);letter-spacing:.06em;color:var(--ink-soft);padding:5px 10px;border-radius:999px;cursor:pointer}
+.langT button[aria-pressed="true"]{background:var(--blue);color:var(--white)}
+.toprow{display:flex;gap:6px;align-items:center;flex-wrap:wrap}
 .counter.bump b{display:inline-block;animation:bump .18s ease-out}
 @keyframes bump{50%{transform:scale(1.12)}}
 
@@ -176,31 +180,122 @@ button:focus-visible{outline:3px solid var(--blue);outline-offset:2px}
   <div class="topleft">
     <div class="money"><span class="coin"></span><b id="money">0</b><small>kr</small></div>
     <div class="rate" id="rate">0 kr/min</div>
-    <button id="areaBtn" class="areaBtn" type="button"><b id="areaName">Vestmanna</b><span id="areaDate">2 November</span><span class="go">Map</span></button>
+    <div class="toprow"><button id="areaBtn" class="areaBtn" type="button"><b id="areaName">Vestmanna</b><span id="areaDate">2 November</span><span class="go" data-t="hud.map">Map</span></button><div class="langT" role="group" aria-label="Language / Mál"><button type="button" data-lang="en" aria-pressed="true">EN</button><button type="button" data-lang="fo" aria-pressed="false">FO</button></div></div>
     <div class="next" id="next"><span id="nextLbl"></span><i><em id="nextBar"></em></i></div>
   </div>
   <div id="combo" class="combo" hidden><b id="comboN">x2</b><div class="bar"><i id="comboBar"></i></div><div class="lbl" id="comboLbl">FRENZY</div></div>
   <div id="frenzyWrap"></div>
-  <button id="ammo" class="ammo" type="button" aria-label="Reload"><span class="shells" id="shells"></span><span class="rl" id="rl"><i id="rlBar"></i><b>RELOADING</b></span></button>
-  <div class="counter" id="counter"><b id="count">0</b><span>hares</span></div>
-  <div id="hint" class="hint">Click or tap to shoot<small>Hold to keep firing · R or right-click to reload · the dog fetches the hares</small></div>
+  <button id="ammo" class="ammo" type="button" aria-label="Reload" data-t-aria="ammo.aria"><span class="shells" id="shells"></span><span class="rl" id="rl"><i id="rlBar"></i><b data-t="ammo.reload">RELOADING</b></span></button>
+  <div class="counter" id="counter"><b id="count">0</b><span data-t="hud.hares">hares</span></div>
+  <div id="hint" class="hint"><span data-t="hint.main">Click or tap to shoot</span><small data-t="hint.small">Hold to keep firing · R or right-click to reload · the dog fetches the hares</small></div>
   <div id="floaters"></div>
   <div id="cross" class="cross off"></div>
 </div>
 <aside id="shop" aria-label="Upgrades">
-  <header><h2>Shop</h2><span class="sub">Upgrades</span><button id="shopClose" aria-label="Close shop">×</button></header>
+  <header><h2 data-t="shop.title">Shop</h2><span class="sub" data-t="shop.sub">Upgrades</span><button id="shopClose" aria-label="Close shop" data-t-aria="shop.close">×</button></header>
   <div id="upgrades"></div>
-  <footer><button id="sound">Sound: on</button><button id="reset">Start over</button></footer>
+  <footer><button id="sound">Sound: on</button><button id="reset" data-t="reset">Start over</button></footer>
 </aside>
 <div id="fade"></div>
-<div id="mapWrap" class="modal" hidden><div class="sheet" role="dialog" aria-labelledby="mapTitle"><header><h2 id="mapTitle">Hunting grounds</h2><span class="sub">2 Nov – 31 Dec</span><button class="x" id="mapClose" aria-label="Close map">×</button></header><div id="areas"></div><div class="goal" id="goal"></div></div></div>
-<div id="winWrap" class="modal" hidden><div class="sheet win" role="dialog" aria-labelledby="winTitle"><div class="trophy"></div><h2 id="winTitle">Season champion</h2><p id="winText"></p><button id="winClose" type="button">Keep hunting</button></div></div>
-<button id="shopOpen">Shop<span class="dot" id="shopDot" hidden></span></button>
+<div id="mapWrap" class="modal" hidden><div class="sheet" role="dialog" aria-labelledby="mapTitle"><header><h2 id="mapTitle" data-t="map.title">Hunting grounds</h2><span class="sub" data-t="map.sub">2 Nov – 31 Dec</span><button class="x" id="mapClose" aria-label="Close map" data-t-aria="map.close">×</button></header><div id="areas"></div><div class="goal" id="goal"></div></div></div>
+<div id="winWrap" class="modal" hidden><div class="sheet win" role="dialog" aria-labelledby="winTitle"><div class="trophy"></div><h2 id="winTitle" data-t="win.title">Season champion</h2><p id="winText"></p><button id="winClose" type="button" data-t="win.go">Keep hunting</button></div></div>
+<button id="shopOpen"><span data-t="shop.open">Shop</span><span class="dot" id="shopDot" hidden></span></button>
 
 <script src="https://cdnjs.cloudflare.com/ajax/libs/three.js/r128/three.min.js"></script>
 <script>
 (function(){
 "use strict";
+/* ================= LANGUAGE / MÁL =================
+   Every text in the game lives here. To fix a word, change it in the FO (or EN) list.
+   Functions get numbers in: (a,b) => `${a} → ${b} ...`
+   The choice is saved as "spael-lang" and shared by every game on the site. */
+const TEXT={
+ en:{
+  'lang.name':'English',
+  'hud.hares':'hares','hud.map':'Map','hud.rate':r=>`≈ ${r} kr/min`,
+  'hint.main':'Click or tap to shoot','hint.small':'Hold to keep firing · R or right-click to reload · the dog fetches the hares',
+  'ammo.reload':'RELOADING','ammo.free':'∞ FREE SHELLS','ammo.aria':'Reload',
+  'shop.title':'Shop','shop.sub':'Upgrades','shop.open':'Shop','shop.close':'Close shop',
+  'shop.lvl':l=>`lvl ${l}`,'shop.new':'new','shop.maxed':'Maxed out','shop.max':'MAX',
+  'snd.on':'Sound: on','snd.off':'Sound: off','reset':'Start over','reset.confirm':'Tap again to confirm',
+  'fx.oneShot':n=>`${n} in one shot!`,'fx.white':'WHITE HARE!','fx.pops':['POOF!','BANG!','NICE!'],'fx.frenzy':'HARE FRENZY!',
+  'combo.frenzy':'FRENZY','combo.left':s=>`FRENZY · ${s} s`,
+  'map.title':'Hunting grounds','map.sub':'2 Nov – 31 Dec','map.close':'Close map',
+  'map.here':'You are here','map.go':'Go hunt','map.unlock':c=>`Unlock · ${c} kr`,'map.locked':'Locked',
+  'map.mul':(v,s)=>`×${v} kr per hare · ×${s} hares`,
+  'map.goal':'Unlock each outfield with your earnings. Your upgrades and dogs come with you.',
+  'map.record':w=>`Season record: hold ${w} kr to become season champion.`,
+  'map.champ':n=>`Season champion. Every outfield hunted, ${n} hares in the hjallur.`,
+  'next.next':(n,m,c)=>`Next: ${n} · ${m} / ${c} kr`,'next.ready':n=>`${n} is ready to unlock`,
+  'next.record':(m,w)=>`Season record · ${m} / ${w} kr`,'next.champ':'Season champion',
+  'win.title':'Season champion','win.text':(n,s)=>`Every outfield from Vestmanna to Slættaratindur, hunted in one season. ${n} hares fetched with ${s} shots.`,'win.go':'Keep hunting',
+  'a0.field':'Úti í Haga á Bjørgum','a0.date':'2 November','a0.fact':'Best outfield of 2013: 158 hares in 9 trips.',
+  'a1.field':'Kvíggjarhamarshagi','a1.date':'15 November','a1.fact':'Best outfield of 2016, with 90 hares. A deep, steep-sided valley.',
+  'a2.field':'Inni í Haga','a2.date':'28 November','a2.fact':'6.8 hares per gun per day in 2015, the best rate in the islands.',
+  'a3.field':'Norðurtriðingi','a3.date':'12 December','a3.fact':'Top outfield of 2015: 113 hares in 8 trips. Tindhólmur rises out of the fjord.',
+  'a4.field':'Highest peak, 880 m','a4.date':'31 December','a4.fact':'Last day of the season. Snow everywhere, and white hares hide well in it.',
+  'up.spawn':'More hares','up.spawn.d':'More hares per minute','up.spawn.e':(a,b)=>`${a} → ${b} hares/min`,
+  'up.group':'Hare packs','up.group.d':'Hares come out in groups','up.group.e':(a,b)=>`${a} → ${b} at a time`,
+  'up.value':'Fatter hares','up.value.d':'Each hare sells for more','up.value.e':(a,b)=>`${a} → ${b} kr each`,
+  'up.rate':'Faster trigger','up.rate.d':'Less time between shots','up.rate.e':(a,b)=>`${a} → ${b} shots/s`,
+  'up.mag':'Shell belt','up.mag.d':'More shells before reloading','up.mag.e':(a,b)=>`${a} → ${b} shells`,
+  'up.reload':'Quick hands','up.reload.d':'Reload faster','up.reload.e':(a,b)=>`${a} → ${b} s`,
+  'up.pellets':'More pellets','up.pellets.d':'More pellets, wider spread','up.pellets.e':(a,b)=>`${a} → ${b} pellets`,
+  'up.dogspd':'Faster dog','up.dogspd.d':'The dog runs faster','up.dogspd.e':(a,b)=>`${a} → ${b} m/s`,
+  'up.carry':'Bigger mouthful','up.carry.d':'The dog carries more hares','up.carry.e':(a,b)=>`${a} → ${b} per trip`,
+  'up.dogs':'More dogs','up.dogs.d':'Another sheepdog','up.dogs.e':(a,b)=>`${a} → ${b} dogs`,
+  'up.help':'Neighbours','up.help.d':'A neighbour shoots with you','up.help.e':(a,b)=>`${a} → ${b} neighbours`,
+  'up.gold':'White hares','up.gold.d':'The old snow-white kind, worth ×10','up.gold.e':(a,b)=>`${a}% → ${b}%`
+ },
+ fo:{
+  'lang.name':'Føroyskt',
+  'hud.hares':'harur','hud.map':'Kort','hud.rate':r=>`≈ ${r} kr/min`,
+  'hint.main':'Klikk ella trýst fyri at skjóta','hint.small':'Halt inni fyri at skjóta víðari · R ella høgraklikk fyri at lada · hundurin heintar harurnar',
+  'ammo.reload':'LADAR','ammo.free':'∞ ÓKEYPIS PATRÓNIR','ammo.aria':'Lada',
+  'shop.title':'Handil','shop.sub':'Betringar','shop.open':'Handil','shop.close':'Lat handilin aftur',
+  'shop.lvl':l=>`stig ${l}`,'shop.new':'nýtt','shop.maxed':'Fult','shop.max':'MAX',
+  'snd.on':'Ljóð: á','snd.off':'Ljóð: av','reset':'Byrja av nýggjum','reset.confirm':'Trýst aftur at vátta',
+  'fx.oneShot':n=>`${n} í einum skoti!`,'fx.white':'HVÍT HARA!','fx.pops':['POFF!','PANG!','FLOTT!'],'fx.frenzy':'HARUÆÐI!',
+  'combo.frenzy':'ÆÐI','combo.left':s=>`ÆÐI · ${s} s`,
+  'map.title':'Veiðiøki','map.sub':'2. nov – 31. des','map.close':'Lat kortið aftur',
+  'map.here':'Tú ert her','map.go':'Far á veiðu','map.unlock':c=>`Lat upp · ${c} kr`,'map.locked':'Læst',
+  'map.mul':(v,s)=>`×${v} kr fyri haruna · ×${s} harur`,
+  'map.goal':'Lat hvønn haga upp við pengunum, tú vinnur. Betringar og hundar fylgja við.',
+  'map.record':w=>`Metið í ár: hav ${w} kr fyri at gerast haruveiðumeistari.`,
+  'map.champ':n=>`Haruveiðumeistari. Allir hagar veiddir, ${n} harur í hjallinum.`,
+  'next.next':(n,m,c)=>`Næsta: ${n} · ${m} / ${c} kr`,'next.ready':n=>`${n} kann latast upp`,
+  'next.record':(m,w)=>`Metið í ár · ${m} / ${w} kr`,'next.champ':'Haruveiðumeistari',
+  'win.title':'Haruveiðumeistari','win.text':(n,s)=>`Allir hagar frá Vestmanna til Slættaratind, veiddir á einari veiðitíð. ${n} harur heintaðar við ${s} skotum.`,'win.go':'Halt fram at veiða',
+  'a0.field':'Úti í Haga á Bjørgum','a0.date':'2. november','a0.fact':'Besti hagin í 2013: 158 harur á 9 túrum.',
+  'a1.field':'Kvíggjarhamarshagi','a1.date':'15. november','a1.fact':'Besti hagin í 2016 við 90 harum. Ein djúpur, brattur dalur.',
+  'a2.field':'Inni í Haga','a2.date':'28. november','a2.fact':'6,8 harur fyri hvørja byrsu um dagin í 2015, best í øllum landinum.',
+  'a3.field':'Norðurtriðingi','a3.date':'12. desember','a3.fact':'Besti hagin í 2015: 113 harur á 8 túrum. Tindhólmur reisist úr firðinum.',
+  'a4.field':'Hægsti tindur, 880 m','a4.date':'31. desember','a4.fact':'Seinasti dagur í veiðitíðini. Kavi allastaðni, og hvítar harur fjala seg væl í honum.',
+  'up.spawn':'Fleiri harur','up.spawn.d':'Fleiri harur um minuttin','up.spawn.e':(a,b)=>`${a} → ${b} harur/min`,
+  'up.group':'Haruflokkar','up.group.d':'Harurnar koma í flokkum','up.group.e':(a,b)=>`${a} → ${b} í senn`,
+  'up.value':'Feitari harur','up.value.d':'Hvør hara selst fyri meira','up.value.e':(a,b)=>`${a} → ${b} kr fyri hvørja`,
+  'up.rate':'Skjótari avtrekkari','up.rate.d':'Styttri tíð millum skotini','up.rate.e':(a,b)=>`${a} → ${b} skot/s`,
+  'up.mag':'Patrónbelti','up.mag.d':'Fleiri patrónir áðrenn tú ladar','up.mag.e':(a,b)=>`${a} → ${b} patrónir`,
+  'up.reload':'Skjótar hendur','up.reload.d':'Lada skjótari','up.reload.e':(a,b)=>`${a} → ${b} s`,
+  'up.pellets':'Fleiri høgl','up.pellets.d':'Fleiri høgl, breiðari spjaðing','up.pellets.e':(a,b)=>`${a} → ${b} høgl`,
+  'up.dogspd':'Skjótari hundur','up.dogspd.d':'Hundurin rennur skjótari','up.dogspd.e':(a,b)=>`${a} → ${b} m/s`,
+  'up.carry':'Størri munnfylli','up.carry.d':'Hundurin ber fleiri harur','up.carry.e':(a,b)=>`${a} → ${b} á hvørjum túri`,
+  'up.dogs':'Fleiri hundar','up.dogs.d':'Ein seyðahundur afturat','up.dogs.e':(a,b)=>`${a} → ${b} hundar`,
+  'up.help':'Grannar','up.help.d':'Ein granni skjýtur saman við tær','up.help.e':(a,b)=>`${a} → ${b} grannar`,
+  'up.gold':'Hvítar harur','up.gold.d':'Gamla kavhvíta slagið, ×10 virði','up.gold.e':(a,b)=>`${a}% → ${b}%`
+ }
+};
+const LANG_KEY='spael-lang';
+let LANG='en';
+try{const sv=localStorage.getItem(LANG_KEY);LANG=sv==='fo'||sv==='en'?sv:((navigator.language||'').toLowerCase().startsWith('fo')?'fo':'en');}catch(e){}
+function t(k,...a){const v=(TEXT[LANG]&&TEXT[LANG][k]!==undefined)?TEXT[LANG][k]:TEXT.en[k];if(v===undefined)return k;return typeof v==='function'?v(...a):v;}
+const langHooks=[];
+function setLang(l){LANG=l;try{localStorage.setItem(LANG_KEY,l);}catch(e){}applyStatic();langHooks.forEach(f=>f());}
+function applyStatic(){document.documentElement.lang=LANG;document.querySelectorAll('[data-t]').forEach(el=>{el.textContent=t(el.dataset.t);});document.querySelectorAll('[data-t-aria]').forEach(el=>{el.setAttribute('aria-label',t(el.dataset.tAria));});document.querySelectorAll('.langT button').forEach(b=>{b.setAttribute('aria-pressed',b.dataset.lang===LANG?'true':'false');});}
+document.querySelectorAll('.langT button').forEach(b=>b.addEventListener('click',()=>setLang(b.dataset.lang)));
+applyStatic();
+/* ================= end of language ================= */
+
 const $=s=>document.querySelector(s);
 const rand=(a,b)=>a+Math.random()*(b-a);
 const clamp=(v,a,b)=>Math.max(a,Math.min(b,v));
@@ -240,19 +335,20 @@ const ICON={
   star:'<path d="M12 3l2.7 5.6 6.1.8-4.5 4.2 1.1 6.1L12 16.8 6.6 19.7l1.1-6.1L3.2 9.4l6.1-.8z"/>'
 };
 const UP=[
-  {id:'spawn',name:'More hares',en:'More hares per minute',base:12,mult:1.42,max:40,icon:'hare',ef:l=>`${Math.round(spm(l)*A().spawn)} → ${Math.round(spm(l+1)*A().spawn)} hares/min`},
-  {id:'group',name:'Hare packs',en:'Hares come out in groups',base:140,mult:2.3,max:7,icon:'group',ef:l=>`${1+l} → ${2+l} at a time`},
-  {id:'value',name:'Fatter hares',en:'Each hare sells for more',base:25,mult:1.62,max:30,icon:'coin',ef:l=>`${fmt(hareVal(l)*A().value)} → ${fmt(hareVal(l+1)*A().value)} kr each`},
-  {id:'rate',name:'Faster trigger',en:'Less time between shots',base:18,mult:1.5,max:18,icon:'gun',ef:l=>`${(1/cd(l)).toFixed(1)} → ${(1/cd(l+1)).toFixed(1)} shots/s`},
-  {id:'mag',name:'Shell belt',en:'More shells before reloading',base:30,mult:1.6,max:18,icon:'shell',ef:l=>`${magSize(l)} → ${magSize(l+1)} shells`},
-  {id:'reload',name:'Quick hands',en:'Reload faster',base:20,mult:1.5,max:14,icon:'clock',ef:l=>`${reloadT(l).toFixed(2)} → ${reloadT(l+1).toFixed(2)} s`},
-  {id:'pellets',name:'More pellets',en:'More pellets, wider spread',base:40,mult:1.7,max:14,icon:'pellet',ef:l=>`${nPel(l)} → ${nPel(l+1)} pellets`},
-  {id:'dogspd',name:'Faster dog',en:'The dog runs faster',base:22,mult:1.5,max:14,icon:'paw',ef:l=>`${dogSp(l).toFixed(1)} → ${dogSp(l+1).toFixed(1)} m/s`},
-  {id:'carry',name:'Bigger mouthful',en:'The dog carries more hares',base:60,mult:1.85,max:10,icon:'sack',ef:l=>`${1+l} → ${2+l} per trip`},
-  {id:'dogs',name:'More dogs',en:'Another sheepdog',base:220,mult:2.6,max:5,icon:'dogs',ef:l=>`${1+l} → ${2+l} dogs`},
-  {id:'help',name:'Neighbours',en:'A neighbour shoots with you',base:160,mult:2.5,max:4,icon:'person',ef:l=>`${l} → ${l+1} neighbours`},
-  {id:'gold',name:'White hares',en:'The old snow-white kind, worth ×10',base:320,mult:2.1,max:10,icon:'star',ef:l=>`${Math.round(goldP(l)*100)}% → ${Math.round(goldP(l+1)*100)}%`}
+  {id:'spawn',name:'More hares',en:'More hares per minute',base:12,mult:1.42,max:40,icon:'hare',ef:l=>t('up.spawn.e',Math.round(spm(l)*A().spawn),Math.round(spm(l+1)*A().spawn))},
+  {id:'group',name:'Hare packs',en:'Hares come out in groups',base:140,mult:2.3,max:7,icon:'group',ef:l=>t('up.group.e',1+l,2+l)},
+  {id:'value',name:'Fatter hares',en:'Each hare sells for more',base:25,mult:1.62,max:30,icon:'coin',ef:l=>t('up.value.e',fmt(hareVal(l)*A().value),fmt(hareVal(l+1)*A().value))},
+  {id:'rate',name:'Faster trigger',en:'Less time between shots',base:18,mult:1.5,max:18,icon:'gun',ef:l=>t('up.rate.e',dec(1/cd(l),1),dec(1/cd(l+1),1))},
+  {id:'mag',name:'Shell belt',en:'More shells before reloading',base:30,mult:1.6,max:18,icon:'shell',ef:l=>t('up.mag.e',magSize(l),magSize(l+1))},
+  {id:'reload',name:'Quick hands',en:'Reload faster',base:20,mult:1.5,max:14,icon:'clock',ef:l=>t('up.reload.e',dec(reloadT(l),2),dec(reloadT(l+1),2))},
+  {id:'pellets',name:'More pellets',en:'More pellets, wider spread',base:40,mult:1.7,max:14,icon:'pellet',ef:l=>t('up.pellets.e',nPel(l),nPel(l+1))},
+  {id:'dogspd',name:'Faster dog',en:'The dog runs faster',base:22,mult:1.5,max:14,icon:'paw',ef:l=>t('up.dogspd.e',dec(dogSp(l),1),dec(dogSp(l+1),1))},
+  {id:'carry',name:'Bigger mouthful',en:'The dog carries more hares',base:60,mult:1.85,max:10,icon:'sack',ef:l=>t('up.carry.e',1+l,2+l)},
+  {id:'dogs',name:'More dogs',en:'Another sheepdog',base:220,mult:2.6,max:5,icon:'dogs',ef:l=>t('up.dogs.e',1+l,2+l)},
+  {id:'help',name:'Neighbours',en:'A neighbour shoots with you',base:160,mult:2.5,max:4,icon:'person',ef:l=>t('up.help.e',l,l+1)},
+  {id:'gold',name:'White hares',en:'The old snow-white kind, worth ×10',base:320,mult:2.1,max:10,icon:'star',ef:l=>t('up.gold.e',Math.round(goldP(l)*100),Math.round(goldP(l+1)*100))}
 ];
+const dec=(v,d)=>{const x=v.toFixed(d);return LANG==='fo'?x.replace('.',','):x;};
 const cost=u=>Math.round(u.base*Math.pow(u.mult,S.lv[u.id]));
 function fmt(n){n=Math.floor(n);if(n<100000)return String(n).replace(/\B(?=(\d{3})+(?!\d))/g,',');const u=[['B',1e9],['M',1e6],['k',1e3]];for(const [s,v] of u)if(n>=v){const x=n/v;return (x<100?x.toFixed(1):Math.round(x))+s;}return String(n);}
 
@@ -628,7 +724,7 @@ function shoot(){
   }
   let nh=0;
   for(const t of hit){if(t.h){killHare(t.h,true);nh++;}else if(t.sheep)hitSheep(t.sheep);}
-  if(nh){addCombo(nh);if(nh>=3)floatScreen(aimX,aimY-40,nh+' in one shot!','gold');}
+  if(nh){addCombo(nh);if(nh>=3)floatScreen(aimX,aimY-40,t('fx.oneShot',nh),'gold');}
   if(ammo<=0&&!fr)setTimeout(startReload,Math.min(120,cdT*1000));
   hideHint();
 }
@@ -636,11 +732,11 @@ function killHare(h,byPlayer){
   h.state='dead';h.deadT=0;h.claimed=false;
   const c=hareCenter(h,new THREE.Vector3());
   burst(c.x,c.y,c.z,h.gold?FXM.gold:FXM.fur,10,3.2,0.1,3.5,0.55);burst(c.x,c.y,c.z,FXM.furL,6,2.6,0.08,3.5,0.5);burst(c.x,c.y+0.3,c.z,h.gold?FXM.water:FXM.star,h.gold?10:4,2,0.09,4.5,0.7);
-  if(byPlayer){sfxPop(combo);if(h.gold)floatText(c.x,c.y+0.8,c.z,'WHITE HARE!','white');else if(Math.random()<0.25)floatText(c.x,c.y+0.6,c.z,['POOF!','BANG!','NICE!'][(Math.random()*3)|0],'pop');}
+  if(byPlayer){sfxPop(combo);if(h.gold)floatText(c.x,c.y+0.8,c.z,t('fx.white'),'white');else if(Math.random()<0.25){const ps=t('fx.pops');floatText(c.x,c.y+0.6,c.z,ps[(Math.random()*ps.length)|0],'pop');}}
 }
 function hitSheep(s){if(s.jump>0)return;s.jump=0.7;s.flee=3;s.wait=0;const a=rand(0,2*PI);s.tx=clamp(s.x+Math.cos(a)*8,FX0,FX1);s.tz=clamp(s.z+Math.sin(a)*8,FZ0,FZ1);const pen=Math.max(10,Math.round(hareVal(S.lv.value)*A().value*3));S.money=Math.max(0,S.money-pen);sfxBaa();floatText(s.x,groundY(s.x,s.z)+1.8,s.z,'Baa! −'+fmt(pen)+' kr','bad');burst(s.x,groundY(s.x,s.z)+0.9,s.z,FXM.wool,8,2.5,0.12,3,0.6);combo=0;comboT=0;dirty=true;}
 function addCombo(n){combo+=n;comboT=2.4;if(frenzyT<=0){frenzyCharge+=n;if(frenzyCharge>=FRENZY_AT){frenzyCharge=0;startFrenzy();}}}
-function startFrenzy(){frenzyT=7;document.body.classList.add('in-frenzy');const w=$('#frenzyWrap');w.innerHTML='<div class="frenzy">HARE FRENZY!</div>';setTimeout(()=>{w.innerHTML='';},2000);if(actx){const t=actx.currentTime;[523,659,784,1046].forEach((f,i)=>{const o=actx.createOscillator();o.type='square';o.frequency.value=f;const g=actx.createGain();g.gain.setValueAtTime(0.07,t+i*0.07);g.gain.exponentialRampToValueAtTime(0.001,t+i*0.07+0.2);o.connect(g);g.connect(master);o.start(t+i*0.07);o.stop(t+i*0.07+0.21);});}}
+function startFrenzy(){frenzyT=7;document.body.classList.add('in-frenzy');const w=$('#frenzyWrap');w.innerHTML='<div class="frenzy">'+t('fx.frenzy')+'</div>';setTimeout(()=>{w.innerHTML='';},2000);if(actx){const t=actx.currentTime;[523,659,784,1046].forEach((f,i)=>{const o=actx.createOscillator();o.type='square';o.frequency.value=f;const g=actx.createGain();g.gain.setValueAtTime(0.07,t+i*0.07);g.gain.exponentialRampToValueAtTime(0.001,t+i*0.07+0.2);o.connect(g);g.connect(master);o.start(t+i*0.07);o.stop(t+i*0.07+0.21);});}}
 let flashT=0;
 const deliveries=[];
 function deliver(d){
@@ -698,18 +794,18 @@ let hintGone=false;function hideHint(){if(hintGone)return;hintGone=true;$('#hint
 
 /* ---------------- shop UI ---------------- */
 const upEl=$('#upgrades');const rows={};
-UP.forEach(u=>{const r=document.createElement('div');r.className='up';r.innerHTML=`<div class="ic"><svg viewBox="0 0 24 24">${ICON[u.icon]}</svg></div><div class="tx"><div class="nm">${u.name} <em></em></div><div class="en">${u.en}</div><div class="ef"></div></div><button type="button" id="buy-${u.id}"></button>`;upEl.appendChild(r);const b=r.querySelector('button');b.addEventListener('click',()=>buy(u,r));rows[u.id]={r,b,lv:r.querySelector('em'),ef:r.querySelector('.ef'),last:''};});
+UP.forEach(u=>{const r=document.createElement('div');r.className='up';r.innerHTML=`<div class="ic"><svg viewBox="0 0 24 24">${ICON[u.icon]}</svg></div><div class="tx"><div class="nm"><span class="nmT"></span> <em></em></div><div class="en"></div><div class="ef"></div></div><button type="button" id="buy-${u.id}"></button>`;upEl.appendChild(r);const b=r.querySelector('button');b.addEventListener('click',()=>buy(u,r));rows[u.id]={r,b,lv:r.querySelector('em'),ef:r.querySelector('.ef'),nm:r.querySelector('.nmT'),ds:r.querySelector('.en'),last:''};});
 function buy(u,r){initAudio();const l=S.lv[u.id];if(l>=u.max)return;const c=cost(u);if(S.money<c)return;S.money-=c;S.lv[u.id]++;sfxBuy();r.classList.remove('flash');void r.offsetWidth;r.classList.add('flash');applyCounts();dirty=true;save();}
 let dirty=true;
-function renderShop(){let any=false;for(const u of UP){const o=rows[u.id],l=S.lv[u.id],mx=l>=u.max,c=cost(u);const key=l+'|'+(mx?'m':(S.money>=c?'y':'n'))+'|'+c;if(o.last===key&&!dirty)continue;o.last=key;o.lv.textContent=l?('lvl '+l):'new';o.ef.textContent=mx?'Maxed out':u.ef(l);if(mx){o.b.textContent='MAX';o.b.disabled=true;o.b.classList.add('max');}else{o.b.textContent=fmt(c)+' kr';o.b.disabled=S.money<c;o.b.classList.remove('max');if(S.money>=c)any=true;}if(!mx&&S.money>=c)any=true;}
+function renderShop(){let any=false;for(const u of UP){const o=rows[u.id],l=S.lv[u.id],mx=l>=u.max,c=cost(u);const key=LANG+'|'+l+'|'+(mx?'m':(S.money>=c?'y':'n'))+'|'+c;if(o.last===key&&!dirty)continue;o.last=key;o.nm.textContent=t('up.'+u.id);o.ds.textContent=t('up.'+u.id+'.d');o.lv.textContent=l?t('shop.lvl',l):t('shop.new');o.ef.textContent=mx?t('shop.maxed'):u.ef(l);if(mx){o.b.textContent=t('shop.max');o.b.disabled=true;o.b.classList.add('max');}else{o.b.textContent=fmt(c)+' kr';o.b.disabled=S.money<c;o.b.classList.remove('max');if(S.money>=c)any=true;}if(!mx&&S.money>=c)any=true;}
   $('#shopDot').hidden=!any;}
 function applyCounts(){dogs.forEach((d,i)=>{const on=i<1+S.lv.dogs;if(on&&!d.on){d.on=true;d.g.visible=true;d.appear=0;burst(d.x,groundY(d.x,d.z)+0.6,d.z,FXM.smoke,10,2,0.2,1.5,0.6,0);}else if(!on&&d.on){d.on=false;d.g.visible=false;d.carried.forEach(h=>{d.g.remove(h.g);scene.add(h.g);despawn(h);});d.carried.length=0;if(d.target)d.target.claimed=false;d.target=null;d.state='home';}});pileMesh.count=Math.min(S.count,PILE_MAX);}
 $('#shopOpen').addEventListener('click',()=>$('#shop').classList.add('open'));
 $('#shopClose').addEventListener('click',()=>$('#shop').classList.remove('open'));
-const soundBtn=$('#sound');function syncSound(){soundBtn.textContent='Sound: '+(S.sound?'on':'off');if(master)master.gain.value=S.sound?0.6:0;}
+const soundBtn=$('#sound');function syncSound(){soundBtn.textContent=t(S.sound?'snd.on':'snd.off');if(master)master.gain.value=S.sound?0.6:0;}
 soundBtn.addEventListener('click',()=>{initAudio();S.sound=!S.sound;syncSound();save();});
 let resetArm=0;const resetBtn=$('#reset');
-resetBtn.addEventListener('click',()=>{if(performance.now()-resetArm<3000){S.money=0;S.count=0;S.shot=0;for(const k in S.lv)S.lv[k]=0;ammo=magSize(0);reloading=0;S.won=false;S.unlocked=0;if(S.area!==0){S.area=0;buildArea(AREAS[0]);placeHelpers();placeCamera();applyAreaHUD();}hares.forEach(h=>{if(h.state!=='off'){if(h.g.parent!==scene){h.g.parent.remove(h.g);scene.add(h.g);}despawn(h);}});dogs.forEach(d=>{d.carried.length=0;d.target=null;d.state='home';d.x=d.hx;d.z=d.hz;});applyCounts();save();resetBtn.textContent='Start over';resetBtn.classList.remove('warn');resetArm=0;dirty=true;}else{resetArm=performance.now();resetBtn.textContent='Tap again to confirm';resetBtn.classList.add('warn');setTimeout(()=>{if(performance.now()-resetArm>=2900){resetBtn.textContent='Start over';resetBtn.classList.remove('warn');}},3000);}});
+resetBtn.addEventListener('click',()=>{if(performance.now()-resetArm<3000){S.money=0;S.count=0;S.shot=0;for(const k in S.lv)S.lv[k]=0;ammo=magSize(0);reloading=0;S.won=false;S.unlocked=0;if(S.area!==0){S.area=0;buildArea(AREAS[0]);placeHelpers();placeCamera();applyAreaHUD();}hares.forEach(h=>{if(h.state!=='off'){if(h.g.parent!==scene){h.g.parent.remove(h.g);scene.add(h.g);}despawn(h);}});dogs.forEach(d=>{d.carried.length=0;d.target=null;d.state='home';d.x=d.hx;d.z=d.hz;});applyCounts();save();resetBtn.textContent=t('reset');resetBtn.classList.remove('warn');resetArm=0;dirty=true;}else{resetArm=performance.now();resetBtn.textContent=t('reset.confirm');resetBtn.classList.add('warn');setTimeout(()=>{if(performance.now()-resetArm>=2900){resetBtn.textContent=t('reset');resetBtn.classList.remove('warn');}},3000);}});
 
 /* ---------------- HUD ---------------- */
 const moneyEl=$('#money'),countEl=$('#count'),rateEl=$('#rate'),comboEl=$('#combo'),comboN=$('#comboN'),comboBar=$('#comboBar'),comboLbl=$('#comboLbl');
@@ -717,9 +813,9 @@ let shownMoney=0,hudT=0;
 function updateHUD(dt){
   shownMoney+=(S.money-shownMoney)*(1-Math.exp(-10*dt));if(Math.abs(S.money-shownMoney)<0.5)shownMoney=S.money;
   moneyEl.textContent=fmt(shownMoney);countEl.textContent=fmt(S.count);
-  hudT-=dt;if(hudT<=0){hudT=0.25;const now=performance.now();while(deliveries.length&&now-deliveries[0][0]>60000)deliveries.shift();const sum=deliveries.reduce((a,b)=>a+b[1],0);const span=deliveries.length?Math.max(10,(now-deliveries[0][0])/1000):60;rateEl.textContent='≈ '+fmt(sum*60/span)+' kr/min';renderShop();renderNext();dirty=false;}
-  if(frenzyT>0){comboEl.hidden=false;comboN.textContent='x'+combo;comboBar.style.width=(frenzyT/7*100)+'%';comboLbl.textContent='FRENZY · '+Math.ceil(frenzyT)+' s';}
-  else if(combo>=2){comboEl.hidden=false;comboN.textContent='x'+combo;comboBar.style.width=(frenzyCharge/FRENZY_AT*100)+'%';comboLbl.textContent='FRENZY '+frenzyCharge+'/'+FRENZY_AT;}
+  hudT-=dt;if(hudT<=0){hudT=0.25;const now=performance.now();while(deliveries.length&&now-deliveries[0][0]>60000)deliveries.shift();const sum=deliveries.reduce((a,b)=>a+b[1],0);const span=deliveries.length?Math.max(10,(now-deliveries[0][0])/1000):60;rateEl.textContent=t('hud.rate',fmt(sum*60/span));renderShop();renderNext();dirty=false;}
+  if(frenzyT>0){comboEl.hidden=false;comboN.textContent='x'+combo;comboBar.style.width=(frenzyT/7*100)+'%';comboLbl.textContent=t('combo.left',Math.ceil(frenzyT));}
+  else if(combo>=2){comboEl.hidden=false;comboN.textContent='x'+combo;comboBar.style.width=(frenzyCharge/FRENZY_AT*100)+'%';comboLbl.textContent=t('combo.frenzy')+' '+frenzyCharge+'/'+FRENZY_AT;}
   else comboEl.hidden=true;
   renderAmmo();
   cross.style.transform=`translate(${aimX}px,${aimY}px)`;
@@ -727,7 +823,7 @@ function updateHUD(dt){
 }
 
 const ammoEl=$('#ammo'),shellsEl=$('#shells'),rlBar=$('#rlBar');let ammoKey='';
-function renderAmmo(){const m=magSize(S.lv.mag),fr=frenzyT>0;ammoEl.classList.toggle('reloading',reloading>0);ammoEl.classList.toggle('inf',fr&&reloading<=0);
+function renderAmmo(){const m=magSize(S.lv.mag),fr=frenzyT>0;if(ammoEl.dataset.free!==t('ammo.free'))ammoEl.dataset.free=t('ammo.free');ammoEl.classList.toggle('reloading',reloading>0);ammoEl.classList.toggle('inf',fr&&reloading<=0);
   if(reloading>0)rlBar.style.width=((1-reloading/reloadDur)*100)+'%';
   const key=ammo+'/'+m;if(key===ammoKey)return;ammoKey=key;const show=Math.min(m,12);let h='';for(let i=0;i<show;i++)h+=`<span class="shell${i>=ammo?' spent':''}"></span>`;if(m>12)h+=`<span class="more">${ammo}/${m}</span>`;shellsEl.innerHTML=h;}
 function emptyKick(){ammoEl.classList.remove('empty');void ammoEl.offsetWidth;ammoEl.classList.add('empty');}
@@ -739,15 +835,15 @@ canvas.addEventListener('contextmenu',e=>{e.preventDefault();initAudio();startRe
 /* ---------------- hunting grounds UI ---------------- */
 const mapWrap=$('#mapWrap'),areasEl=$('#areas'),goalEl=$('#goal'),fadeEl=$('#fade');
 let traveling=false,mapOpen=false;
-function applyAreaHUD(){$('#areaName').textContent=A().name;$('#areaDate').textContent=A().date;}
+function applyAreaHUD(){$('#areaName').textContent=A().name;$('#areaDate').textContent=t('a'+S.area+'.date');}
 let areasKey='';
 function renderAreas(force){
-  const nx=AREAS[S.unlocked+1];const key=S.area+'|'+S.unlocked+'|'+(nx&&S.money>=nx.cost);
+  const nx=AREAS[S.unlocked+1];const key=LANG+'|'+S.area+'|'+S.unlocked+'|'+(nx&&S.money>=nx.cost);
   if(force||key!==areasKey){areasKey=key;areasEl.innerHTML=AREAS.map((a,i)=>{const here=i===S.area,open=i<=S.unlocked,nextUp=i===S.unlocked+1;
-    let btn;if(here)btn='<button type="button" class="go2" disabled>You are here</button>';else if(open)btn=`<button type="button" class="go2" data-go="${i}">Go hunt</button>`;else if(nextUp)btn=`<button type="button" data-unlock="${i}" ${S.money<a.cost?'disabled':''}>Unlock · ${fmt(a.cost)} kr</button>`;else btn='<button type="button" disabled>Locked</button>';
-    return `<div class="area${here?' here':''}${!open&&!nextUp?' locked':''}"><div class="n">${i+1}</div><div class="t"><b>${a.name}</b><small>${a.field} · ${a.date}</small><p>${a.fact}</p><span class="mul">×${a.value} kr per hare · ×${a.spawn} hares</span></div>${btn}</div>`;}).join('');}
-  if(S.unlocked>=AREAS.length-1){const f=Math.min(1,S.money/WIN_AT);goalEl.innerHTML=S.won?'Season champion. Every outfield hunted, '+fmt(S.count)+' hares in the hjallur.':`Season record: hold ${fmt(WIN_AT)} kr to become season champion.<i><em style="width:${f*100}%"></em></i>`;}
-  else goalEl.textContent='Unlock each outfield with your earnings. Your upgrades and dogs come with you.';
+    let btn;if(here)btn=`<button type="button" class="go2" disabled>${t('map.here')}</button>`;else if(open)btn=`<button type="button" class="go2" data-go="${i}">${t('map.go')}</button>`;else if(nextUp)btn=`<button type="button" data-unlock="${i}" ${S.money<a.cost?'disabled':''}>${t('map.unlock',fmt(a.cost))}</button>`;else btn=`<button type="button" disabled>${t('map.locked')}</button>`;
+    return `<div class="area${here?' here':''}${!open&&!nextUp?' locked':''}"><div class="n">${i+1}</div><div class="t"><b>${a.name}</b><small>${t('a'+i+'.field')} · ${t('a'+i+'.date')}</small><p>${t('a'+i+'.fact')}</p><span class="mul">${t('map.mul',a.value,dec(a.spawn,2).replace(/[.,]?0+$/,''))}</span></div>${btn}</div>`;}).join('');}
+  if(S.unlocked>=AREAS.length-1){const f=Math.min(1,S.money/WIN_AT);goalEl.innerHTML=S.won?t('map.champ',fmt(S.count)):`${t('map.record',fmt(WIN_AT))}<i><em style="width:${f*100}%"></em></i>`;}
+  else goalEl.textContent=t('map.goal');
 }
 areasEl.addEventListener('click',e=>{const g=e.target.closest('[data-go]'),u=e.target.closest('[data-unlock]');
   if(g)travel(+g.dataset.go);
@@ -762,16 +858,17 @@ function clearField(){dogs.forEach(d=>{if(d.carried.length)deliver(d);if(d.targe
 function seedHares(){for(let i=0;i<4;i++){const r=fieldRocks[i%fieldRocks.length];spawnHare(r.x+0.8,r.z+0.8);}hares.forEach(h=>{if(h.state==='hop'){h.emerge=1;h.g.scale.setScalar(HSCALE);}});}
 function travel(i){if(traveling||i===S.area||i>S.unlocked)return;traveling=true;closeMap();firing=false;fadeEl.classList.add('on');
   setTimeout(()=>{clearField();S.area=i;buildArea(AREAS[i]);placeHelpers();placeCamera();applyAreaHUD();spawnAcc=0;seedHares();save();dirty=true;
-    setTimeout(()=>{fadeEl.classList.remove('on');traveling=false;const w=$('#frenzyWrap');w.innerHTML=`<div class="arrive"><b>${AREAS[i].name}</b><span>${AREAS[i].field} · ${AREAS[i].date}</span></div>`;setTimeout(()=>{w.innerHTML='';},2900);},120);},380);}
+    setTimeout(()=>{fadeEl.classList.remove('on');traveling=false;const w=$('#frenzyWrap');w.innerHTML=`<div class="arrive"><b>${AREAS[i].name}</b><span>${t('a'+i+'.field')} · ${t('a'+i+'.date')}</span></div>`;setTimeout(()=>{w.innerHTML='';},2900);},120);},380);}
 const nextEl=$('#next'),nextLbl=$('#nextLbl'),nextBar=$('#nextBar'),areaBtn=$('#areaBtn');
 function renderNext(){let f,ready=false;
-  if(S.unlocked<AREAS.length-1){const a=AREAS[S.unlocked+1];f=S.money/a.cost;ready=f>=1;nextLbl.textContent=ready?`${a.name} is ready to unlock`:`Next: ${a.name} · ${fmt(S.money)} / ${fmt(a.cost)} kr`;}
-  else if(!S.won){f=S.money/WIN_AT;nextLbl.textContent=`Season record · ${fmt(S.money)} / ${fmt(WIN_AT)} kr`;}
-  else{f=1;nextLbl.textContent='Season champion';}
+  if(S.unlocked<AREAS.length-1){const a=AREAS[S.unlocked+1];f=S.money/a.cost;ready=f>=1;nextLbl.textContent=ready?t('next.ready',a.name):t('next.next',a.name,fmt(S.money),fmt(a.cost));}
+  else if(!S.won){f=S.money/WIN_AT;nextLbl.textContent=t('next.record',fmt(S.money),fmt(WIN_AT));}
+  else{f=1;nextLbl.textContent=t('next.champ');}
   nextBar.style.width=Math.min(100,f*100)+'%';nextEl.classList.toggle('ready',ready);areaBtn.classList.toggle('ready',ready);
-  if(S.unlocked>=AREAS.length-1&&!S.won&&S.money>=WIN_AT){S.won=true;save();firing=false;$('#winText').textContent=`Every outfield from Vestmanna to Slættaratindur, hunted in one season. ${fmt(S.count)} hares fetched with ${fmt(S.shot)} shots.`;$('#winWrap').hidden=false;}
+  if(S.unlocked>=AREAS.length-1&&!S.won&&S.money>=WIN_AT){S.won=true;save();firing=false;$('#winText').textContent=t('win.text',fmt(S.count),fmt(S.shot));$('#winWrap').hidden=false;}
   if(mapOpen)renderAreas();}
 $('#winClose').addEventListener('click',()=>{$('#winWrap').hidden=true;});
+langHooks.push(()=>{applyAreaHUD();syncSound();resetBtn.textContent=t('reset');dirty=true;renderShop();renderNext();if(mapOpen)renderAreas(true);if(!$('#winWrap').hidden)$('#winText').textContent=t('win.text',fmt(S.count),fmt(S.shot));hudT=0;});
 
 /* ---------------- main loop ---------------- */
 let spawnAcc=0.6,last=performance.now(),saveT=0;
