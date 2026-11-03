@@ -45,8 +45,10 @@ h1{font:400 clamp(48px,11vw,108px)/1 var(--display);margin:18px 0 10px;color:var
 @keyframes drift{to{transform:translateX(calc(100vw + 320px))}}
 
 /* Games */
-main{position:relative;z-index:3;max-width:1160px;margin:-120px auto 0;padding:0 16px 48px}
-.grid{display:grid;grid-template-columns:repeat(auto-fit,minmax(min(100%,330px),1fr));gap:22px}
+main{position:relative;z-index:3;max-width:1340px;margin:-120px auto 0;padding:0 16px 48px}
+.grid{display:grid;grid-template-columns:repeat(4,minmax(0,1fr));gap:22px}
+@media (max-width:1299px){.grid{grid-template-columns:repeat(2,minmax(0,1fr))}main{max-width:1000px}}
+@media (max-width:699px){.grid{grid-template-columns:minmax(0,1fr)}}
 .card{display:flex;flex-direction:column;background:var(--paper-solid);border-radius:24px;overflow:hidden;
   box-shadow:0 14px 40px rgba(53,47,69,.18);text-decoration:none;transition:transform .18s ease,box-shadow .18s ease}
 .card:hover{transform:translateY(-4px);box-shadow:0 20px 50px rgba(53,47,69,.24)}
@@ -67,6 +69,7 @@ main{position:relative;z-index:3;max-width:1160px;margin:-120px auto 0;padding:0
   font:400 22px var(--display);padding:12px 22px 12px 18px;border-radius:14px;box-shadow:0 3px 0 rgba(0,0,0,.15)}
 .card.fish .play{background:var(--blue)}
 .card.sheep .play{background:#4f8a5c}
+.card.row .play{background:#352f45}
 .play svg{width:18px;height:18px;fill:currentColor}
 .card:hover .play{filter:brightness(1.07)}
 
@@ -248,6 +251,52 @@ footer .stripe{display:block;width:72px;height:6px;margin:0 auto 14px;border-rad
       </div>
     </a>
 
+    <a class="card row" href="kapprodur/">
+      <div class="art">
+        <svg viewBox="0 0 400 250" preserveAspectRatio="xMidYMid slice" aria-hidden="true">
+          <defs>
+            <linearGradient id="rs" x1="0" y1="0" x2="0" y2="1"><stop offset="0" stop-color="#d8cfe6"/><stop offset="1" stop-color="#f2edf6"/></linearGradient>
+            <linearGradient id="rsea" x1="0" y1="0" x2="0" y2="1"><stop offset="0" stop-color="#7896bd"/><stop offset="1" stop-color="#40669a"/></linearGradient>
+          </defs>
+          <rect width="400" height="250" fill="url(#rs)"/>
+          <path d="M0 120 L50 70 L110 100 L170 55 L220 120Z" fill="#b2a8c7"/>
+          <path d="M200 120 L270 60 L330 90 L400 50 V120Z" fill="#a69cbd"/>
+          <rect y="118" width="400" height="132" fill="url(#rsea)"/>
+          <!-- finish flags -->
+          <g transform="translate(340 96)"><path d="M0 0 V30" stroke="#352f45" stroke-width="2"/><path d="M0 0 H14 V9 H0Z" fill="#d9493a"/></g>
+          <g transform="translate(340 168)"><path d="M0 0 V30" stroke="#352f45" stroke-width="2"/><path d="M0 0 H14 V9 H0Z" fill="#d9493a"/></g>
+          <!-- wake -->
+          <path d="M40 176 q24 -4 48 0 t48 0" stroke="#fff" stroke-opacity=".45" stroke-width="3" fill="none"/>
+          <path d="M30 190 q30 -4 60 0 t60 0" stroke="#fff" stroke-opacity=".3" stroke-width="3" fill="none"/>
+          <!-- race boat -->
+          <g transform="translate(130 150)">
+            <path d="M-6 6 Q0 26 30 28 L150 28 Q178 24 186 4 Z" fill="#f7f4fa"/>
+            <path d="M-6 6 L186 4 L180 10 L0 12Z" fill="#2c5597"/>
+            <path d="M-8 6 Q-14 -6 -8 -14" stroke="#f7f4fa" stroke-width="5" fill="none" stroke-linecap="round"/>
+            <path d="M188 4 Q196 -8 190 -16" stroke="#f7f4fa" stroke-width="5" fill="none" stroke-linecap="round"/>
+            <!-- rowers -->
+            <g fill="#d9493a">
+              <circle cx="40" cy="-8" r="6"/><circle cx="72" cy="-8" r="6"/><circle cx="104" cy="-8" r="6"/><circle cx="136" cy="-8" r="6"/>
+            </g>
+            <g fill="#352f45">
+              <rect x="35" y="-2" width="10" height="10" rx="3"/><rect x="67" y="-2" width="10" height="10" rx="3"/><rect x="99" y="-2" width="10" height="10" rx="3"/><rect x="131" y="-2" width="10" height="10" rx="3"/>
+            </g>
+            <g stroke="#8a6a3c" stroke-width="3" stroke-linecap="round">
+              <path d="M42 4 L18 44"/><path d="M74 4 L50 44"/><path d="M106 4 L82 44"/><path d="M138 4 L114 44"/>
+            </g>
+            <circle cx="170" cy="-6" r="5.5" fill="#f0b23a"/>
+          </g>
+        </svg>
+        <span class="chip" data-t="row.chip">Rhythm · Racing</span>
+      </div>
+      <div class="body">
+        <div class="title"><h2 data-t="row.title">Rowing Season</h2><span data-t="row.alt">Kappróður</span></div>
+        <p data-t="row.text">Tap in time with the stroke to drive the boat. Beat the rival crews across seven fjords, train your crew in the boathouse between races, and win Ólavsøka in Tórshavn.</p>
+        <ul class="places"><li>Klaksvík</li><li>Hvalvík</li><li>Vágur</li><li>Runavík</li><li>Fuglafjørður</li><li>Miðvágur</li><li>Tórshavn</li></ul>
+        <span class="play"><svg viewBox="0 0 24 24"><path d="M7 4.5v15l12-7.5z"/></svg><span data-t="play">Play</span></span>
+      </div>
+    </a>
+
   </div>
 
   <p class="about"><span data-t="about">All the games save your progress in your own browser, so you can come back any time.</span> <b>Góða skemtan!</b></p>
@@ -269,6 +318,8 @@ const TEXT={
   'fish.text':'Cast for trout, saithe, mackerel, haddock and halibut from lakes and harbours around the islands. Upgrade your rod and bait, get a rowing boat, and ride the herring run.',
   'sheep.chip':'Idle · 3D','sheep.title':'Sheep Season','sheep.alt':'Seyðagongd',
   'sheep.text':'Whistle your sheepdogs into action and drive the flocks down from the hills into the stone pen. Train your dogs, breed better wool, and watch for the prize horned rams.',
+  'row.chip':'Rhythm · Racing','row.title':'Rowing Season','row.alt':'Kappróður',
+  'row.text':'Tap in time with the stroke to drive the boat. Beat the rival crews across seven fjords, train your crew in the boathouse between races, and win Ólavsøka in Tórshavn.',
   about:'All the games save your progress in your own browser, so you can come back any time.',made:'Made in the Faroe Islands',visits:'visits'},
  fo:{tag:'Hugnalig smá spøl úr Føroyum. Ókeypis at spæla í kaganum.',play:'Spæl',
   'hare.chip':'Idle · 3D','hare.title':'Haruveiða','hare.alt':'Hare Season',
@@ -277,6 +328,8 @@ const TEXT={
   'fish.text':'Kasta eftir aurriða, upsa, makreli, hýsu og kalva úr vøtnum og havnum kring oyggjarnar. Betra um stongina og agnið, fá tær róðrarbát, og fylg sildatorvuni.',
   'sheep.chip':'Idle · 3D','sheep.title':'Seyðagongd','sheep.alt':'Sheep Season',
   'sheep.text':'Blíst eftir seyðahundunum og rek flokkarnar oman úr haganum inn í rættina. Ven hundarnar, fá betri ull, og hygg eftir dýru hornaðu veðrunum.',
+  'row.chip':'Takt · Kappróður','row.title':'Kappróður','row.alt':'Rowing Season',
+  'row.text':'Trýst í takt við áratøkini, so báturin fer. Vinn á hinum manningunum í sjey fjørðum, ven manningina í neystinum millum kappróðrarnar og vinn Ólavsøkuróðurin í Havn.',
   about:'Spølini goyma, hvussu langt tú ert komin, í tínum egna kaga, so tú kanst koma aftur nær tú vilt.',made:'Gjørt í Føroyum',visits:'vitjanir'}
 };
 (function(){let L='en';try{const v=localStorage.getItem('spael-lang');L=v==='fo'||v==='en'?v:((navigator.language||'').toLowerCase().startsWith('fo')?'fo':'en');}catch(e){}

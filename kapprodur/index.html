@@ -1,0 +1,947 @@
+<!doctype html><html><head><meta charset=utf8><meta name=viewport content="width=device-width,initial-scale=1,viewport-fit=cover"><style>:root{color-scheme:light;box-sizing:border-box;padding-top:env(safe-area-inset-top,0px);padding-bottom:env(safe-area-inset-bottom,0px)}html{scroll-padding-top:env(safe-area-inset-top,0px)}body{margin:0;padding:0;font:14px -apple-system,BlinkMacSystemFont,sans-serif;background:#fff;color:#000}img{max-width:100%}[hidden]:not([hidden=until-found i]){display:none!important}</style></head><body>
+<title>Kappróður</title>
+<meta name="claude:viewport-fit-sides" content="cover">
+<link rel="preconnect" href="https://fonts.googleapis.com">
+<link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+<link rel="stylesheet" href="https://fonts.googleapis.com/css2?family=Bowlby+One&family=Barlow+Semi+Condensed:wght@400;500;600;700&display=swap">
+<style>
+/* Layout: full-bleed fjord canvas; regatta-programme cards (white paper, flag red + blue ink, hard offset shadow like a painted strake) float over it */
+:root{
+  --ink:#14294a; --paper:#f6f8fa; --red:#c8102e; --blue:#1c4f8f; --muted:#56657a; --line:#cfd8e2; --gold:#d9a521; --sea:#25435a;
+  --f-display:"Bowlby One","Arial Black",Impact,sans-serif;
+  --f-body:"Barlow Semi Condensed","Arial Narrow",system-ui,sans-serif;
+  color-scheme:light;
+}
+html,body{height:100%}
+body{background:var(--sea);color:var(--ink);font-family:var(--f-body);font-size:16px;overflow:hidden;-webkit-tap-highlight-color:transparent;-webkit-user-select:none;user-select:none}
+#app{position:relative;height:100%;overflow:hidden}
+canvas{position:absolute;inset:0;width:100%;height:100%;display:block;touch-action:none;cursor:pointer}
+.screen{position:absolute;inset:0;overflow-y:auto;display:flex;justify-content:center;align-items:flex-start;padding-block:60px 28px;padding-left:max(16px,env(safe-area-inset-left,0px));padding-right:max(16px,env(safe-area-inset-right,0px));background:linear-gradient(rgba(20,41,74,.05),rgba(20,41,74,.5))}
+.card{width:100%;max-width:440px;margin:auto 0;background:var(--paper);border:2px solid var(--ink);box-shadow:6px 6px 0 var(--ink);padding:22px 20px;display:flex;flex-direction:column;gap:16px}
+.eyebrow{margin:0;font-weight:700;font-size:13px;letter-spacing:.12em;text-transform:uppercase;color:var(--red)}
+h1,h2,h3{font-family:var(--f-display);font-weight:400;margin:0;line-height:1;text-wrap:balance;color:var(--ink)}
+h1{font-size:clamp(40px,12vw,56px);letter-spacing:-.01em}
+h2{font-size:32px}
+h3{font-size:15px;font-family:var(--f-body);font-weight:700;letter-spacing:.12em;text-transform:uppercase;color:var(--muted)}
+p{margin:0;line-height:1.4}
+.lede{font-size:17px;color:var(--ink)}
+.stripe{height:8px;background:linear-gradient(var(--blue) 0 35%,var(--paper) 35% 50%,var(--red) 50% 100%);margin:-4px 0 0}
+label{font-weight:700;font-size:13px;letter-spacing:.1em;text-transform:uppercase;color:var(--muted)}
+input[type=text]{font:600 20px var(--f-body);color:var(--ink);background:#fff;border:2px solid var(--ink);padding:8px 10px;width:100%;box-sizing:border-box;-webkit-user-select:text;user-select:text}
+.field{display:flex;flex-direction:column;gap:6px}
+.btn{font:700 18px var(--f-body);letter-spacing:.04em;border:2px solid var(--ink);background:#fff;color:var(--ink);padding:12px 16px;cursor:pointer;border-radius:3px;min-height:48px;transition:transform .08s,box-shadow .08s}
+.btn:focus-visible,input:focus-visible,.link:focus-visible{outline:3px solid var(--gold);outline-offset:2px}
+.btn.primary{background:var(--red);color:#fff;box-shadow:4px 4px 0 var(--blue);font-size:20px}
+.btn.primary:active{transform:translate(3px,3px);box-shadow:1px 1px 0 var(--blue)}
+.btn:disabled{opacity:.4;cursor:not-allowed;box-shadow:none}
+.btn.small{min-height:40px;padding:6px 12px;font-size:15px}
+.row{display:flex;gap:10px;flex-wrap:wrap}
+.row>.btn{flex:1 1 140px}
+.link{background:none;border:0;color:var(--muted);font:600 14px var(--f-body);text-decoration:underline;cursor:pointer;padding:4px}
+.season{list-style:none;margin:0;padding:0;display:flex;flex-direction:column;border-top:1px solid var(--line)}
+.season li{display:grid;grid-template-columns:28px 1fr auto;gap:10px;align-items:baseline;padding:8px 0;border-bottom:1px solid var(--line)}
+.season .n{font-variant-numeric:tabular-nums;color:var(--muted);font-weight:700}
+.season .r{font-weight:600}
+.season .r small{color:var(--muted);font-weight:500}
+.season .res{font-weight:700;font-variant-numeric:tabular-nums;color:var(--muted)}
+.season li.cur{background:#e8eef6;margin:0 -8px;padding-left:8px;padding-right:8px}
+.season li.cur .res{color:var(--red)}
+.season .gold{color:var(--gold)}
+.help{display:flex;flex-direction:column;gap:8px;font-size:16px;background:#fff;border:1px solid var(--line);padding:12px 14px}
+.help b{color:var(--red)}
+.facts{display:grid;grid-template-columns:repeat(3,1fr);gap:0;border:2px solid var(--ink)}
+.facts div{padding:8px 10px;border-right:1px solid var(--line);min-width:0}
+.facts div:last-child{border-right:0}
+.facts dt{font-size:12px;letter-spacing:.1em;text-transform:uppercase;color:var(--muted);font-weight:700}
+.facts dd{margin:2px 0 0;font-weight:700;font-size:18px;font-variant-numeric:tabular-nums}
+dl{margin:0}
+.rivals{display:flex;flex-direction:column;gap:6px;margin:0;padding:0;list-style:none}
+.rivals li{display:flex;align-items:center;gap:10px;font-weight:600}
+.rivals small{color:var(--muted);font-weight:500;margin-left:auto}
+.chip{width:22px;height:12px;border:1px solid var(--ink);flex:none}
+.tbl{width:100%;border-collapse:collapse;font-variant-numeric:tabular-nums}
+.tbl td{padding:8px 4px;border-bottom:1px solid var(--line);font-weight:600}
+.tbl td:last-child{text-align:right}
+.tbl tr.you td{color:var(--red)}
+.big{font-family:var(--f-display);font-size:64px;line-height:.9;color:var(--red)}
+.money{display:flex;gap:10px;flex-wrap:wrap}
+.pill{display:inline-flex;align-items:center;gap:6px;border:2px solid var(--ink);padding:4px 10px;font-weight:700;font-variant-numeric:tabular-nums;background:#fff}
+.pill.kr{background:var(--ink);color:#fff}
+.up{display:grid;grid-template-columns:1fr auto;gap:4px 12px;align-items:center;padding:10px 0;border-bottom:1px solid var(--line)}
+.up .nm{font-weight:700;font-size:18px}
+.up .nm small{font-weight:500;color:var(--muted);font-size:14px;margin-left:4px}
+.up .ds{grid-column:1;font-size:14px;color:var(--muted)}
+.up .btn{grid-row:1/span 3;grid-column:2;min-width:112px}
+.pips{display:flex;gap:4px;grid-column:1}
+.pips i{width:16px;height:8px;border:1.5px solid var(--ink);display:block}
+.pips i.on{background:var(--blue)}
+.note{font-size:14px;color:var(--muted)}
+.banner{background:var(--red);color:#fff;padding:10px 12px;font-weight:700;letter-spacing:.04em}
+#pausebtn{position:absolute;top:8px;right:max(10px,env(safe-area-inset-right,0px));width:44px;height:44px;border:2px solid var(--ink);background:var(--paper);color:var(--ink);font:700 16px var(--f-body);cursor:pointer;border-radius:3px;z-index:5}
+.lang{position:absolute;top:10px;right:max(12px,env(safe-area-inset-right,0px));z-index:6;display:inline-flex;padding:3px;background:var(--paper);border:2px solid var(--ink);border-radius:3px;box-shadow:3px 3px 0 var(--ink)}
+.lang button{border:0;background:transparent;padding:5px 11px;font:700 13px var(--f-body);letter-spacing:.1em;color:var(--muted);cursor:pointer;min-height:30px}
+.lang button[aria-pressed="true"]{background:var(--blue);color:#fff}
+.lang button:focus-visible{outline:3px solid var(--gold);outline-offset:1px}
+@media (prefers-reduced-motion:reduce){.btn{transition:none}}
+</style>
+
+<div id="app">
+  <canvas id="cv" aria-label="Rowing race. Tap or press Space in time with the stroke."></canvas>
+  <button id="pausebtn" hidden aria-label="Pause">II</button>
+  <div class="lang" id="lang" role="group" aria-label="Language"><button type="button" data-lang="en" aria-pressed="true">EN</button><button type="button" data-lang="fo" aria-pressed="false">FO</button></div>
+
+  <section class="screen" id="s-title">
+    <div class="card">
+      <p class="eyebrow" id="t-eyebrow"></p>
+      <h1>Kappróður</h1>
+      <div class="stripe"></div>
+      <p class="lede" data-t="lede"></p>
+      <div class="field"><label for="boatname" data-t="yourBoat"></label><input type="text" id="boatname" maxlength="16" autocomplete="off"></div>
+      <div><h3 style="margin-bottom:8px" data-t="seasonH"></h3><ol class="season" id="t-list"></ol></div>
+      <button class="btn primary" id="t-go"></button>
+      <div class="row"><button class="btn" id="t-help" data-t="howTo"></button><button class="btn" id="t-shed" data-t="boathouse"></button></div>
+      <div class="help" id="help" hidden>
+        <p data-th="help1"></p><p data-th="help2"></p><p data-th="help3"></p><p data-th="help4"></p>
+      </div>
+      <div class="row" style="justify-content:space-between;align-items:center">
+        <button class="link" id="t-mute"></button>
+        <span><button class="link" id="t-reset" data-t="startOver"></button>
+        <span id="t-confirm" hidden> <span data-t="eraseQ"></span> <button class="link" id="t-yes" style="color:var(--red)" data-t="erase"></button> <button class="link" id="t-no" data-t="keep"></button></span></span>
+      </div>
+    </div>
+  </section>
+
+  <section class="screen" id="s-pre" hidden>
+    <div class="card">
+      <p class="eyebrow" id="p-eyebrow"></p>
+      <h2 id="p-name"></h2>
+      <p class="lede" id="p-place"></p>
+      <dl class="facts">
+        <div><dt data-t="course"></dt><dd id="p-dist"></dd></div>
+        <div><dt data-t="sea"></dt><dd id="p-sea"></dd></div>
+        <div><dt data-t="purse"></dt><dd id="p-purse"></dd></div>
+      </dl>
+      <div><h3 style="margin-bottom:8px" data-t="onLine"></h3><ul class="rivals" id="p-rivals"></ul></div>
+      <p class="note" id="p-tip"></p>
+      <button class="btn primary" id="p-go" data-t="startRace"></button>
+      <button class="btn" id="p-back" data-t="back"></button>
+    </div>
+  </section>
+
+  <section class="screen" id="s-pause" hidden>
+    <div class="card">
+      <h2 data-t="paused"></h2>
+      <button class="btn primary" id="z-resume" data-t="resume"></button>
+      <button class="btn" id="z-quit" data-t="leave"></button>
+      <button class="link" id="z-mute"></button>
+    </div>
+  </section>
+
+  <section class="screen" id="s-res" hidden>
+    <div class="card">
+      <p class="eyebrow" id="r-eyebrow"></p>
+      <div class="big" id="r-place"></div>
+      <h2 id="r-title" style="font-size:24px"></h2>
+      <table class="tbl"><tbody id="r-table"></tbody></table>
+      <div class="money" id="r-money"></div>
+      <p class="note" id="r-stats"></p>
+      <button class="btn primary" id="r-go"></button>
+    </div>
+  </section>
+
+  <section class="screen" id="s-shed" hidden>
+    <div class="card">
+      <p class="eyebrow" data-t="shedEyebrow"></p>
+      <h2 id="b-boat"></h2>
+      <div class="money" id="b-money"></div>
+      <div>
+        <h3><span data-t="trainH"></span> <span style="font-weight:500;letter-spacing:0;text-transform:none" data-t="trainSub"></span></h3>
+        <div id="b-crew"></div>
+      </div>
+      <div>
+        <h3><span data-t="fitH"></span> <span style="font-weight:500;letter-spacing:0;text-transform:none" data-t="fitSub"></span></h3>
+        <div id="b-boatups"></div>
+      </div>
+      <p class="note" data-t="shedNote"></p>
+      <button class="btn primary" id="b-go"></button>
+      <button class="btn" id="b-menu" data-t="overview"></button>
+    </div>
+  </section>
+
+  <section class="screen" id="s-end" hidden>
+    <div class="card">
+      <p class="eyebrow" id="e-eyebrow"></p>
+      <h2 id="e-title"></h2>
+      <div class="banner" id="e-banner" hidden></div>
+      <p class="lede" id="e-text"></p>
+      <ol class="season" id="e-list"></ol>
+      <button class="btn primary" id="e-go" data-t="nextSeason"></button>
+      <button class="btn" id="e-shed" data-t="shedFirst"></button>
+    </div>
+  </section>
+</div>
+
+<script>
+(() => {
+'use strict';
+const $ = s => document.getElementById(s);
+const cv = $('cv'), ctx = cv.getContext('2d');
+let W = 0, H = 0, DPR = 1;
+function resize(){ const r = cv.getBoundingClientRect(); DPR = Math.min(2, window.devicePixelRatio || 1); W = r.width; H = r.height; cv.width = Math.round(W*DPR); cv.height = Math.round(H*DPR); ctx.setTransform(DPR,0,0,DPR,0,0); }
+addEventListener('resize', resize);
+
+/* ---------- data ---------- */
+const REG = [
+  {name:'Norðoyastevna', place:'Klaksvík',     dist:400, ai:5.8,  chop:0,   sky:['#b7c7d3','#e5ebee'], hill:'#55703f'},
+  {name:'Sundalagsstevna', place:'Hvalvík',    dist:450, ai:7.2,  chop:.03, sky:['#a6bacb','#dee7ea'], hill:'#4f6b3d'},
+  {name:'Jóansøka',      place:'Vágur',        dist:500, ai:8.6,  chop:0,   sky:['#7eadd5','#d6e6ef'], hill:'#5a7840'},
+  {name:'Eystanstevna',  place:'Runavík',      dist:500, ai:10.0, chop:.05, sky:['#9cb1c3','#e9e2d5'], hill:'#536d3f'},
+  {name:'Varmakelda',    place:'Fuglafjørður', dist:550, ai:11.6, chop:.02, sky:['#c1c9cf','#eceeed'], hill:'#5d7348'},
+  {name:'Vestanstevna',  place:'Miðvágur',     dist:600, ai:13.2, chop:.07, sky:['#7aa3c7','#e2e8e3'], hill:'#4c693a'},
+  {name:'Ólavsøka',      place:'Tórshavn',     dist:700, ai:15.2, chop:.02, sky:['#6a83b2','#f1d2a2'], hill:'#4a6236', final:true},
+];
+const CREWS = [
+  {n:'Lundin',   club:'Hvannasund', c:['#d9a521','#1f2328']},
+  {n:'Skarvur',  club:'Sandavágur', c:['#2f7d4f','#f1efe8']},
+  {n:'Grindin',  club:'Hvalba',     c:['#7a2a3a','#d9a521']},
+  {n:'Sílið',    club:'Gøta',       c:['#3a8fb7','#f1efe8']},
+  {n:'Kjalvi',   club:'Vestmanna',  c:['#d9682b','#1f2328']},
+  {n:'Havørnin', club:'Tvøroyri',   c:['#5b4a8a','#e9e2d5']},
+  {n:'Ternan',   club:'Sørvágur',   c:['#1f2328','#c8102e']},
+  {n:'Gásin',    club:'Eiði',       c:['#8a9a3a','#1f2328']},
+];
+const ME_COL = ['#c8102e','#1c4f8f'];
+const CLASS = [
+  {n:'5-mannafar', crew:5,  len:8,    p:0,   cost:0},
+  {n:'6-mannafar', crew:6,  len:9,    p:1,   cost:800},
+  {n:'8-mannafar', crew:8,  len:10.5, p:2.2, cost:1900},
+  {n:'10-mannafar',crew:10, len:12,   p:3.5, cost:3600},
+];
+const UPCOST = [220,400,650,980,1400,1900];
+const MAXLV = 6;
+
+/* ---------- save ---------- */
+const KEY = 'kapprodur-v1';
+function fresh(){ return {season:1, idx:0, kr:120, sessions:2, crew:{power:0,endurance:0,timing:0}, boat:{oars:0,hull:0,cls:0}, name:'Tjaldur', results:[], titles:0, muted:false, lang:(/^(fo|da)\b/i.test(navigator.language || '') ? 'fo' : 'en')}; }
+let S = fresh();
+try { const raw = JSON.parse(localStorage.getItem(KEY)); if (raw && raw.crew && raw.boat) S = Object.assign(fresh(), raw); } catch(e){}
+function save(){ try { localStorage.setItem(KEY, JSON.stringify(S)); } catch(e){} }
+
+function stats(){
+  const c = S.crew, b = S.boat, k = CLASS[b.cls];
+  return { P: 6 + .6*c.power + .6*b.oars + k.p, k: .98 - .04*b.hull, drain: 3.6 - .33*c.endurance, W: .085 + .012*c.timing, cls:k };
+}
+
+/* ---------- helpers ---------- */
+function rng(seed){ return () => { seed |= 0; seed = seed + 0x6D2B79F5 | 0; let t = Math.imul(seed ^ seed >>> 15, 1 | seed); t = t + Math.imul(t ^ t >>> 7, 61 | t) ^ t; return ((t ^ t >>> 14) >>> 0) / 4294967296; }; }
+function h2(a,b){ const x = Math.sin(a*127.1 + b*311.7) * 43758.5453; return x - Math.floor(x); }
+const clamp = (v,a,b) => Math.max(a, Math.min(b, v));
+const lerp = (a,b,t) => a + (b-a)*t;
+const ord = n => S.lang === 'fo' ? n + '.' : n + (['th','st','nd','rd'][(n%100-20)%10] || ['th','st','nd','rd'][n%100] || 'th');
+const fmtT = s => { const m = Math.floor(s/60), r = s - m*60; return m + ':' + r.toFixed(1).padStart(4,'0'); };
+const purse = i => Math.round((260 + 100*i) * (1 + .1*(S.season-1)) / 10) * 10;
+const seaName = c => tr(c >= .06 ? 'choppy' : c > 0 ? 'lightChop' : 'calm');
+function hexA(hex, a){ const n = parseInt(hex.slice(1),16); return `rgba(${n>>16&255},${n>>8&255},${n&255},${a})`; }
+function mix(h1, h2c, t){ const a = parseInt(h1.slice(1),16), b = parseInt(h2c.slice(1),16); const r = Math.round(lerp(a>>16&255, b>>16&255, t)), g = Math.round(lerp(a>>8&255, b>>8&255, t)), bl = Math.round(lerp(a&255, b&255, t)); return `rgb(${r},${g},${bl})`; }
+
+/* ---------- language ---------- */
+const TX = {
+ en: {
+  eyebrow:(n, t) => `Føroyskur kappróður · Season ${n}` + (t ? ` · ${t}× Ólavsøka champion` : ''),
+  lede:'Tap in time with the stroke to drive the boat. Beat the rival crews across seven fjords, train your crew between races, and win Ólavsøka in Tórshavn.',
+  yourBoat:'Your boat', seasonH:'Regatta season', howTo:'How to row', boathouse:'Boathouse',
+  help1:'<b>Tap</b> anywhere (or press <b>Space</b>) as each oar marker reaches the red catch line.',
+  help2:'<b>Perfect</b> strokes drive hardest and build your combo. Tapping off the beat <b>catches a crab</b> and the boat nearly stops. A missed beat costs glide too.',
+  help3:'<b>Stamina</b> drains with every stroke, much faster in the final spurt. Skip a beat to let the crew breathe, but it costs speed.',
+  help4:'After each race, spend <b>training sessions</b> on the crew and <b>krónur</b> on oars, hull and a bigger boat. The favourite in every fjord is quick, so expect to lose a few early on.',
+  soundOn:'Sound: on', soundOff:'Sound: off', startOver:'Start over', eraseQ:'Erase all progress?', erase:'Erase', keep:'Keep',
+  rowFirst:'Row the first regatta', rowTo:p => `Row to ${p}`, summary:'Season summary', next:'Next',
+  regOf:(i, n) => `Regatta ${i} of 7 · Season ${n}`, finalDesc:'Tórshavn harbour on the national day. The biggest crowd of the summer and the race every crew wants.', racingIn:p => `Racing in ${p}.`,
+  course:'Course', sea:'Sea', purse:'Purse', onLine:'On the line', you:'you', favourite:'favourite', startRace:'Start race', back:'Back',
+  calm:'Calm', lightChop:'Light chop', choppy:'Choppy',
+  tips:['Count the beat out loud. Steady perfect strokes beat frantic tapping.', 'The stroke rate jumps for the final spurt over the last fifth of the course.', 'Running low on stamina? Let one beat pass. It costs a little glide, but the crew gets a breath.', 'Choppy water slows every boat. Keep the combo alive.'],
+  paused:'Paused', resume:'Resume', leave:'Leave race (no result)',
+  res1:'You won the race', resFinal:'Ólavsøka is yours!', res2:'So close. Second place.', res3:'Third. The crew wants more.', res4:'Last boat home. Back to the boathouse.',
+  champPurse:"champion's purse", session:'training session', sessions:'training sessions',
+  statsLine:s => `${s.perf} perfect · ${s.good} good · ${s.miss} missed · ${s.crab} crabs · best combo ${s.best}`, toShed:'To the boathouse',
+  shedEyebrow:'Neystið · the boathouse', trainH:'Train the crew', trainSub:'· uses a session', fitH:'Fit out the boat', fitSub:'· costs krónur',
+  shedNote:'Each race earns two training sessions. Unused sessions carry over (up to six).', overview:'Season overview',
+  power:'Power', powerD:'More drive from every stroke.', endurance:'Endurance', enduranceD:'Less fatigue, especially in the spurt.', timing:'Timing', timingD:'A wider window for good and perfect strokes.',
+  oars:'Oars', oarsD:'Longer, stiffer blades add power.', hull:'Hull', hullD:'Tar and plane the planks so she glides further.', cls:'Boat class',
+  clsD:(n, k) => `Move up to a ${n}: ${k} oars and a longer hull.`, clsMax:'The biggest boat in the fleet.', train:'Train', maxed:'Maxed',
+  endEyebrow:n => `Season ${n} complete`, champs:'Ólavsøka champions!', over:'The season is over', banner:n => `${n} took the Ólavsøka race in Tórshavn.`,
+  endWon:w => `${w} race win${w === 1 ? '' : 's'} this summer. Next season the rival crews come back faster.`,
+  endLost:w => `${w} race win${w === 1 ? '' : 's'} this summer. Keep your crew and boat, train through the winter, and go again. Rivals get faster each season.`,
+  nextSeason:'Start next season', shedFirst:'Boathouse first',
+  perfect:'Perfect', good:'Good', missed:'Missed', crab:'Caught a crab!', go:'Ro!', spurtMsg:'Spurt! Faster stroke', finFirst:'Mál! First across!', fin:'Mál!',
+  tStart:'Start', tCruise:'Cruise', tSpurt:'Spurt!', mToGo:'m to go', combo:'COMBO', stamina:'STAMINA', stamLow:'STAMINA LOW · skip a beat to recover', laneHint:'Tap as markers hit the red line',
+ },
+ fo: {
+  eyebrow:(n, t) => `Føroyskur kappróður · Summar ${n}` + (t ? ` · ${t}× Ólavsøkumeistari` : ''),
+  lede:'Trýst í takt við áratøkini, so báturin fer. Vinn á hinum manningunum í sjey fjørðum, ven manningina millum kappróðrarnar og vinn Ólavsøkuróðurin í Havn.',
+  yourBoat:'Báturin hjá tær', seasonH:'Kappróðrarnir í summar', howTo:'Soleiðis rórt tú', boathouse:'Neystið',
+  help1:'<b>Trýst</b> hvar sum helst (ella <b>Space</b>), tá ið hvørt merki kemur á reyðu strikuna.',
+  help2:'<b>Fullkomin</b> tøk geva mest ferð og byggja røðina upp. Trýstir tú uttan fyri taktina, <b>festist árin</b>, og báturin steðgar næstan. Eitt mist tak kostar eisini ferð.',
+  help3:'<b>Orkan</b> minkar við hvørjum taki, nógv skjótari í endaspurtinum. Slepp einum taki, so manningin fær andað, men tað kostar ferð.',
+  help4:'Eftir hvønn kappróður brúkar tú <b>venjingar</b> á manningina og <b>krónur</b> á árar, skrokk og størri bát. Sterkasti báturin í hvørjum fjørði er skjótur, so rokna við at tapa nakrar róðrar í fyrstuni.',
+  soundOn:'Ljóð: tendrað', soundOff:'Ljóð: sløkt', startOver:'Byrja av nýggjum', eraseQ:'Strika alt?', erase:'Strika', keep:'Varðveit',
+  rowFirst:'Ro fyrsta kappróðurin', rowTo:p => `Ro: ${p}`, summary:'Yvirlit yvir summarið', next:'Næst',
+  regOf:(i, n) => `Kappróður ${i} av 7 · Summar ${n}`, finalDesc:'Havnin á ólavsøkudag. Mesta fólkið í summar og róðurin, sum allar manningar vilja vinna.', racingIn:p => `Staður: ${p}.`,
+  course:'Leið', sea:'Sjógvur', purse:'Vinningur', onLine:'Á byrjunarlinjuni', you:'tú', favourite:'sterkastur', startRace:'Byrja róðurin', back:'Aftur',
+  calm:'Logn', lightChop:'Lítil alda', choppy:'Krappur sjógvur',
+  tips:['Tel taktina hart. Javnt fullkomin tøk eru betri enn óð trýst.', 'Taktin verður skjótari í endaspurtinum á seinasta fimtingi av leiðini.', 'Lítil orka? Slepp einum taki. Tað kostar eitt sindur av ferð, men manningin fær andað.', 'Krappur sjógvur seinkar øllum bátum. Halt røðina við lív.'],
+  paused:'Steðgað', resume:'Halt fram', leave:'Far úr róðrinum (einki úrslit)',
+  res1:'Tú vann róðurin', resFinal:'Ólavsøkuróðurin er tín!', res2:'So tætt. Nummar tvey.', res3:'Triði. Manningin vil meira.', res4:'Seinasti bátur heim. Aftur í neystið.',
+  champPurse:'meistaravinningur', session:'venjing', sessions:'venjingar',
+  statsLine:s => `${s.perf} fullkomin · ${s.good} góð · ${s.miss} mist · ${s.crab} fastar árar · besta røð ${s.best}`, toShed:'Í neystið',
+  shedEyebrow:'Neystið', trainH:'Ven manningina', trainSub:'· brúkar eina venjing', fitH:'Bøt um bátin', fitSub:'· kostar krónur',
+  shedNote:'Hvør kappróður gevur tvær venjingar. Ónýttar venjingar verða goymdar (í mesta lagi seks).', overview:'Yvirlit yvir summarið',
+  power:'Kraftur', powerD:'Meiri ferð úr hvørjum taki.', endurance:'Úthald', enduranceD:'Minni móði, serliga í endaspurtinum.', timing:'Takt', timingD:'Breiðari vindeyga fyri góð og fullkomin tøk.',
+  oars:'Árar', oarsD:'Longri og stinnari blað geva meiri kraft.', hull:'Skrokkur', hullD:'Tjøra og høvla fjalirnar, so hon glíður longur.', cls:'Bátaslag',
+  clsD:(n, k) => `Far upp í ein ${n}: ${k} árar og longri skrokkur.`, clsMax:'Størsti báturin í flotanum.', train:'Ven', maxed:'Fullgjørt',
+  endEyebrow:n => `Summar ${n} er liðið`, champs:'Ólavsøkumeistarar!', over:'Summarið er liðið', banner:n => `${n} vann Ólavsøkuróðurin í Havn.`,
+  endWon:w => `${w} vunnir róðrar í summar. Næsta summar koma hinar manningarnar aftur skjótari.`,
+  endLost:w => `${w} vunnir róðrar í summar. Varðveit manningina og bátin, ven um veturin og royn aftur. Hinar manningarnar verða skjótari hvørt summar.`,
+  nextSeason:'Byrja næsta summar', shedFirst:'Fyrst í neystið',
+  perfect:'Fullkomið', good:'Gott', missed:'Mist', crab:'Árin festist!', go:'Ro!', spurtMsg:'Endaspurt! Skjótari tøk', finFirst:'Mál! Fyrst yvir!', fin:'Mál!',
+  tStart:'Byrjan', tCruise:'Javnt', tSpurt:'Endaspurt!', mToGo:'m eftir', combo:'RØÐ', stamina:'ORKA', stamLow:'LÍTIL ORKA · slepp einum taki', laneHint:'Trýst, tá ið merkini koma á reyðu strikuna',
+ }
+};
+const tr = k => { const d = TX[S.lang] || TX.en; return k in d ? d[k] : TX.en[k]; };
+function applyStatic(){
+  document.documentElement.lang = S.lang;
+  document.querySelectorAll('[data-t]').forEach(el => { el.textContent = tr(el.dataset.t); });
+  document.querySelectorAll('[data-th]').forEach(el => { el.innerHTML = tr(el.dataset.th); });
+  document.querySelectorAll('#lang button').forEach(b => b.setAttribute('aria-pressed', String(b.dataset.lang === S.lang)));
+  const m = tr(S.muted ? 'soundOff' : 'soundOn'); $('t-mute').textContent = m; $('z-mute').textContent = m;
+}
+
+/* ---------- audio ---------- */
+let ac = null;
+function audio(){ if (!ac) { try { ac = new (window.AudioContext || window.webkitAudioContext)(); } catch(e){} } if (ac && ac.state === 'suspended') ac.resume(); }
+function tone(f, dur, type, vol, slide){ if (!ac || S.muted) return; const t = ac.currentTime, o = ac.createOscillator(), g = ac.createGain(); o.type = type; o.frequency.setValueAtTime(f, t); if (slide) o.frequency.exponentialRampToValueAtTime(slide, t+dur); g.gain.setValueAtTime(vol, t); g.gain.exponentialRampToValueAtTime(.0008, t+dur); o.connect(g).connect(ac.destination); o.start(t); o.stop(t+dur+.02); }
+let nbuf = null;
+function noise(dur, vol, fc){ if (!ac || S.muted) return; if (!nbuf){ nbuf = ac.createBuffer(1, ac.sampleRate, ac.sampleRate); const d = nbuf.getChannelData(0); for (let i=0;i<d.length;i++) d[i] = Math.random()*2-1; } const t = ac.currentTime, s = ac.createBufferSource(), f = ac.createBiquadFilter(), g = ac.createGain(); s.buffer = nbuf; f.type = 'bandpass'; f.frequency.value = fc; f.Q.value = .8; g.gain.setValueAtTime(vol, t); g.gain.exponentialRampToValueAtTime(.0008, t+dur); s.connect(f).connect(g).connect(ac.destination); s.start(t); s.stop(t+dur+.02); }
+const sfx = {
+  beat(){ tone(95, .14, 'sine', .35, 55); },
+  hit(p){ noise(.22, .28, 700); tone(190, .07, 'triangle', .12); if (p) tone(780, .1, 'sine', .07); },
+  crab(){ noise(.45, .4, 350); tone(170, .3, 'sawtooth', .07, 80); },
+  count(){ tone(520, .14, 'square', .06); },
+  go(){ tone(1040, .35, 'square', .07); },
+  win(){ [523,659,784,1046].forEach((f,i) => setTimeout(() => tone(f, .25, 'triangle', .1), i*120)); },
+};
+
+/* ---------- game state ---------- */
+let race = null, paused = false, pauseAt = 0;
+let idle = {d: 0, t: 0};
+let fx = [];
+let shake = 0;
+
+function makeRace(i){
+  const reg = REG[i];
+  const r = rng(S.season*977 + i*131 + (Date.now() & 1023));
+  const pool = CREWS.slice().sort(() => r() - .5).slice(0,3);
+  const sm = 1 + .07*Math.min(S.season-1, 5);
+  const rivals = pool.map((c, j) => ({ ...c, base: reg.ai*sm*(j === 0 ? 1.06 : .93 + .13*r()), d:0, v:0, ph: r()*6, fin:null, lane:j, cls: Math.min(3, Math.floor(i/2)), tempo: .8 + r()*.12 }));
+  rivals.sort((a,b) => b.base - a.base);
+  rivals.forEach((rv, j) => rv.lane = j);
+  return { reg, i, t:0, t0:0, phase:'pre', rivals, beats:[], lastBeat:3.6 - .9, T:.9, tempoName:'tStart', P:{d:0, v:0, stam:100, combo:0, best:0, perf:0, good:0, miss:0, crab:0, last:-9, lastT:.85, fin:null}, finAt:null, count:3, endAt:null };
+}
+
+function tempoFor(p){ return p < .12 ? .9 : p < .8 ? .8 : .66; }
+function tempoLabel(p){ return p < .12 ? 'tStart' : p < .8 ? 'tCruise' : 'tSpurt'; }
+
+function startRace(){
+  audio();
+  race.phase = 'count'; race.t0 = performance.now(); race.t = 0; race.count = 3;
+  paused = false; fx = [];
+  show(null); $('pausebtn').hidden = false;
+  sfx.count();
+}
+
+function raceNow(){ return (performance.now() - race.t0) / 1000; }
+
+function feedback(text, color, big){ fx.push({type:'text', text, color, t:0, life: big ? 1.1 : .7, big}); }
+
+function tap(){
+  if (!race || paused) return;
+  if (race.phase !== 'row' || race.P.fin !== null) return;
+  const t = raceNow(), st = stats(), P = race.P;
+  let best = null, bd = 1e9;
+  for (const b of race.beats){ if (b.s !== 0) continue; const d = Math.abs(t - b.t); if (d < bd){ bd = d; best = b; } }
+  if (best && bd <= st.W){
+    const perfect = bd <= st.W*.35, q = perfect ? 1 : .72;
+    best.s = 1; best.q = q;
+    P.combo++; P.best = Math.max(P.best, P.combo); perfect ? P.perf++ : P.good++;
+    const imp = st.P * q * (1 + Math.min(P.combo, 20)*.02) * (.5 + .5*Math.sqrt(P.stam/100));
+    P.v += imp;
+    P.stam = Math.max(0, P.stam - st.drain*Math.pow(.85/race.T, 2));
+    P.last = t; P.lastT = race.T;
+    feedback(tr(perfect ? 'perfect' : 'good'), perfect ? '#d9a521' : '#8fd18a');
+    sfx.hit(perfect);
+    for (let k=0;k<(perfect?10:6);k++) fx.push({type:'drop', x:(Math.random()-.5), y:0, vx:(Math.random()-.7)*90, vy:-60-Math.random()*90, t:0, life:.6});
+  } else {
+    if (race.beats.some(b => b.s === 1 && Math.abs(t - b.t) < .32)) return; // double tap grace
+    P.v *= .68; P.combo = 0; P.crab++; P.stam = Math.max(0, P.stam - 4);
+    feedback(tr('crab'), '#ff6b6b', true); sfx.crab(); shake = .35;
+  }
+}
+
+function update(dt){
+  const R = race, P = R.P, st = stats(), reg = R.reg, t = R.t;
+  if (R.phase === 'count'){
+    const c = 3 - Math.floor(t);
+    if (c !== R.count && c > 0){ R.count = c; sfx.count(); }
+    if (t >= 3){ R.phase = 'row'; feedback(tr('go'), '#ffffff', true); sfx.go(); }
+  }
+  // beats (generated from the start so the first ones scroll in during the countdown)
+  if (R.phase === 'count' || R.phase === 'row'){
+    const p = P.d / reg.dist;
+    R.T = tempoFor(p);
+    const nm = tempoLabel(p);
+    if (nm !== R.tempoName){ R.tempoName = nm; if (nm === 'tSpurt') feedback(tr('spurtMsg'), '#ffd36b', true); }
+    while (R.lastBeat < t + 3.5){ R.lastBeat += R.T; R.beats.push({t:R.lastBeat, s:0, ticked:false}); }
+  }
+  if (R.phase === 'row'){
+    for (const b of R.beats){
+      if (!b.ticked && t >= b.t){ b.ticked = true; sfx.beat(); }
+      if (b.s === 0 && t > b.t + st.W){ b.s = 2; P.combo = 0; P.miss++; P.v *= .9; feedback(tr('missed'), '#c9d3dc'); }
+    }
+    R.beats = R.beats.filter(b => b.t > t - 2);
+  }
+  if (R.phase === 'row' || R.phase === 'finish'){
+    const k = st.k + reg.chop*1.2;
+    P.v *= Math.exp(-k*dt);
+    const prevD = P.d;
+    P.d += P.v*dt;
+    P.stam = Math.min(100, P.stam + 1.6*dt);
+    if (P.fin === null && P.d >= reg.dist){
+      const frac = (reg.dist - prevD) / Math.max(1e-6, P.d - prevD);
+      P.fin = t - dt + frac*dt;
+      R.phase = 'finish'; R.finAt = t;
+      const ahead = R.rivals.filter(r => r.fin !== null).length;
+      if (ahead === 0){ feedback(tr('finFirst'), '#ffd36b', true); sfx.win(); }
+      else feedback(tr('fin') + ' ' + ord(ahead+1), '#ffffff', true);
+    }
+  }
+  for (const r of R.rivals){
+    if (R.phase === 'count'){ continue; }
+    if (r.fin === null){
+      const pr = r.d / reg.dist;
+      const vt = r.base * (1 + .05*Math.sin(t*.55 + r.ph)) * (pr > .78 ? 1.07 : 1);
+      r.v += (vt - r.v) * Math.min(1, dt*.9);
+      const pd = r.d; r.d += r.v*dt;
+      if (r.d >= reg.dist){ r.fin = t - dt + ((reg.dist - pd) / Math.max(1e-6, r.d - pd))*dt; }
+    } else { r.v *= Math.exp(-.7*dt); r.d += r.v*dt; }
+  }
+  // end conditions
+  const allRivals = R.rivals.every(r => r.fin !== null);
+  if (R.endAt === null){
+    if (P.fin !== null && (allRivals || t - R.finAt > 3.2)) R.endAt = t + .4;
+    else if (P.fin === null && allRivals && t - Math.max(...R.rivals.map(r => r.fin)) > 6) R.endAt = t;
+  }
+  if (R.endAt !== null && t >= R.endAt) endRace();
+}
+
+function endRace(){
+  const R = race, P = R.P, reg = R.reg, t = R.t;
+  for (const r of R.rivals) if (r.fin === null) r.fin = t + (reg.dist - r.d) / Math.max(1, r.base);
+  const pFin = P.fin !== null ? P.fin : t + (reg.dist - P.d) / Math.max(.5, P.v, 2);
+  const list = [{n:S.name, club:'Your crew', c:ME_COL, fin:pFin, you:true}, ...R.rivals.map(r => ({n:r.n, club:r.club, c:r.c, fin:r.fin}))].sort((a,b) => a.fin - b.fin);
+  const place = list.findIndex(x => x.you) + 1;
+  let pay = Math.round([1, .6, .38, .2][place-1] * purse(R.i) / 10) * 10;
+  let bonus = 0;
+  if (reg.final && place === 1){ bonus = 1200; S.titles++; }
+  S.kr += pay + bonus;
+  const sessionsBefore = S.sessions;
+  S.sessions = Math.min(6, S.sessions + 2);
+  S.results[R.i] = place;
+  S.idx = R.i + 1;
+  save();
+  $('pausebtn').hidden = true;
+  lastRes = {i:R.i, place, pay, bonus, sess:S.sessions - sessionsBefore, rows:list.map(x => ({n:x.n, c:x.c, fin:x.fin, you:!!x.you})), st:{perf:P.perf, good:P.good, miss:P.miss, crab:P.crab, best:P.best}};
+  renderRes();
+  if (place === 1 && !reg.final) sfx.win();
+  race = null; idle.d = 0;
+  show('s-res');
+}
+let lastRes = null;
+function renderRes(){
+  const r = lastRes, reg = REG[r.i];
+  $('r-eyebrow').textContent = `${reg.name} · ${reg.place}`;
+  $('r-place').textContent = ord(r.place);
+  $('r-title').textContent = r.place === 1 ? tr(reg.final ? 'resFinal' : 'res1') : tr('res' + r.place);
+  $('r-table').innerHTML = r.rows.map((x, j) => `<tr class="${x.you ? 'you' : ''}"><td>${j+1}</td><td><span class="chip" style="display:inline-block;vertical-align:middle;margin-right:8px;background:linear-gradient(${x.c[0]} 60%,${x.c[1]} 60%)"></span>${esc(x.n)}</td><td>${fmtT(Math.max(0, x.fin - 3))}</td></tr>`).join('');
+  $('r-money').innerHTML = `<span class="pill kr">+${r.pay} kr</span>` + (r.bonus ? `<span class="pill kr">+${r.bonus} kr ${tr('champPurse')}</span>` : '') + `<span class="pill">+${r.sess} ${tr(r.sess === 1 ? 'session' : 'sessions')}</span>`;
+  $('r-stats').textContent = tr('statsLine')(r.st);
+  $('r-go').textContent = tr(reg.final ? 'summary' : 'toShed');
+}
+function esc(s){ return String(s).replace(/[&<>"]/g, c => ({'&':'&amp;','<':'&lt;','>':'&gt;','"':'&quot;'}[c])); }
+
+/* ---------- rendering ---------- */
+function layout(inRace){
+  const laneTop = inRace ? H - 104 : H;
+  const y0 = Math.round(H * (W > H ? .38 : .34));
+  const ppm = clamp(W/28, 9, 26);
+  const px0 = W * (W > H ? .4 : .36);
+  return { y0, wb: laneTop, ppm, px0 };
+}
+const depth = f => .42 + .58*f;
+
+function drawScene(L, reg, cam, tNow){
+  const {y0, wb, ppm, px0} = L;
+  // sky
+  const g = ctx.createLinearGradient(0, 0, 0, y0);
+  g.addColorStop(0, reg.sky[0]); g.addColorStop(1, reg.sky[1]);
+  ctx.fillStyle = g; ctx.fillRect(0, 0, W, y0 + 2);
+  // far mountains (haze)
+  const seed = REG.indexOf(reg) + 1;
+  ridge(y0, H*.2, cam*ppm*.04, mix(reg.sky[0], '#3b4c5a', .35), seed, .0028, false);
+  ridge(y0, H*.13, cam*ppm*.1, mix(reg.hill, reg.sky[1], .35), seed+10, .004, true);
+  ridge(y0, H*.07, cam*ppm*.2, reg.hill, seed+20, .006, true);
+  // villages on the shore at start and finish
+  village(L, cam, 0, seed);
+  village(L, cam, reg.dist, seed+5);
+  // shore line
+  ctx.fillStyle = '#2b3330'; ctx.fillRect(0, y0-2, W, 3);
+  // water
+  const wg = ctx.createLinearGradient(0, y0, 0, wb);
+  wg.addColorStop(0, mix(reg.sky[1], '#5f7f92', .55)); wg.addColorStop(.25, '#55778b'); wg.addColorStop(1, '#22405a');
+  ctx.fillStyle = wg; ctx.fillRect(0, y0, W, wb - y0);
+  // waves
+  const rows = 22;
+  for (let r = 0; r < rows; r++){
+    const f = (r + .5)/rows, s = depth(f), y = y0 + f*f*(wb - y0) + Math.sin(tNow*1.4 + r)*1.2*(1 + reg.chop*20);
+    const gap = 70/(ppm*s), first = Math.floor((cam - px0/(ppm*s))/gap) - 1, last = Math.ceil((cam + (W-px0)/(ppm*s))/gap) + 1;
+    ctx.strokeStyle = `rgba(235,245,250,${.07 + .14*f})`; ctx.lineWidth = Math.max(1, 1.8*s);
+    ctx.beginPath();
+    for (let n = first; n <= last; n++){
+      const wx = n*gap + h2(n, r)*gap*.8 + Math.sin(tNow*.6 + n)*gap*.05;
+      const x = px0 + (wx - cam)*ppm*s, len = (10 + 22*h2(r, n))*s;
+      ctx.moveTo(x, y); ctx.lineTo(x + len, y);
+    }
+    ctx.stroke();
+  }
+}
+
+function ridge(yb, amp, off, color, seed, freq, terraces){
+  const r = rng(seed*31), a = [r()*6, r()*6, r()*6], fr = [1, 2.3 + r(), 5.1 + r()*2];
+  ctx.beginPath(); ctx.moveTo(0, yb);
+  const pts = [];
+  for (let x = -8; x <= W + 8; x += 6){
+    const wx = (x + off)*freq;
+    let n = .55*Math.sin(wx*fr[0] + a[0]) + .3*Math.sin(wx*fr[1] + a[1]) + .15*Math.sin(wx*fr[2] + a[2]);
+    n = (n + 1)/2;
+    n = Math.min(n, .78) / .78; // flat-topped fells
+    const y = yb - amp*(.25 + .75*n);
+    pts.push([x, y]); ctx.lineTo(x, y);
+  }
+  ctx.lineTo(W + 8, yb); ctx.closePath();
+  ctx.fillStyle = color; ctx.fill();
+  if (terraces){
+    ctx.save(); ctx.clip();
+    ctx.strokeStyle = 'rgba(30,38,30,.18)'; ctx.lineWidth = 1;
+    for (let y = yb - amp; y < yb; y += Math.max(5, amp/7)){
+      ctx.beginPath(); ctx.moveTo(0, y); ctx.lineTo(W, y + 3); ctx.stroke();
+    }
+    ctx.restore();
+  }
+}
+
+function village(L, cam, at, seed){
+  const {y0, ppm, px0} = L, s = .3;
+  const cols = ['#1d1f22', '#a3262a', '#ecebe5', '#c79a2c', '#ecebe5', '#2f4d6b'];
+  for (let k = -6; k < 10; k++){
+    const wx = at + k*7 + h2(k, seed)*3;
+    const x = px0 + (wx - cam)*ppm*s;
+    if (x < -40 || x > W + 40) continue;
+    const w = (14 + 10*h2(seed, k))*s*2.2, hh = (10 + 8*h2(k+3, seed))*s*2.2;
+    const yb = y0 - 1;
+    ctx.fillStyle = cols[Math.floor(h2(k, seed+1)*cols.length)];
+    ctx.fillRect(x, yb - hh, w, hh);
+    ctx.fillStyle = '#5d7a37';
+    ctx.beginPath(); ctx.moveTo(x - 2, yb - hh); ctx.lineTo(x + w/2, yb - hh - w*.42); ctx.lineTo(x + w + 2, yb - hh); ctx.closePath(); ctx.fill();
+    if (k === 2){ // church
+      ctx.fillStyle = '#f2f1ec'; ctx.fillRect(x + w + 6, yb - hh*1.9, w*.35, hh*1.9);
+      ctx.fillStyle = '#2a2d30'; ctx.beginPath(); ctx.moveTo(x + w + 5, yb - hh*1.9); ctx.lineTo(x + w + 6 + w*.175, yb - hh*2.6); ctx.lineTo(x + w + 7 + w*.35, yb - hh*1.9); ctx.fill();
+    }
+  }
+}
+
+function sheerTop(x, L, h){ const q = Math.abs(x)/(L*.5); return -h*(1 + 1.4*Math.pow(q, 5)); }
+function hullBottom(x, L, h){ const q = Math.abs(x)/(L*.5); return h*1.25*(1 - Math.pow(q, 2.2)) - 2.4*h*Math.pow(q, 8); }
+
+function drawBoat(x, y, L, col, crew, u, tNow, ph, chop, waterCol){
+  const h = L*.045;
+  const bob = Math.sin(tNow*1.7 + ph)*L*.006*(1 + chop*8);
+  const rot = Math.sin(tNow*1.3 + ph)*.012*(1 + chop*6);
+  ctx.save(); ctx.translate(x, y + bob); ctx.rotate(rot);
+  // blade position over the stroke cycle (drive 0..0.4, recovery 0.4..1)
+  let bxN, byF;
+  if (u < .4){ const e = u/.4; bxN = .55 - e; byF = 1.9; }
+  else { const e = (u - .4)/.6; bxN = -.45 + e; byF = 1.9 - Math.sin(Math.PI*e)*2.4; }
+  const n = crew - 1, xs = [];
+  for (let i = 0; i < n; i++) xs.push(n === 1 ? 0 : -L*.26 + i*(L*.56)/(n - 1));
+  // crew bodies
+  const lean = -bxN*L*.035, tw = Math.max(2, L*.024), hr = Math.max(1.6, L*.013);
+  ctx.lineCap = 'round';
+  for (const xi of xs){
+    ctx.strokeStyle = col[0]; ctx.lineWidth = tw;
+    ctx.beginPath(); ctx.moveTo(xi, -h*1.1); ctx.lineTo(xi + lean, -h*1.1 - L*.055); ctx.stroke();
+    ctx.fillStyle = '#e8c6a4'; ctx.beginPath(); ctx.arc(xi + lean*1.15, -h*1.1 - L*.055 - hr*1.4, hr, 0, 7); ctx.fill();
+  }
+  // cox at the stern
+  const cx = -L*.38;
+  ctx.strokeStyle = col[1] === '#f1efe8' || col[1] === '#e9e2d5' ? '#1f2328' : col[1]; ctx.lineWidth = tw;
+  ctx.beginPath(); ctx.moveTo(cx, -h*1.3); ctx.lineTo(cx + L*.008, -h*1.3 - L*.06); ctx.stroke();
+  ctx.fillStyle = '#e8c6a4'; ctx.beginPath(); ctx.arc(cx + L*.01, -h*1.3 - L*.06 - hr*1.4, hr, 0, 7); ctx.fill();
+  // hull
+  const N = 36, top = [], bot = [];
+  for (let i = 0; i <= N; i++){ const xx = -L*.5 + L*i/N; top.push([xx, sheerTop(xx, L, h)]); bot.push([xx, hullBottom(xx, L, h)]); }
+  ctx.beginPath(); ctx.moveTo(top[0][0], top[0][1]);
+  for (const p of top) ctx.lineTo(p[0], p[1]);
+  for (let i = N; i >= 0; i--) ctx.lineTo(bot[i][0], bot[i][1]);
+  ctx.closePath();
+  ctx.fillStyle = '#1e2226'; ctx.fill();
+  ctx.save(); ctx.clip();
+  const band = (a, b, c) => { ctx.beginPath(); for (const p of top) ctx.lineTo(p[0], p[1] + a*h); for (let i = N; i >= 0; i--) ctx.lineTo(top[i][0], top[i][1] + b*h); ctx.closePath(); ctx.fillStyle = c; ctx.fill(); };
+  band(-.2, 1.0, '#f1efe8'); band(1.0, 1.5, col[0]); band(1.5, 1.8, col[1] === '#f1efe8' ? '#1c4f8f' : col[1]);
+  ctx.strokeStyle = 'rgba(0,0,0,.28)'; ctx.lineWidth = Math.max(.6, L*.003);
+  for (const off of [.5, 2.2, 2.7]){ ctx.beginPath(); top.forEach((p, i) => i ? ctx.lineTo(p[0], p[1] + off*h) : ctx.moveTo(p[0], p[1] + off*h)); ctx.stroke(); }
+  ctx.restore();
+  // oars
+  ctx.lineWidth = Math.max(1.2, L*.008);
+  for (const xi of xs){
+    const bx = xi + bxN*L*.2, by = byF*h;
+    ctx.strokeStyle = '#8a6a43';
+    ctx.beginPath(); ctx.moveTo(xi - (bx - xi)*.3, -h*1.9); ctx.lineTo(bx, by); ctx.stroke();
+    ctx.fillStyle = col[0];
+    ctx.save(); ctx.translate(bx, by); ctx.rotate(Math.atan2(by + h*1.9, bx - xi + (bx - xi)*.3));
+    ctx.beginPath(); ctx.ellipse(0, 0, L*.028, L*.009, 0, 0, 7); ctx.fill(); ctx.restore();
+  }
+  // waterline wash over keel and blades
+  ctx.fillStyle = waterCol;
+  ctx.beginPath(); ctx.moveTo(-L*.62, h*.55);
+  for (let i = 0; i <= 12; i++){ const xx = -L*.62 + L*1.24*i/12; ctx.lineTo(xx, h*.55 + Math.sin(tNow*3 + i + ph)*h*.15); }
+  ctx.lineTo(L*.62, h*3.2); ctx.lineTo(-L*.62, h*3.2); ctx.closePath(); ctx.fill();
+  ctx.restore();
+}
+
+function boatU(lastStroke, T, t){ const e = (t - lastStroke)/T; return e >= 1 || e < 0 ? .999 : e; }
+
+function drawRace(tNow){
+  const R = race, reg = R.reg, P = R.P, st = stats();
+  const L = layout(true);
+  const {y0, wb, ppm, px0} = L;
+  let sx = 0, sy = 0;
+  if (shake > 0){ sx = (Math.random() - .5)*10*shake; sy = (Math.random() - .5)*8*shake; }
+  ctx.save(); ctx.translate(sx, sy);
+  drawScene(L, reg, P.d, tNow);
+  const laneF = [.14, .33, .54], playerF = .84;
+  const yOf = f => y0 + f*f*(wb - y0) + (f === playerF ? 0 : 0);
+  // finish line across the fjord
+  const finPts = [];
+  for (let f = .02; f <= 1.001; f += .07){ const s = depth(f); finPts.push([px0 + (reg.dist - P.d)*ppm*s, y0 + f*f*(wb - y0)]); }
+  if (finPts[0][0] > -50 && finPts[0][0] < W + 300){
+    ctx.strokeStyle = 'rgba(255,255,255,.75)'; ctx.lineWidth = 2; ctx.setLineDash([8, 6]);
+    ctx.beginPath(); finPts.forEach((p, i) => i ? ctx.lineTo(p[0], p[1]) : ctx.moveTo(p[0], p[1])); ctx.stroke(); ctx.setLineDash([]);
+    flag(finPts[0][0], y0 + 3, .6); flag(finPts[finPts.length-1][0], wb - 2, 1.1);
+  }
+  // rivals, far to near
+  const wc = f => `rgba(${Math.round(lerp(85,34,f))},${Math.round(lerp(119,64,f))},${Math.round(lerp(139,90,f))},.62)`;
+  R.rivals.slice().sort((a,b) => a.lane - b.lane).forEach(r => {
+    const f = laneF[r.lane], s = depth(f), y = yOf(f);
+    const x = px0 + (r.d - P.d)*ppm*s, Lp = CLASS[r.cls].len*ppm*s;
+    const u = R.phase === 'count' ? .999 : (r.fin !== null && R.t - r.fin > 1.5) ? .999 : ((R.t/r.tempo + r.ph) % 1);
+    if (x > -Lp && x < W + Lp){
+      drawBoat(x, y, Lp, r.c, CLASS[r.cls].crew, u, tNow, r.ph, reg.chop, wc(f));
+      ctx.font = `700 ${Math.round(11 + 3*s)}px "Barlow Semi Condensed", "Arial Narrow", sans-serif`;
+      ctx.fillStyle = 'rgba(20,41,74,.75)'; const tw = ctx.measureText(r.n).width;
+      ctx.fillRect(x - tw/2 - 5, y - Lp*.24 - 16, tw + 10, 16);
+      ctx.fillStyle = '#fff'; ctx.textAlign = 'center'; ctx.textBaseline = 'middle'; ctx.fillText(r.n, x, y - Lp*.24 - 8);
+    } else {
+      // edge marker
+      const ahead = x >= W + Lp, ex = ahead ? W - 30 : 30, gap = Math.round(Math.abs(r.d - P.d));
+      ctx.fillStyle = 'rgba(20,41,74,.8)';
+      ctx.beginPath(); if (ahead){ ctx.moveTo(W - 8, y); ctx.lineTo(W - 22, y - 9); ctx.lineTo(W - 22, y + 9); } else { ctx.moveTo(8, y); ctx.lineTo(22, y - 9); ctx.lineTo(22, y + 9); } ctx.fill();
+      ctx.font = '700 12px "Barlow Semi Condensed", "Arial Narrow", sans-serif'; ctx.textAlign = ahead ? 'right' : 'left'; ctx.textBaseline = 'middle';
+      const label = `${r.n} ${ahead ? '+' : '−'}${gap} m`; const tw = ctx.measureText(label).width;
+      ctx.fillRect(ahead ? W - 26 - tw - 8 : 26, y - 9, tw + 8, 18);
+      ctx.fillStyle = '#fff'; ctx.fillText(label, ahead ? W - 30 : 30, y);
+    }
+  });
+  // course buoys every 50 m
+  const bf = .7, bs = depth(bf), by = yOf(bf);
+  for (let m = 50; m < reg.dist; m += 50){
+    const x = px0 + (m - P.d)*ppm*bs; if (x < -20 || x > W + 20) continue;
+    ctx.fillStyle = m % 100 === 0 ? '#e86a2b' : '#f1efe8';
+    ctx.beginPath(); ctx.arc(x, by + Math.sin(tNow*2 + m)*1.5, 5*bs + 2, 0, 7); ctx.fill();
+    if (m % 100 === 0){ ctx.fillStyle = 'rgba(255,255,255,.85)'; ctx.font = '700 12px "Barlow Semi Condensed", "Arial Narrow", sans-serif'; ctx.textAlign = 'center'; ctx.fillText(m + ' m', x, by - 14); }
+  }
+  // player
+  const fP = playerF, sP = depth(fP), yP = yOf(fP), Lp = st.cls.len*ppm*sP;
+  // wake
+  ctx.strokeStyle = 'rgba(240,248,252,.35)'; ctx.lineWidth = 2;
+  for (let k = 0; k < 3; k++){ const ln = Math.min(W, P.v*9 + 10) * (1 - k*.25); ctx.beginPath(); ctx.moveTo(px0 - Lp*.45, yP + Lp*.035 + k*5); ctx.lineTo(px0 - Lp*.45 - ln, yP + Lp*.035 + k*9); ctx.stroke(); }
+  const uP = R.phase === 'count' ? .999 : boatU(P.last, Math.min(P.lastT, .9), R.t);
+  drawBoat(px0, yP, Lp, ME_COL, st.cls.crew, uP, tNow, 0, reg.chop, wc(fP));
+  // drops
+  for (const d of fx){ if (d.type !== 'drop') continue; const a = 1 - d.t/d.life; ctx.fillStyle = `rgba(235,245,250,${a})`; ctx.beginPath(); ctx.arc(px0 + d.x*Lp*.6 + d.vx*d.t, yP + Lp*.08 + d.vy*d.t + 260*d.t*d.t, 2.2, 0, 7); ctx.fill(); }
+  ctx.restore();
+  drawHUD(L, tNow);
+}
+
+function flag(x, yb, s){
+  ctx.strokeStyle = '#1f2328'; ctx.lineWidth = 2*s;
+  ctx.beginPath(); ctx.moveTo(x, yb); ctx.lineTo(x, yb - 46*s); ctx.stroke();
+  // Faroese flag: white field, blue-bordered red cross
+  const fw = 30*s, fh = 20*s, fx0 = x + 1, fy = yb - 46*s;
+  ctx.fillStyle = '#f6f8fa'; ctx.fillRect(fx0, fy, fw, fh);
+  ctx.fillStyle = '#1c4f8f'; ctx.fillRect(fx0 + fw*.28, fy, fw*.2, fh); ctx.fillRect(fx0, fy + fh*.36, fw, fh*.28);
+  ctx.fillStyle = '#c8102e'; ctx.fillRect(fx0 + fw*.31, fy, fw*.14, fh); ctx.fillRect(fx0, fy + fh*.41, fw, fh*.18);
+}
+
+function drawHUD(L, tNow){
+  const R = race, P = R.P, reg = R.reg, st = stats();
+  const g = 16, fnt = (w, sz, fam) => `${w} ${sz}px ${fam || '"Barlow Semi Condensed", "Arial Narrow", sans-serif'}`;
+  const disp = '"Bowlby One", "Arial Black", Impact, sans-serif';
+  // top bar
+  ctx.fillStyle = 'rgba(246,248,250,.92)'; ctx.fillRect(g - 6, 8, W - 2*g - 50, 44);
+  ctx.strokeStyle = '#14294a'; ctx.lineWidth = 2; ctx.strokeRect(g - 6, 8, W - 2*g - 50, 44);
+  const order = [{d:P.d, fin:P.fin, you:true}, ...R.rivals.map(r => ({d:r.d, fin:r.fin}))].sort((a,b) => (a.fin ?? 1e9) - (b.fin ?? 1e9) || b.d - a.d);
+  const pos = order.findIndex(o => o.you) + 1;
+  ctx.fillStyle = '#c8102e'; ctx.font = fnt(400, 26, disp); ctx.textAlign = 'left'; ctx.textBaseline = 'middle';
+  ctx.fillText(ord(pos), g + 4, 31);
+  const pw = ctx.measureText(ord(pos)).width;
+  ctx.fillStyle = '#14294a'; ctx.font = fnt(700, 15); ctx.fillText(reg.name, g + 12 + pw, 24);
+  ctx.fillStyle = '#56657a'; ctx.font = fnt(600, 13);
+  const remain = Math.max(0, Math.ceil(reg.dist - P.d));
+  ctx.fillText(`${remain} ${tr('mToGo')} · ${tr(R.tempoName)}`, g + 12 + pw, 40);
+  if (R.phase !== 'count' && R.phase !== 'pre'){ ctx.textAlign = 'right'; ctx.fillStyle = '#14294a'; ctx.font = fnt(700, 15); ctx.fillText(fmtT(Math.max(0, (P.fin ?? R.t) - 3)), W - g - 60, 31); }
+  // progress strip
+  const sx = g, sw = W - 2*g, sy = 66;
+  ctx.fillStyle = 'rgba(20,41,74,.55)'; ctx.fillRect(sx, sy - 2, sw, 4);
+  ctx.fillStyle = '#fff'; ctx.fillRect(sx + sw - 2, sy - 8, 3, 16);
+  for (const r of R.rivals){ const x = sx + clamp(r.d/reg.dist, 0, 1)*sw; ctx.fillStyle = r.c[0]; ctx.strokeStyle = '#fff'; ctx.lineWidth = 1.5; ctx.beginPath(); ctx.arc(x, sy, 5, 0, 7); ctx.fill(); ctx.stroke(); }
+  { const x = sx + clamp(P.d/reg.dist, 0, 1)*sw; ctx.fillStyle = '#c8102e'; ctx.strokeStyle = '#fff'; ctx.lineWidth = 2.5; ctx.beginPath(); ctx.arc(x, sy, 7, 0, 7); ctx.fill(); ctx.stroke(); }
+
+  // stroke lane
+  const lx = g, lw = W - 2*g, lh = 64, ly = H - lh - 12;
+  ctx.fillStyle = 'rgba(14,30,52,.86)'; ctx.fillRect(lx, ly, lw, lh);
+  const hitX = lx + 84, pxs = clamp(lw*.5, 200, 380), t = R.phase === 'pre' ? 0 : raceNowSafe();
+  // timing window
+  ctx.fillStyle = 'rgba(143,209,138,.18)'; ctx.fillRect(hitX - st.W*pxs, ly + 4, st.W*pxs*2, lh - 8);
+  ctx.fillStyle = 'rgba(217,165,33,.3)'; ctx.fillRect(hitX - st.W*.4*pxs, ly + 4, st.W*.8*pxs, lh - 8);
+  // markers
+  ctx.save(); ctx.beginPath(); ctx.rect(lx, ly, lw, lh); ctx.clip();
+  for (const b of R.beats){
+    const x = hitX + (b.t - t)*pxs; if (x < lx - 20 || x > lx + lw + 20) continue;
+    let c = '#f6f8fa', a = 1;
+    if (b.s === 1){ c = b.q === 1 ? '#d9a521' : '#8fd18a'; a = clamp(1 - (t - b.t)*2.5, 0, 1); }
+    else if (b.s === 2){ c = '#ff6b6b'; a = clamp(1 - (t - b.t)*2, 0, 1); }
+    ctx.globalAlpha = a; ctx.fillStyle = c;
+    roundRect(x - 6, ly + 12, 12, lh - 24, 6); ctx.fill();
+    ctx.globalAlpha = 1;
+  }
+  ctx.restore();
+  // catch line, pulses on beat
+  let pulse = 0; for (const b of R.beats){ const d = t - b.t; if (d >= 0 && d < .18) pulse = 1 - d/.18; }
+  ctx.fillStyle = '#c8102e'; ctx.fillRect(hitX - 2 - pulse*2, ly - 4, 4 + pulse*4, lh + 8);
+  // combo
+  ctx.textAlign = 'left'; ctx.textBaseline = 'middle';
+  ctx.fillStyle = P.combo >= 10 ? '#d9a521' : '#f6f8fa'; ctx.font = fnt(400, 24, disp);
+  ctx.fillText('×' + P.combo, lx + 10, ly + lh/2 - 6);
+  ctx.fillStyle = 'rgba(246,248,250,.65)'; ctx.font = fnt(700, 11); ctx.fillText(tr('combo'), lx + 10, ly + lh/2 + 16);
+  // stamina
+  const by = ly - 22, low = P.stam < 25;
+  ctx.fillStyle = 'rgba(14,30,52,.7)'; ctx.fillRect(lx, by, lw, 14);
+  ctx.fillStyle = low ? (Math.sin(tNow*12) > 0 ? '#ff6b6b' : '#c8102e') : '#8fd18a';
+  ctx.fillRect(lx + 2, by + 2, (lw - 4)*P.stam/100, 10);
+  ctx.fillStyle = '#fff'; ctx.font = fnt(700, 11); ctx.textBaseline = 'middle';
+  ctx.fillText(tr(low ? 'stamLow' : 'stamina'), lx + 6, by + 7.5);
+  // hint
+  if (R.phase === 'count' || (R.phase === 'row' && R.t < 7)){
+    ctx.textAlign = 'right'; ctx.fillStyle = 'rgba(246,248,250,.8)'; ctx.font = fnt(600, 13);
+    ctx.fillText(tr('laneHint'), lx + lw - 10, ly + lh/2);
+  }
+  // countdown
+  if (R.phase === 'count'){
+    const c = Math.max(1, 3 - Math.floor(R.t)), fr = R.t % 1;
+    ctx.textAlign = 'center'; ctx.textBaseline = 'middle';
+    ctx.font = fnt(400, Math.round(90 + 30*(1 - fr)), disp);
+    ctx.lineWidth = 6; ctx.strokeStyle = '#14294a'; ctx.strokeText(String(c), W/2, H*.42);
+    ctx.fillStyle = '#fff'; ctx.fillText(String(c), W/2, H*.42);
+  }
+  // floating text
+  for (const f of fx){
+    if (f.type !== 'text') continue;
+    const a = clamp(1 - f.t/f.life, 0, 1);
+    ctx.globalAlpha = a; ctx.textAlign = f.big ? 'center' : 'left'; ctx.textBaseline = 'middle';
+    ctx.font = f.big ? fnt(400, 30, disp) : fnt(700, 20);
+    const x = f.big ? W/2 : hitX - 10, y = f.big ? H*.42 - f.t*30 : ly - 40 - f.t*30;
+    ctx.lineWidth = 4; ctx.strokeStyle = 'rgba(14,30,52,.9)'; ctx.strokeText(f.text, x, y);
+    ctx.fillStyle = f.color; ctx.fillText(f.text, x, y);
+    ctx.globalAlpha = 1;
+  }
+}
+function raceNowSafe(){ return paused ? (pauseAt - race.t0)/1000 : raceNow(); }
+function roundRect(x, y, w, h, r){ ctx.beginPath(); ctx.moveTo(x + r, y); ctx.arcTo(x + w, y, x + w, y + h, r); ctx.arcTo(x + w, y + h, x, y + h, r); ctx.arcTo(x, y + h, x, y, r); ctx.arcTo(x, y, x + w, y, r); ctx.closePath(); }
+
+function drawIdle(tNow, dt){
+  const reg = REG[Math.min(S.idx, 6)], st = stats();
+  idle.d += 4*dt;
+  const L = layout(false);
+  drawScene(L, reg, idle.d, tNow);
+  const f = .78, s = depth(f), y = L.y0 + f*f*(L.wb - L.y0), Lp = st.cls.len*L.ppm*s;
+  const x = W/2;
+  ctx.strokeStyle = 'rgba(240,248,252,.3)'; ctx.lineWidth = 2;
+  ctx.beginPath(); ctx.moveTo(x - Lp*.45, y + Lp*.035); ctx.lineTo(x - Lp*.45 - 50, y + Lp*.04); ctx.stroke();
+  drawBoat(x, y, Lp, ME_COL, st.cls.crew, (tNow/1.1) % 1, tNow, 0, reg.chop, 'rgba(40,70,95,.6)');
+}
+
+let lastNow = performance.now();
+function frame(now){
+  const dt = Math.min(.05, (now - lastNow)/1000); lastNow = now;
+  if (W === 0) resize();
+  if (race && race.phase !== 'pre' && !paused){ race.t = (now - race.t0)/1000; update(dt); }
+  for (const f of fx) f.t += (paused ? 0 : dt);
+  fx = fx.filter(f => f.t < f.life);
+  shake = Math.max(0, shake - dt);
+  ctx.clearRect(0, 0, W, H);
+  if (race && race.phase !== 'pre') drawRace(now/1000); else drawIdle(now/1000, dt);
+  requestAnimationFrame(frame);
+}
+
+/* ---------- screens ---------- */
+const SCREENS = ['s-title','s-pre','s-pause','s-res','s-shed','s-end'];
+let cur = null;
+function show(id){ cur = id; SCREENS.forEach(s => $(s).hidden = s !== id); $('lang').hidden = !id; if (id){ const el = $(id); el.scrollTop = 0; } }
+
+function seasonList(el){
+  el.innerHTML = REG.map((r, i) => {
+    const res = S.results[i];
+    const c = i === S.idx;
+    const txt = res ? (res === 1 ? `<span class="gold">${ord(1)}</span>` : ord(res)) : c ? tr('next') : '';
+    return `<li class="${c ? 'cur' : ''}"><span class="n">${i+1}</span><span class="r">${r.name} <small>${r.place} · ${r.dist} m</small></span><span class="res">${txt}</span></li>`;
+  }).join('');
+}
+
+function renderTitle(){
+  $('t-eyebrow').textContent = tr('eyebrow')(S.season, S.titles);
+  $('boatname').value = S.name;
+  seasonList($('t-list'));
+  $('t-go').textContent = S.idx >= 7 ? tr('summary') : S.idx === 0 && !S.results.length ? tr('rowFirst') : tr('rowTo')(REG[S.idx].place);
+  $('t-confirm').hidden = true; $('t-reset').hidden = false;
+}
+
+function renderPre(){ race = makeRace(S.idx); fillPre(); show('s-pre'); }
+function fillPre(){
+  const i = S.idx, reg = REG[i];
+  $('p-eyebrow').textContent = tr('regOf')(i+1, S.season);
+  $('p-name').textContent = reg.name;
+  $('p-place').textContent = reg.final ? tr('finalDesc') : tr('racingIn')(reg.place);
+  $('p-dist').textContent = reg.dist + ' m';
+  $('p-sea').textContent = seaName(reg.chop);
+  $('p-purse').textContent = (purse(i) + (reg.final ? 1200 : 0)) + ' kr';
+  $('p-rivals').innerHTML = `<li><span class="chip" style="background:linear-gradient(${ME_COL[0]} 60%,${ME_COL[1]} 60%)"></span>${esc(S.name)} <small>${stats().cls.n} · ${tr('you')}</small></li>` +
+    race.rivals.map((r, j) => `<li><span class="chip" style="background:linear-gradient(${r.c[0]} 60%,${r.c[1]} 60%)"></span>${r.n} <small>${r.club}${j === 0 ? ' · ' + tr('favourite') : ''}</small></li>`).join('');
+  const tips = tr('tips');
+  $('p-tip').textContent = tips[(i + S.season) % tips.length];
+}
+
+function renderShed(){
+  const st = stats();
+  $('b-boat').textContent = `${S.name} · ${st.cls.n}`;
+  $('b-money').innerHTML = `<span class="pill kr">${S.kr} kr</span><span class="pill">${S.sessions} ${tr(S.sessions === 1 ? 'session' : 'sessions')}</span>`;
+  const pips = lv => `<span class="pips">${Array.from({length:MAXLV}, (_, k) => `<i class="${k < lv ? 'on' : ''}"></i>`).join('')}</span>`;
+  const other = S.lang === 'fo' ? 'en' : 'fo';
+  const alt = k => TX[other][k];
+  $('b-crew').innerHTML = ['power', 'endurance', 'timing'].map(k => {
+    const lv = S.crew[k], max = lv >= MAXLV;
+    return `<div class="up"><span class="nm">${tr(k)}<small>${alt(k)}</small></span>${pips(lv)}<span class="ds">${tr(k + 'D')}</span><button class="btn small" id="tr-${k}" data-train="${k}" ${max || S.sessions < 1 ? 'disabled' : ''}>${max ? tr('maxed') : tr('train')}</button></div>`;
+  }).join('');
+  const nextCls = CLASS[S.boat.cls + 1];
+  $('b-boatups').innerHTML = ['oars', 'hull'].map(k => {
+    const lv = S.boat[k], cost = UPCOST[lv], max = lv >= MAXLV;
+    return `<div class="up"><span class="nm">${tr(k)}<small>${alt(k)}</small></span>${pips(lv)}<span class="ds">${tr(k + 'D')}</span><button class="btn small" id="up-${k}" data-buy="${k}" ${max || S.kr < cost ? 'disabled' : ''}>${max ? tr('maxed') : cost + ' kr'}</button></div>`;
+  }).join('') + `<div class="up"><span class="nm">${tr('cls')}<small>${CLASS[S.boat.cls].n}</small></span><span class="ds">${nextCls ? tr('clsD')(nextCls.n, nextCls.crew - 1) : tr('clsMax')}</span><button class="btn small" id="up-cls" data-buy="cls" ${!nextCls || S.kr < nextCls.cost ? 'disabled' : ''}>${nextCls ? nextCls.cost + ' kr' : tr('maxed')}</button></div>`;
+  $('b-go').textContent = S.idx >= 7 ? tr('summary') : tr('rowTo')(REG[S.idx].place);
+  if (cur !== 's-shed') show('s-shed');
+}
+
+function renderEnd(){
+  const won = S.results[6] === 1;
+  $('e-eyebrow').textContent = tr('endEyebrow')(S.season);
+  $('e-title').textContent = tr(won ? 'champs' : 'over');
+  $('e-banner').hidden = !won;
+  $('e-banner').textContent = tr('banner')(S.name);
+  const wins = S.results.filter(r => r === 1).length;
+  $('e-text').textContent = tr(won ? 'endWon' : 'endLost')(wins);
+  seasonList($('e-list'));
+  show('s-end');
+}
+
+function setLang(l){
+  if (l === S.lang) return;
+  S.lang = l; save(); applyStatic();
+  if (cur === 's-title') renderTitle();
+  else if (cur === 's-pre' && race) fillPre();
+  else if (cur === 's-res' && lastRes) renderRes();
+  else if (cur === 's-shed') renderShed();
+  else if (cur === 's-end') renderEnd();
+}
+
+/* ---------- wiring ---------- */
+$('lang').addEventListener('click', e => { const b = e.target.closest('button[data-lang]'); if (b) setLang(b.dataset.lang); });
+cv.addEventListener('pointerdown', e => { if (race && race.phase !== 'pre'){ e.preventDefault(); audio(); tap(); } });
+addEventListener('keydown', e => {
+  if (!race || race.phase === 'pre') return;
+  if (e.code === 'Space' || e.code === 'Enter' || e.code === 'ArrowUp'){ e.preventDefault(); if (!e.repeat) tap(); }
+  if (e.code === 'Escape' || e.code === 'KeyP') paused ? resume() : pause();
+});
+function pause(){ if (!race || race.phase === 'pre' || paused) return; paused = true; pauseAt = performance.now(); applyStatic(); show('s-pause'); }
+function resume(){ if (!paused) return; race.t0 += performance.now() - pauseAt; paused = false; show(null); }
+document.addEventListener('visibilitychange', () => { if (document.hidden) pause(); });
+$('pausebtn').onclick = pause;
+$('z-resume').onclick = resume;
+$('z-quit').onclick = () => { paused = false; $('pausebtn').hidden = true; renderPre(); };
+const toggleMute = () => { S.muted = !S.muted; save(); applyStatic(); };
+$('z-mute').onclick = toggleMute;
+$('t-mute').onclick = toggleMute;
+
+$('boatname').addEventListener('input', e => { S.name = e.target.value.trim() || 'Tjaldur'; save(); });
+$('t-go').onclick = () => { audio(); S.idx >= 7 ? renderEnd() : renderPre(); };
+$('t-help').onclick = () => { $('help').hidden = !$('help').hidden; };
+$('t-shed').onclick = renderShed;
+$('t-reset').onclick = () => { $('t-confirm').hidden = false; $('t-reset').hidden = true; };
+$('t-no').onclick = () => { $('t-confirm').hidden = true; $('t-reset').hidden = false; };
+$('t-yes').onclick = () => { const m = S.muted, l = S.lang; S = fresh(); S.muted = m; S.lang = l; save(); renderTitle(); };
+
+$('p-go').onclick = startRace;
+$('p-back').onclick = () => { race = null; renderTitle(); show('s-title'); };
+$('r-go').onclick = () => { S.idx >= 7 ? renderEnd() : renderShed(); };
+
+$('s-shed').addEventListener('click', e => {
+  const b = e.target.closest('button'); if (!b || b.disabled) return;
+  if (b.dataset.train){ const k = b.dataset.train; if (S.sessions > 0 && S.crew[k] < MAXLV){ S.sessions--; S.crew[k]++; save(); audio(); tone(660, .12, 'triangle', .08); renderShed(); $('tr-' + k)?.focus(); } }
+  if (b.dataset.buy){
+    const k = b.dataset.buy;
+    if (k === 'cls'){ const nx = CLASS[S.boat.cls + 1]; if (nx && S.kr >= nx.cost){ S.kr -= nx.cost; S.boat.cls++; } }
+    else { const c = UPCOST[S.boat[k]]; if (S.boat[k] < MAXLV && S.kr >= c){ S.kr -= c; S.boat[k]++; } }
+    save(); audio(); tone(880, .1, 'triangle', .08); renderShed();
+  }
+});
+$('b-go').onclick = () => { audio(); S.idx >= 7 ? renderEnd() : renderPre(); };
+$('b-menu').onclick = () => { renderTitle(); show('s-title'); };
+$('e-go').onclick = () => { S.season++; S.idx = 0; S.results = []; save(); renderTitle(); show('s-title'); };
+$('e-shed').onclick = renderShed;
+
+resize();
+applyStatic();
+renderTitle();
+show('s-title');
+requestAnimationFrame(frame);
+})();
+</script>
+
+</body></html>
