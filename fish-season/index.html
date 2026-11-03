@@ -251,9 +251,10 @@ applyStatic();
 /* ================= end of language ================= */
 
 const $=id=>document.getElementById(id);
-let errN=0;
+let errN=0,errFirst='';
 function showErr(msg,stack){errN++;const el=$('err');el.classList.remove('hide');
- el.textContent='Game error ('+errN+'×, screenshot this for Claude · tap to hide):\n'+msg+(stack?'\n'+String(stack).split('\n').slice(0,4).join('\n'):'');}
+ const cur=msg+(stack?'\n'+String(stack).split('\n').slice(0,3).join('\n'):'');if(!errFirst)errFirst=cur;
+ el.textContent='Game error ('+errN+'×, screenshot this for Claude · tap to hide)\nFIRST: '+errFirst+(errN>1?'\nLATEST: '+cur:'');}
 document.getElementById('err').onclick=function(){this.classList.add('hide');};
 window.addEventListener('error',e=>{if(e.error||e.message)showErr(e.message||String(e.error),e.error&&e.error.stack);});
 window.addEventListener('unhandledrejection',e=>showErr('Promise: '+(e.reason&&e.reason.message||e.reason),e.reason&&e.reason.stack));
