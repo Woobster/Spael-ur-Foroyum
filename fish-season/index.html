@@ -984,7 +984,7 @@ function travel(i,isNew){$('modal').classList.add('hide');$('flash').classList.a
  setTimeout(()=>{buildLevel(i);save();$('flash').classList.remove('on');const L=LEVELS[i];banner(L.name,L.sub,(isNew?tt('area.new'):'')+L.island+' · '+L.date);SFX.fanfare();hudDirty=true;},380);}
 $('shopToggle').onclick=()=>window.shopToggle();
 $('shopX').onclick=()=>window.shopHide();
-$('shopX').setAttribute('aria-label',t('shop.close'));
+$('shopX').setAttribute('aria-label',tt('shop.close'));
 function setSound(){$('snd').textContent=tt(soundOn?'snd.on':'snd.off');if(master)master.gain.value=soundOn?0.55:0;}
 $('snd').onclick=()=>{soundOn=!soundOn;initAudio();setSound();save();};
 let resetArm=0;$('reset').onclick=()=>{const b=$('reset');if(Date.now()-resetArm<3000){try{localStorage.removeItem(SAVE);}catch(e){}location.reload();return;}
