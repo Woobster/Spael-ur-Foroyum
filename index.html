@@ -73,6 +73,12 @@ main{position:relative;z-index:3;max-width:1160px;margin:-120px auto 0;padding:0
 .about{margin:44px auto 0;max-width:640px;text-align:center;color:var(--ink-soft);font-weight:700;font-size:14px}
 .about b{color:var(--ink)}
 footer{text-align:center;padding:0 16px calc(28px + env(safe-area-inset-bottom,0px));font-size:13px;font-weight:700;color:var(--ink-soft)}
+.visits{display:inline-flex;align-items:center;gap:8px;margin:0 auto 14px;background:var(--paper-solid);padding:7px 14px 7px 8px;border-radius:999px;
+  font-weight:800;font-size:14px;color:var(--ink);box-shadow:0 2px 10px rgba(53,47,69,.12)}
+.visits[hidden]{display:none}
+.visits .eye{width:24px;height:24px;border-radius:50%;background:var(--blue);display:grid;place-items:center}
+.visits .eye svg{width:14px;height:14px;fill:none;stroke:#fff;stroke-width:2.4;stroke-linecap:round;stroke-linejoin:round}
+.visits b{font:400 18px/1 var(--display);font-variant-numeric:tabular-nums}
 footer .stripe{display:block;width:72px;height:6px;margin:0 auto 14px;border-radius:99px;
   background:linear-gradient(90deg,var(--blue) 0 33%,var(--red) 33% 66%,var(--blue) 66%)}
 
@@ -248,6 +254,7 @@ footer .stripe{display:block;width:72px;height:6px;margin:0 auto 14px;border-rad
 </main>
 
 <footer>
+  <div><span class="visits" id="visits" hidden><span class="eye"><svg viewBox="0 0 24 24"><path d="M2 12s3.6-7 10-7 10 7 10 7-3.6 7-10 7S2 12 2 12z"/><circle cx="12" cy="12" r="3"/></svg></span><b id="visitsN"></b><span data-t="visits">visits</span></span></div>
   <span class="stripe"></span>
   <span data-t="made">Made in the Faroe Islands</span>
 </footer>
@@ -262,7 +269,7 @@ const TEXT={
   'fish.text':'Cast for trout, saithe, mackerel, haddock and halibut from lakes and harbours around the islands. Upgrade your rod and bait, get a rowing boat, and ride the herring run.',
   'sheep.chip':'Idle · 3D','sheep.title':'Sheep Season','sheep.alt':'Seyðagongd',
   'sheep.text':'Whistle your sheepdogs into action and drive the flocks down from the hills into the stone pen. Train your dogs, breed better wool, and watch for the prize horned rams.',
-  about:'All the games save your progress in your own browser, so you can come back any time.',made:'Made in the Faroe Islands'},
+  about:'All the games save your progress in your own browser, so you can come back any time.',made:'Made in the Faroe Islands',visits:'visits'},
  fo:{tag:'Hugnalig smá spøl úr Føroyum. Ókeypis at spæla í kaganum.',play:'Spæl',
   'hare.chip':'Idle · 3D','hare.title':'Haruveiða','hare.alt':'Hare Season',
   'hare.text':'Skjót harur í novemberlíðunum saman við seyðahundinum. Vinn krónur, keyp betringar, tak grannarnar við, og hygg eftir sjáldsomu kavhvítu harunum.',
@@ -270,11 +277,17 @@ const TEXT={
   'fish.text':'Kasta eftir aurriða, upsa, makreli, hýsu og kalva úr vøtnum og havnum kring oyggjarnar. Betra um stongina og agnið, fá tær róðrarbát, og fylg sildatorvuni.',
   'sheep.chip':'Idle · 3D','sheep.title':'Seyðagongd','sheep.alt':'Sheep Season',
   'sheep.text':'Blíst eftir seyðahundunum og rek flokkarnar oman úr haganum inn í rættina. Ven hundarnar, fá betri ull, og hygg eftir dýru hornaðu veðrunum.',
-  about:'Spølini goyma, hvussu langt tú ert komin, í tínum egna kaga, so tú kanst koma aftur nær tú vilt.',made:'Gjørt í Føroyum'}
+  about:'Spølini goyma, hvussu langt tú ert komin, í tínum egna kaga, so tú kanst koma aftur nær tú vilt.',made:'Gjørt í Føroyum',visits:'vitjanir'}
 };
 (function(){let L='en';try{const v=localStorage.getItem('spael-lang');L=v==='fo'||v==='en'?v:((navigator.language||'').toLowerCase().startsWith('fo')?'fo':'en');}catch(e){}
  function apply(){document.documentElement.lang=L;document.querySelectorAll('[data-t]').forEach(el=>{const v=TEXT[L][el.dataset.t];if(v!==undefined)el.textContent=v;});document.querySelectorAll('.langT button').forEach(b=>b.setAttribute('aria-pressed',b.dataset.lang===L?'true':'false'));}
  document.querySelectorAll('.langT button').forEach(b=>b.addEventListener('click',()=>{L=b.dataset.lang;try{localStorage.setItem('spael-lang',L);}catch(e){}apply();}));apply();})();
 </script>
+<script>
+/* Visitor counter (GoatCounter, no cookies). Hidden if it can't load, e.g. ad blockers. */
+(function(){const el=document.getElementById('visits'),n=document.getElementById('visitsN');
+ fetch('https://woobster.goatcounter.com/counter/TOTAL.json').then(r=>r.ok?r.json():Promise.reject()).then(d=>{if(d&&d.count){n.textContent=d.count;el.hidden=false;}}).catch(()=>{});})();
+</script>
+<script data-goatcounter="https://woobster.goatcounter.com/count" async src="//gc.zgo.at/count.js"></script>
 </body>
 </html>
