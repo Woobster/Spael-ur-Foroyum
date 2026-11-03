@@ -350,7 +350,7 @@ const UP=[
 ];
 const dec=(v,d)=>{const x=v.toFixed(d);return LANG==='fo'?x.replace('.',','):x;};
 const cost=u=>Math.round(u.base*Math.pow(u.mult,S.lv[u.id]));
-function fmt(n){n=Math.floor(n);if(n<100000)return String(n).replace(/\B(?=(\d{3})+(?!\d))/g,',');const u=[['B',1e9],['M',1e6],['k',1e3]];for(const [s,v] of u)if(n>=v){const x=n/v;return (x<100?x.toFixed(1):Math.round(x))+s;}return String(n);}
+function fmt(n){n=Math.floor(n);const fo=LANG==='fo';if(n<100000)return String(n).replace(/\B(?=(\d{3})+(?!\d))/g,fo?'.':',');const u=[['B',1e9],['M',1e6],['k',1e3]];for(const [s,v] of u)if(n>=v){const x=n/v;const y=String(x<100?x.toFixed(1):Math.round(x));return (fo?y.replace('.',','):y)+s;}return String(n);}
 
 /* ---------------- renderer / scene ---------------- */
 const canvas=$('#game');
