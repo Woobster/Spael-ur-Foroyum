@@ -79,7 +79,13 @@ button{font-family:Figtree,system-ui,sans-serif;color:var(--ink)}
 #foot{display:flex;gap:8px;margin-top:10px}
 .sbtn{flex:1;border:0;border-radius:12px;padding:10px;font:700 13px Figtree;background:rgba(53,47,69,.08);cursor:pointer}
 .sbtn.warn{background:var(--red);color:#fff}
-#shopToggle{display:none}
+#shop{transition:transform .3s ease}
+#shop.shut{transform:translateX(calc(100% + 24px))}
+body.shop-shut{--cx:50%}
+#shop h2 .x{margin-left:auto;align-self:center;width:34px;height:34px;flex:none;font-size:20px;line-height:1}
+#shop h2 small{margin-left:10px}
+#shopToggle{display:none;position:fixed;right:14px;top:14px;z-index:10;border:0;border-radius:999px;padding:12px 18px;font:800 15px Figtree;background:var(--red);color:#fff;box-shadow:0 4px 0 #a8352a,0 8px 20px rgba(53,47,69,.25);cursor:pointer}
+body.shop-shut #shopToggle{display:block}
 #modal,#ending{position:fixed;inset:0;z-index:30;background:rgba(53,47,69,.32);display:grid;place-items:center;padding:16px}
 .mcard{width:min(760px,100%);max-height:calc(100vh - 32px);display:flex;flex-direction:column;padding:16px;border-radius:20px;background:rgba(251,249,253,.92)}
 .mhead{display:flex;align-items:center;justify-content:space-between;margin:0 4px 12px}
@@ -116,7 +122,7 @@ button{font-family:Figtree,system-ui,sans-serif;color:var(--ink)}
  :root{--cx:50%}
  #shop{left:0;right:0;bottom:0;top:auto;width:auto;height:64vh;border-radius:22px 22px 0 0;transform:translateY(105%);transition:transform .3s ease}
  #shop.open{transform:none}
- #shopToggle{display:block;position:fixed;right:14px;bottom:16px;z-index:10;border:0;border-radius:999px;padding:12px 18px;font:800 15px Figtree;background:var(--red);color:#fff;box-shadow:0 4px 0 #a8352a,0 8px 20px rgba(53,47,69,.25);transition:bottom .3s ease}
+ #shopToggle{display:block;top:auto;position:fixed;right:14px;bottom:16px;z-index:10;border:0;border-radius:999px;padding:12px 18px;font:800 15px Figtree;background:var(--red);color:#fff;box-shadow:0 4px 0 #a8352a,0 8px 20px rgba(53,47,69,.25);transition:bottom .3s ease}
  #shop.open ~ #shopToggle{bottom:calc(64vh + 10px)}
  #cn{font-size:68px}#cu{font-size:28px}
  #counter{top:66%}
@@ -139,7 +145,7 @@ button{font-family:Figtree,system-ui,sans-serif;color:var(--ink)}
 <div id="frenzy"></div>
 <div id="fx"></div>
 <div id="shop" class="panel">
-  <h2><span data-t="shop.title">Tackle shop</span> <small data-t="shop.sub">prices × level</small></h2>
+  <h2><span data-t="shop.title">Tackle shop</span> <small data-t="shop.sub">prices × level</small><button id="shopX" class="x" type="button" aria-label="Hide shop">×</button></h2>
   <div id="ups"></div>
   <div id="foot"><button id="snd" class="sbtn">🔊 Sound on</button><button id="reset" class="sbtn" data-t="reset">Start over</button></div>
 </div>
@@ -168,7 +174,7 @@ const TEXT={
  en:{
   'hud.fish':'fish','hud.map':'Map','hud.rate':r=>`+${r} kr/min`,
   'hint':['Tap the water to cast 🎣','Wait for the nibble… tap when the float dips!','Strike fast for a PERFECT bonus ⭐','Keep fishing!'],
-  'shop.title':'Tackle shop','shop.sub':'prices × level','shop.open':'🎣 Shop','shop.lvl':l=>`lvl ${l}`,'shop.max':'MAX','shop.maxed':'max',
+  'shop.close':'Hide shop','shop.title':'Tackle shop','shop.sub':'prices × level','shop.open':'🎣 Shop','shop.lvl':l=>`lvl ${l}`,'shop.max':'MAX','shop.maxed':'max',
   'snd.on':'🔊 Sound on','snd.off':'🔈 Sound off','reset':'Start over','reset.confirm':'Tap again to reset',
   'map.title':'Føroyar · Map','map.here':"You're here",'map.go':'Travel','map.unlock':c=>`Unlock · ${c} kr`,'map.locked':'Locked','map.value':v=>`×${v} value`,
   'next.next':n=>`Next: ${n}`,'next.boss':'Stóri Kalvi is here!','next.bossName':'Stóri Kalvi','next.cast':'cast!','next.all':'All of Føroyar open','next.goM':'Go to Mykines',
@@ -201,7 +207,7 @@ const TEXT={
  fo:{
   'hud.fish':'fiskar','hud.map':'Kort','hud.rate':r=>`+${r} kr/min`,
   'hint':['Trýst á vatnið fyri at kasta 🎣','Bíða eftir nappinum… trýst, tá ið flotið søkkur!','Rykk skjótt fyri FULLKOMNAN bonus ⭐','Halt fram at fiska!'],
-  'shop.title':'Fiskihandil','shop.sub':'prísir × stig','shop.open':'🎣 Handil','shop.lvl':l=>`stig ${l}`,'shop.max':'MAX','shop.maxed':'fult',
+  'shop.close':'Lat handilin aftur','shop.title':'Fiskihandil','shop.sub':'prísir × stig','shop.open':'🎣 Handil','shop.lvl':l=>`stig ${l}`,'shop.max':'MAX','shop.maxed':'fult',
   'snd.on':'🔊 Ljóð á','snd.off':'🔈 Ljóð av','reset':'Byrja av nýggjum','reset.confirm':'Trýst aftur at strika alt',
   'map.title':'Føroyar · Kort','map.here':'Tú ert her','map.go':'Far','map.unlock':c=>`Lat upp · ${c} kr`,'map.locked':'Læst','map.value':v=>`×${v} virði`,
   'next.next':n=>`Næsta: ${n}`,'next.boss':'Stóri Kalvi er her!','next.bossName':'Stóri Kalvi','next.cast':'kasta!','next.all':'Allar Føroyar eru opnar','next.goM':'Far til Mykines',
@@ -976,7 +982,9 @@ $('areas').addEventListener('click',e=>{const b=e.target.closest('button');if(!b
  else if(b.dataset.go)travel(+b.dataset.go,false);});
 function travel(i,isNew){$('modal').classList.add('hide');$('flash').classList.add('on');endFrenzy();setCombo(0);
  setTimeout(()=>{buildLevel(i);save();$('flash').classList.remove('on');const L=LEVELS[i];banner(L.name,L.sub,(isNew?tt('area.new'):'')+L.island+' · '+L.date);SFX.fanfare();hudDirty=true;},380);}
-$('shopToggle').onclick=()=>$('shop').classList.toggle('open');
+$('shopToggle').onclick=()=>window.shopToggle();
+$('shopX').onclick=()=>window.shopHide();
+$('shopX').setAttribute('aria-label',t('shop.close'));
 function setSound(){$('snd').textContent=tt(soundOn?'snd.on':'snd.off');if(master)master.gain.value=soundOn?0.55:0;}
 $('snd').onclick=()=>{soundOn=!soundOn;initAudio();setSound();save();};
 let resetArm=0;$('reset').onclick=()=>{const b=$('reset');if(Date.now()-resetArm<3000){try{localStorage.removeItem(SAVE);}catch(e){}location.reload();return;}
@@ -1028,6 +1036,18 @@ setTimeout(()=>banner(cur.name,cur.sub,cur.island+' · '+cur.date),400);
 requestAnimationFrame(frame);
 window.__fish={get state(){return {money,fishCaught,line:line.state,fishes:fishes.length,lvl:curIdx};},cast,strike,buildLevel,give:v=>{money+=v;hudDirty=true;}};
 })();
+
+// ---- Shop show/hide (button, × and the S key). On phones the shop is a bottom sheet.
+(function(){const shop=document.getElementById('shop'),KEYS='spael-shop-hidden';
+ const phone=()=>matchMedia('(max-width:760px)').matches;
+ let hidden=false;try{hidden=localStorage.getItem(KEYS)==='1';}catch(e){}
+ function apply(){shop.classList.toggle('shut',hidden&&!phone());document.body.classList.toggle('shop-shut',hidden&&!phone());}
+ function setHidden(h){hidden=h;try{localStorage.setItem(KEYS,h?'1':'0');}catch(e){}apply();}
+ window.shopShow=()=>{if(phone())shop.classList.add('open');else setHidden(false);};
+ window.shopHide=()=>{if(phone())shop.classList.remove('open');else setHidden(true);};
+ window.shopToggle=()=>{if(phone())shop.classList.toggle('open');else setHidden(!hidden);};
+ addEventListener('keydown',e=>{if(e.code==='KeyS'&&!e.ctrlKey&&!e.metaKey&&!e.altKey&&!/INPUT|TEXTAREA/.test((e.target&&e.target.tagName)||'')){e.preventDefault();window.shopToggle();}});
+ addEventListener('resize',apply);apply();})();
 </script>
 </body>
 </html>
