@@ -45,8 +45,8 @@ h1{font:400 clamp(48px,11vw,108px)/1 var(--display);margin:18px 0 10px;color:var
 @keyframes drift{to{transform:translateX(calc(100vw + 320px))}}
 
 /* Games */
-main{position:relative;z-index:3;max-width:980px;margin:-120px auto 0;padding:0 16px 48px}
-.grid{display:grid;grid-template-columns:repeat(auto-fit,minmax(min(100%,400px),1fr));gap:22px}
+main{position:relative;z-index:3;max-width:1160px;margin:-120px auto 0;padding:0 16px 48px}
+.grid{display:grid;grid-template-columns:repeat(auto-fit,minmax(min(100%,330px),1fr));gap:22px}
 .card{display:flex;flex-direction:column;background:var(--paper-solid);border-radius:24px;overflow:hidden;
   box-shadow:0 14px 40px rgba(53,47,69,.18);text-decoration:none;transition:transform .18s ease,box-shadow .18s ease}
 .card:hover{transform:translateY(-4px);box-shadow:0 20px 50px rgba(53,47,69,.24)}
@@ -66,6 +66,7 @@ main{position:relative;z-index:3;max-width:980px;margin:-120px auto 0;padding:0 
 .play{margin-top:auto;align-self:flex-start;display:inline-flex;align-items:center;gap:10px;background:var(--red);color:var(--white);
   font:400 22px var(--display);padding:12px 22px 12px 18px;border-radius:14px;box-shadow:0 3px 0 rgba(0,0,0,.15)}
 .card.fish .play{background:var(--blue)}
+.card.sheep .play{background:#4f8a5c}
 .play svg{width:18px;height:18px;fill:currentColor}
 .card:hover .play{filter:brightness(1.07)}
 
@@ -195,9 +196,55 @@ footer .stripe{display:block;width:72px;height:6px;margin:0 auto 14px;border-rad
       </div>
     </a>
 
+    <a class="card sheep" href="sheep-season/">
+      <div class="art">
+        <svg viewBox="0 0 400 250" preserveAspectRatio="xMidYMid slice" aria-hidden="true">
+          <defs><linearGradient id="ss" x1="0" y1="0" x2="0" y2="1"><stop offset="0" stop-color="#d6cde5"/><stop offset="1" stop-color="#f0ebf4"/></linearGradient></defs>
+          <rect width="400" height="250" fill="url(#ss)"/>
+          <path d="M0 105 L90 50 L170 95 L260 45 L330 85 L400 55 V250 H0Z" fill="#bdb2d1"/>
+          <path d="M0 150 C100 115 200 150 290 125 C350 110 380 120 400 118 V250 H0Z" fill="#a8bfa9"/>
+          <path d="M0 200 C120 180 260 205 400 185 V250 H0Z" fill="#8fae95"/>
+          <!-- stone pen (rætt) -->
+          <g fill="#9c96a8">
+            <path d="M250 214 C270 196 340 192 372 206 L372 222 C340 210 280 212 258 228Z"/>
+          </g>
+          <g fill="#b6b0c1"><circle cx="262" cy="214" r="5"/><circle cx="282" cy="206" r="6"/><circle cx="306" cy="202" r="5"/><circle cx="330" cy="202" r="6"/><circle cx="352" cy="205" r="5"/></g>
+          <!-- sheep -->
+          <g transform="translate(120 150)">
+            <ellipse cx="0" cy="0" rx="30" ry="20" fill="#f7f4fa"/>
+            <circle cx="-18" cy="-10" r="11" fill="#f7f4fa"/><circle cx="2" cy="-14" r="12" fill="#f7f4fa"/><circle cx="20" cy="-8" r="10" fill="#f7f4fa"/>
+            <ellipse cx="34" cy="-6" rx="10" ry="8" fill="#4a4258"/>
+            <circle cx="37" cy="-8" r="1.8" fill="#f7f4fa"/>
+            <rect x="-18" y="14" width="5" height="14" rx="2" fill="#4a4258"/><rect x="12" y="14" width="5" height="14" rx="2" fill="#4a4258"/>
+          </g>
+          <g transform="translate(205 128) scale(.65)">
+            <ellipse cx="0" cy="0" rx="30" ry="20" fill="#5e5466"/>
+            <circle cx="-16" cy="-10" r="11" fill="#5e5466"/><circle cx="4" cy="-14" r="12" fill="#5e5466"/>
+            <ellipse cx="32" cy="-6" rx="10" ry="8" fill="#352f45"/>
+            <rect x="-16" y="14" width="5" height="14" rx="2" fill="#352f45"/><rect x="12" y="14" width="5" height="14" rx="2" fill="#352f45"/>
+          </g>
+          <!-- sheepdog -->
+          <g transform="translate(42 186)">
+            <ellipse cx="0" cy="0" rx="20" ry="9" fill="#352f45"/>
+            <circle cx="20" cy="-8" r="8" fill="#352f45"/><path d="M24 -6 L32 -4 L25 0Z" fill="#f7f4fa"/>
+            <path d="M-20 -2 Q-30 -10 -28 -18" stroke="#352f45" stroke-width="4" fill="none" stroke-linecap="round"/>
+            <rect x="-14" y="5" width="4" height="10" fill="#352f45"/><rect x="10" y="5" width="4" height="10" fill="#352f45"/>
+            <path d="M14 -4 L20 2 L26 -2" stroke="#f7f4fa" stroke-width="3" fill="none"/>
+          </g>
+        </svg>
+        <span class="chip" data-t="sheep.chip">Idle · 3D</span>
+      </div>
+      <div class="body">
+        <div class="title"><h2 data-t="sheep.title">Sheep Season</h2><span data-t="sheep.alt">Seyðagongd</span></div>
+        <p data-t="sheep.text">Whistle your sheepdogs into action and drive the flocks down from the hills into the stone pen. Train your dogs, breed better wool, and watch for the prize horned rams.</p>
+        <ul class="places"><li>Kirkjubøur</li><li>Saksun</li><li>Gjógv</li><li>Mykines</li><li>Lítla Dímun</li></ul>
+        <span class="play"><svg viewBox="0 0 24 24"><path d="M7 4.5v15l12-7.5z"/></svg><span data-t="play">Play</span></span>
+      </div>
+    </a>
+
   </div>
 
-  <p class="about"><span data-t="about">Both games save your progress in your own browser, so you can come back any time.</span> <b>Góða skemtan!</b></p>
+  <p class="about"><span data-t="about">All the games save your progress in your own browser, so you can come back any time.</span> <b>Góða skemtan!</b></p>
 </main>
 
 <footer>
@@ -213,12 +260,16 @@ const TEXT={
   'hare.text':'Hunt hares across the November hillsides with your sheepdog. Earn krónur, buy upgrades, bring the neighbours along, and look out for the rare snow-white hares.',
   'fish.chip':'Idle · Fishing','fish.title':'Fish Season','fish.alt':'Fiskiskapur',
   'fish.text':'Cast for trout, saithe, mackerel, haddock and halibut from lakes and harbours around the islands. Upgrade your rod and bait, get a rowing boat, and ride the herring run.',
-  about:'Both games save your progress in your own browser, so you can come back any time.',made:'Made in the Faroe Islands'},
+  'sheep.chip':'Idle · 3D','sheep.title':'Sheep Season','sheep.alt':'Seyðagongd',
+  'sheep.text':'Whistle your sheepdogs into action and drive the flocks down from the hills into the stone pen. Train your dogs, breed better wool, and watch for the prize horned rams.',
+  about:'All the games save your progress in your own browser, so you can come back any time.',made:'Made in the Faroe Islands'},
  fo:{tag:'Hugnalig smá spøl úr Føroyum. Ókeypis at spæla í kaganum.',play:'Spæl',
   'hare.chip':'Idle · 3D','hare.title':'Haruveiða','hare.alt':'Hare Season',
   'hare.text':'Skjót harur í novemberlíðunum saman við seyðahundinum. Vinn krónur, keyp betringar, tak grannarnar við, og hygg eftir sjáldsomu kavhvítu harunum.',
   'fish.chip':'Idle · Fiskiskapur','fish.title':'Fiskiskapur','fish.alt':'Fish Season',
   'fish.text':'Kasta eftir aurriða, upsa, makreli, hýsu og kalva úr vøtnum og havnum kring oyggjarnar. Betra um stongina og agnið, fá tær róðrarbát, og fylg sildatorvuni.',
+  'sheep.chip':'Idle · 3D','sheep.title':'Seyðagongd','sheep.alt':'Sheep Season',
+  'sheep.text':'Blíst eftir seyðahundunum og rek flokkarnar oman úr haganum inn í rættina. Ven hundarnar, fá betri ull, og hygg eftir dýru hornaðu veðrunum.',
   about:'Spølini goyma, hvussu langt tú ert komin, í tínum egna kaga, so tú kanst koma aftur nær tú vilt.',made:'Gjørt í Føroyum'}
 };
 (function(){let L='en';try{const v=localStorage.getItem('spael-lang');L=v==='fo'||v==='en'?v:((navigator.language||'').toLowerCase().startsWith('fo')?'fo':'en');}catch(e){}
