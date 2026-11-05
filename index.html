@@ -70,6 +70,7 @@ main{position:relative;z-index:3;max-width:1340px;margin:-120px auto 0;padding:0
 .card.fish .play{background:var(--blue)}
 .card.sheep .play{background:#4f8a5c}
 .card.row .play{background:#352f45}
+.card.puffin .play{background:#e8743b}
 .play svg{width:18px;height:18px;fill:currentColor}
 .card:hover .play{filter:brightness(1.07)}
 
@@ -297,6 +298,45 @@ footer .stripe{display:block;width:72px;height:6px;margin:0 auto 14px;border-rad
       </div>
     </a>
 
+    <a class="card puffin" href="puffin-watch/">
+      <div class="art">
+        <svg viewBox="0 0 400 250" preserveAspectRatio="xMidYMid slice" aria-hidden="true">
+          <defs>
+            <linearGradient id="ps" x1="0" y1="0" x2="0" y2="1"><stop offset="0" stop-color="#d3cbe3"/><stop offset="1" stop-color="#f0ebf4"/></linearGradient>
+            <linearGradient id="psea" x1="0" y1="0" x2="0" y2="1"><stop offset="0" stop-color="#7fa3bb"/><stop offset="1" stop-color="#5f86a8"/></linearGradient>
+          </defs>
+          <rect width="400" height="250" fill="url(#ps)"/>
+          <rect y="120" width="400" height="130" fill="url(#psea)"/>
+          <path d="M150 128 L166 62 L210 52 L262 58 L300 70 L312 128Z" fill="#8f8a9b"/>
+          <path d="M166 62 L210 52 L262 58 L300 70 L296 76 L254 66 L210 60 L172 70Z" fill="#a9b77f"/>
+          <g fill="#e8e5ec" opacity=".8"><rect x="190" y="78" width="3" height="16"/><rect x="226" y="86" width="3" height="12"/><rect x="262" y="80" width="3" height="18"/></g>
+          <g transform="translate(272 34)"><rect x="0" y="6" width="8" height="22" fill="#f4f1ea"/><rect x="-1" y="2" width="10" height="5" fill="#d9493a"/><path d="M-1 2 L4 -4 L9 2Z" fill="#d9493a"/></g>
+          <path d="M0 175 C80 150 170 160 260 180 C320 194 370 196 400 200 V250 H0Z" fill="#a9b77f"/>
+          <path d="M0 210 C110 196 240 214 400 222 V250 H0Z" fill="#94a770"/>
+          <ellipse cx="92" cy="186" rx="12" ry="4" fill="#2b2530"/>
+          <g transform="translate(130 140)">
+            <ellipse cx="0" cy="22" rx="17" ry="23" fill="#2f2c35"/>
+            <ellipse cx="4" cy="28" rx="11" ry="16" fill="#f6f3ee"/>
+            <circle cx="4" cy="-4" r="13" fill="#2f2c35"/>
+            <ellipse cx="7" cy="-3" rx="9" ry="8" fill="#ebe8ee"/>
+            <circle cx="9" cy="-6" r="2" fill="#1f1b22"/>
+            <path d="M15 -6 L29 0 L15 6Z" fill="#e8743b"/><path d="M15 -6 L19 -4 L19 4 L15 6Z" fill="#f0b23a"/>
+            <rect x="-6" y="44" width="4" height="7" fill="#ef7d3c"/><rect x="4" y="44" width="4" height="7" fill="#ef7d3c"/>
+          </g>
+          <g fill="none" stroke="#fff" stroke-width="3" stroke-linecap="round">
+            <path d="M104 116 v-12 h12"/><path d="M168 104 h12 v12"/><path d="M104 182 v12 h12"/><path d="M168 194 h12 v-12"/>
+          </g>
+        </svg>
+        <span class="chip" data-t="puffin.chip">Photo · 3D</span>
+      </div>
+      <div class="body">
+        <div class="title"><h2 data-t="puffin.title">Puffin Watch</h2><span data-t="puffin.alt">Lundi</span></div>
+        <p data-t="puffin.text">Photograph puffins, gannets, skuas and storm petrels on the bird cliffs. Hold to focus, catch the rare poses, fill your bird book and upgrade your camera.</p>
+        <ul class="places"><li>Mykines</li><li>Vestmanna</li><li>Skúvoy</li><li>Nólsoy</li></ul>
+        <span class="play"><svg viewBox="0 0 24 24"><path d="M7 4.5v15l12-7.5z"/></svg><span data-t="play">Play</span></span>
+      </div>
+    </a>
+
   </div>
 
   <p class="about"><span data-t="about">All the games save your progress in your own browser, so you can come back any time.</span> <b>Góða skemtan!</b></p>
@@ -320,6 +360,8 @@ const TEXT={
   'sheep.text':'Whistle your sheepdogs into action and drive the flocks down from the hills into the stone pen. Train your dogs, breed better wool, and watch for the prize horned rams.',
   'row.chip':'Rhythm · Racing','row.title':'Rowing Season','row.alt':'Kappróður',
   'row.text':'Tap in time with the stroke to drive the boat. Beat the rival crews across seven fjords, train your crew in the boathouse between races, and win Ólavsøka in Tórshavn.',
+  'puffin.chip':'Photo · 3D','puffin.title':'Puffin Watch','puffin.alt':'Lundi',
+  'puffin.text':'Photograph puffins, gannets, skuas and storm petrels on the bird cliffs. Hold to focus, catch the rare poses, fill your bird book and upgrade your camera.',
   about:'All the games save your progress in your own browser, so you can come back any time.',made:'Made in the Faroe Islands',visits:'visits'},
  fo:{tag:'Hugnalig smá spøl úr Føroyum. Ókeypis at spæla í kaganum.',play:'Spæl',
   'hare.chip':'Idle · 3D','hare.title':'Haruveiða','hare.alt':'Hare Season',
@@ -330,6 +372,8 @@ const TEXT={
   'sheep.text':'Blíst eftir seyðahundunum og rek flokkarnar oman úr haganum inn í rættina. Ven hundarnar, fá betri ull, og hygg eftir dýru hornaðu veðrunum.',
   'row.chip':'Takt · Kappróður','row.title':'Kappróður','row.alt':'Rowing Season',
   'row.text':'Trýst í takt við áratøkini, so báturin fer. Vinn á hinum manningunum í sjey fjørðum, ven manningina í neystinum millum kappróðrarnar og vinn Ólavsøkuróðurin í Havn.',
+  'puffin.chip':'Myndir · 3D','puffin.title':'Lundi','puffin.alt':'Puffin Watch',
+  'puffin.text':'Mynda lundar, súlur, skúgvar og drunnhvítar í fuglabjørgunum. Halt inni fyri at skarpstilla, fang tær sjáldsomu støðurnar, fyll fuglabókina og betra um myndatólið.',
   about:'Spølini goyma, hvussu langt tú ert komin, í tínum egna kaga, so tú kanst koma aftur nær tú vilt.',made:'Gjørt í Føroyum',visits:'vitjanir'}
 };
 (function(){let L='en';try{const v=localStorage.getItem('spael-lang');L=v==='fo'||v==='en'?v:((navigator.language||'').toLowerCase().startsWith('fo')?'fo':'en');}catch(e){}

@@ -8,6 +8,7 @@ Live site: **https://woobster.github.io/Spael-ur-Foroyum/**
 index.html              Front page with a card for each game
 hare-season/index.html  Hare Season · Haruveiða
 fish-season/index.html  Fish Season · Fiskiskapur
+puffin-watch/index.html Puffin Watch · Lundi
 NEW-GAME-PROMPT.md      Prompt for making more games in the same style
 .nojekyll               Tells GitHub Pages to serve the files as they are
 ```
