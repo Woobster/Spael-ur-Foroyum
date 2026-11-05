@@ -25,10 +25,17 @@ body{margin:0;min-height:100vh;font:16px/1.5 var(--ui);color:var(--ink);backgrou
 a{color:inherit}
 
 /* Hero: layered hills like the games' backdrops */
-.hero{position:relative;min-height:min(78vh,620px);display:flex;flex-direction:column;justify-content:flex-start;
+.hero{position:relative;min-height:max(min(78vh,620px),calc(240px + 27.8vw));display:flex;flex-direction:column;justify-content:flex-start;
   padding:calc(40px + env(safe-area-inset-top,0px)) 16px 0;overflow:hidden;
   background:linear-gradient(180deg,#cfc6df 0%,#e6dfee 55%,#f1ecf5 100%)}
-.hero svg.land{position:absolute;left:0;right:0;bottom:0;width:100%;height:62%;display:block}
+.hero svg.land{position:absolute;left:50%;bottom:0;transform:translateX(-50%);width:max(100%,1100px);height:auto;aspect-ratio:1440/400;display:block}
+.land .bob{animation:bob 4.6s ease-in-out infinite;transform-box:fill-box;transform-origin:50% 100%}
+.land .b2{animation-duration:3.4s;animation-delay:-1.2s}
+@keyframes bob{50%{transform:translateY(2.5px) rotate(-1deg)}}
+.land .fly{animation:fly 38s linear infinite}
+@keyframes fly{from{transform:translate(380px,150px)}to{transform:translate(1180px,110px)}}
+.land .wing{animation:flap .22s ease-in-out infinite alternate;transform-box:fill-box;transform-origin:50% 100%}
+@keyframes flap{to{transform:scaleY(-.6)}}
 .hero-inner{position:relative;z-index:2;max-width:980px;width:100%;margin:0 auto;text-align:center}
 .flag{display:inline-flex;align-items:center;gap:8px;background:var(--paper);backdrop-filter:blur(8px);-webkit-backdrop-filter:blur(8px);
   padding:6px 14px 6px 8px;border-radius:999px;font-weight:800;font-size:12px;letter-spacing:.12em;text-transform:uppercase;box-shadow:0 2px 10px rgba(53,47,69,.12)}
@@ -97,7 +104,7 @@ footer .stripe{display:block;width:72px;height:6px;margin:0 auto 14px;border-rad
   main{margin-top:-90px}
   .title h2{font-size:30px}
 }
-@media (prefers-reduced-motion:reduce){.cloud{animation:none;display:none}.card{transition:none}}
+@media (prefers-reduced-motion:reduce){.cloud{animation:none;display:none}.land .bob,.land .wing{animation:none}.land .fly{animation:none;transform:translate(700px,120px)}.card{transition:none}}
 </style>
 </head>
 <body>
@@ -113,20 +120,126 @@ footer .stripe{display:block;width:72px;height:6px;margin:0 auto 14px;border-rad
     <h1>Spæl úr Føroyum</h1>
     <p class="tag" data-t="tag">Cosy little games from the Faroe Islands. Free to play in your browser.</p>
   </div>
-  <svg class="land" viewBox="0 0 1440 400" preserveAspectRatio="none" aria-hidden="true">
+  <svg class="land" viewBox="0 0 1440 400" preserveAspectRatio="xMidYMax slice" aria-hidden="true">
+    <defs>
+      <linearGradient id="hsea" x1="0" y1="0" x2="0" y2="1"><stop offset="0" stop-color="#8aa6c6"/><stop offset=".5" stop-color="#5f86a8"/></linearGradient>
+
+    <g id="pf">
+      <ellipse cx="0" cy="8" rx="6" ry="8.5" fill="#2f2c35"/>
+      <ellipse cx="1.5" cy="10" rx="4" ry="6" fill="#f6f3ee"/>
+      <circle cx="1.5" cy="-2" r="4.8" fill="#2f2c35"/>
+      <ellipse cx="2.6" cy="-1.6" rx="3.3" ry="3" fill="#ebe8ee"/>
+      <path d="M5.6 -2.4 L10.5 0 L5.6 2.2Z" fill="#e8743b"/>
+      <rect x="-2.4" y="16" width="1.8" height="3" fill="#ef7d3c"/><rect x="1.4" y="16" width="1.8" height="3" fill="#ef7d3c"/>
+    </g>
+    <g id="sh">
+      <ellipse cx="0" cy="0" rx="17" ry="11" fill="#f7f4fa"/>
+      <circle cx="-10" cy="-6" r="6.5" fill="#f7f4fa"/><circle cx="1" cy="-8" r="7" fill="#f7f4fa"/><circle cx="11" cy="-4" r="6" fill="#f7f4fa"/>
+      <ellipse cx="19" cy="-3" rx="6" ry="4.6" fill="#4a4258"/>
+      <rect x="-10" y="8" width="3" height="8" rx="1.5" fill="#4a4258"/><rect x="7" y="8" width="3" height="8" rx="1.5" fill="#4a4258"/>
+    </g>
+    </defs>
+    <!-- far mountains -->
     <path d="M0 160 L120 110 L230 150 L360 60 L470 120 L560 90 L700 150 L820 70 L930 130 L1050 80 L1170 140 L1300 70 L1440 120 V400 H0Z" fill="#b9aecf"/>
-    <path d="M0 230 C160 180 260 210 380 170 C520 125 640 200 780 180 C920 160 1040 120 1180 170 C1300 210 1380 180 1440 190 V400 H0Z" fill="#9db6a3"/>
-    <path d="M0 300 C200 260 360 290 520 270 C700 248 860 300 1040 280 C1200 262 1340 290 1440 280 V400 H0Z" fill="#86a690"/>
-    <!-- turf-roof house -->
-    <g transform="translate(1150 150)">
+    <path d="M360 60 L384 76 L372 80 L394 94 L346 84Z M820 70 L842 84 L830 88 L850 100 L806 92Z" fill="#fff" opacity=".75"/>
+    <!-- fjord -->
+    <rect x="0" y="196" width="1440" height="204" fill="url(#hsea)"/>
+    <g class="ripple" fill="none" stroke="#fff" stroke-opacity=".35" stroke-width="2.5" stroke-linecap="round">
+      <path d="M520 232 q14 -4 28 0 t28 0"/><path d="M860 248 q14 -4 28 0 t28 0"/><path d="M640 262 q14 -4 28 0 t28 0"/>
+    </g>
+
+    <!-- left hills -->
+    <path d="M0 165 C100 150 200 158 300 172 C380 184 440 198 490 214 C520 224 540 250 548 290 L552 400 H0Z" fill="#9db6a3"/>
+    <path d="M0 238 C120 222 260 230 360 244 C430 255 490 266 540 284 L560 400 H0Z" fill="#86a690"/>
+    <!-- right: hill, bird cliff, lighthouse -->
+    <path d="M920 290 C922 244 940 220 980 206 C1040 194 1110 182 1180 168 C1220 160 1250 150 1270 144 V400 H916Z" fill="#9db6a3"/>
+    <path d="M1262 146 L1440 132 V400 H1250Z" fill="#8f8a9b"/>
+    <path d="M1262 146 L1440 132 V142 L1268 156Z" fill="#a9b77f"/>
+    <g fill="#e8e5ec" opacity=".75"><rect x="1300" y="168" width="3" height="18"/><rect x="1342" y="176" width="3" height="14"/><rect x="1390" y="164" width="3" height="20"/></g>
+    <path d="M880 300 C900 266 940 250 990 242 C1060 230 1100 228 1140 232 C1200 235 1240 244 1300 256 V400 H876Z" fill="#86a690"/>
+
+    <!-- turf-roof houses -->
+    <g transform="translate(70 140)">
       <rect x="0" y="12" width="56" height="30" fill="#d9493a"/>
       <path d="M-6 14 L28 -8 L62 14Z" fill="#6f9a73"/>
       <rect x="8" y="22" width="10" height="10" fill="#f7f4fa"/><rect x="34" y="22" width="12" height="20" fill="#352f45"/>
     </g>
-    <g transform="translate(250 168) scale(.8)">
+    <g transform="translate(1150 136) scale(.8)">
       <rect x="0" y="12" width="50" height="28" fill="#f7f4fa"/>
       <path d="M-6 14 L25 -8 L56 14Z" fill="#6f9a73"/>
       <rect x="20" y="22" width="10" height="18" fill="#2c5597"/>
+    </g>
+
+    <!-- lighthouse -->
+    <g transform="translate(1404 98)"><rect x="0" y="8" width="10" height="28" fill="#f4f1ea"/><rect x="-1.5" y="3" width="13" height="6" fill="#d9493a"/><path d="M-1.5 3 L5 -4 L11.5 3Z" fill="#d9493a"/><rect x="0" y="18" width="10" height="4" fill="#d9493a"/></g>
+
+    <!-- puffins on the cliff top -->
+    <use href="#pf" transform="translate(1296 128)"/>
+    <use href="#pf" transform="translate(1318 126) scale(-1 1)"/>
+    <use href="#pf" transform="translate(1364 122) scale(.9)"/>
+
+    <!-- hare on the left slope -->
+    <g transform="translate(300 196) scale(.62)">
+      <ellipse cx="30" cy="34" rx="34" ry="22" fill="#9a8a78"/>
+      <circle cx="62" cy="20" r="15" fill="#9a8a78"/>
+      <path d="M58 8 C54 -26 62 -34 66 -30 C70 -24 68 -6 66 8Z" fill="#9a8a78"/>
+      <path d="M66 8 C68 -20 78 -28 81 -22 C83 -16 76 -2 72 10Z" fill="#8a7a69"/>
+      <circle cx="68" cy="18" r="2.6" fill="#352f45"/>
+      <circle cx="-2" cy="30" r="8" fill="#f7f4fa"/>
+    </g>
+
+    <!-- fishing boat -->
+    <g class="bob"><g transform="translate(560 182)">
+      <path d="M0 22 L96 22 L84 38 L12 38Z" fill="#d9493a"/>
+      <rect x="0" y="20" width="96" height="4" fill="#f7f4fa"/>
+      <rect x="18" y="8" width="22" height="13" fill="#f7f4fa"/><rect x="22" y="11" width="6" height="5" fill="#5f86a8"/>
+      <path d="M64 21 L64 -26" stroke="#352f45" stroke-width="2.5"/>
+      <path d="M64 -24 Q112 -4 124 46" stroke="#352f45" stroke-width="1.5" fill="none"/>
+    </g></g>
+    <circle cx="684" cy="230" r="3" fill="#fff" opacity=".7"/>
+
+    <!-- rowing race boat -->
+    <g class="bob b2"><g transform="translate(770 214) scale(.8)">
+      <path d="M-6 6 Q0 26 30 28 L150 28 Q178 24 186 4 Z" fill="#f7f4fa"/>
+      <path d="M-6 6 L186 4 L180 10 L0 12Z" fill="#2c5597"/>
+      <path d="M-8 6 Q-14 -6 -8 -14" stroke="#f7f4fa" stroke-width="5" fill="none" stroke-linecap="round"/>
+      <path d="M188 4 Q196 -8 190 -16" stroke="#f7f4fa" stroke-width="5" fill="none" stroke-linecap="round"/>
+      <g fill="#d9493a"><circle cx="40" cy="-8" r="6"/><circle cx="72" cy="-8" r="6"/><circle cx="104" cy="-8" r="6"/><circle cx="136" cy="-8" r="6"/></g>
+      <g fill="#352f45"><rect x="35" y="-2" width="10" height="10" rx="3"/><rect x="67" y="-2" width="10" height="10" rx="3"/><rect x="99" y="-2" width="10" height="10" rx="3"/><rect x="131" y="-2" width="10" height="10" rx="3"/></g>
+      <g stroke="#8a6a3c" stroke-width="3" stroke-linecap="round"><path d="M42 4 L18 40"/><path d="M74 4 L50 40"/><path d="M106 4 L82 40"/><path d="M138 4 L114 40"/></g>
+      <circle cx="170" cy="-6" r="5.5" fill="#f0b23a"/>
+    </g></g>
+    <path d="M730 244 q18 -4 36 0 t36 0" stroke="#fff" stroke-opacity=".45" stroke-width="2.5" fill="none" stroke-linecap="round"/>
+
+    <!-- sheepdog, flock and stone pen on the right -->
+    <g fill="#9c96a8"><path d="M1150 256 C1166 242 1222 238 1250 250 L1250 262 C1222 254 1170 256 1156 268Z"/></g>
+    <g fill="#b6b0c1"><circle cx="1160" cy="254" r="4"/><circle cx="1178" cy="247" r="5"/><circle cx="1198" cy="244" r="4"/><circle cx="1218" cy="244" r="5"/><circle cx="1238" cy="247" r="4"/></g>
+    <use href="#sh" transform="translate(1040 224)"/>
+    <use href="#sh" transform="translate(1078 216) scale(.85)"/>
+    <g transform="translate(1104 230) scale(.9)">
+      <ellipse cx="0" cy="0" rx="17" ry="11" fill="#5e5466"/>
+      <circle cx="-9" cy="-6" r="6.5" fill="#5e5466"/><circle cx="2" cy="-8" r="7" fill="#5e5466"/>
+      <ellipse cx="19" cy="-3" rx="6" ry="4.6" fill="#352f45"/>
+      <rect x="-9" y="8" width="3" height="8" rx="1.5" fill="#352f45"/><rect x="8" y="8" width="3" height="8" rx="1.5" fill="#352f45"/>
+    </g>
+    <g transform="translate(985 240)">
+      <ellipse cx="0" cy="0" rx="13" ry="6" fill="#352f45"/>
+      <circle cx="13" cy="-5" r="5.5" fill="#352f45"/><path d="M16 -4 L22 -2.5 L17 0Z" fill="#f7f4fa"/>
+      <path d="M-13 -1 Q-20 -7 -18 -12" stroke="#352f45" stroke-width="3" fill="none" stroke-linecap="round"/>
+      <rect x="-9" y="3" width="3" height="7" fill="#352f45"/><rect x="7" y="3" width="3" height="7" fill="#352f45"/>
+      <path d="M9 -2 L13 2 L17 -1" stroke="#f7f4fa" stroke-width="2" fill="none"/>
+    </g>
+
+    <!-- puffins flying over the fjord -->
+    <g class="fly">
+      <g id="pfly" transform="translate(0 0)">
+        <ellipse cx="0" cy="0" rx="9" ry="4.5" fill="#2f2c35"/>
+        <circle cx="9" cy="-1" r="3.6" fill="#2f2c35"/><circle cx="10" cy="-1" r="2.2" fill="#ebe8ee"/>
+        <path d="M12.5 -2 L17 -.5 L12.5 1Z" fill="#e8743b"/>
+        <path class="wing" d="M-3 -2 Q2 -14 8 -3Z" fill="#2f2c35"/>
+        <rect x="-9" y="1.5" width="3" height="1.8" fill="#ef7d3c"/>
+      </g>
+      <use href="#pfly" transform="translate(-34 14) scale(.8)"/>
     </g>
   </svg>
 </header>
