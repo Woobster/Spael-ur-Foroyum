@@ -1,0 +1,97 @@
+<!-- SPAEL-BAR START · shared menu bar: back to the front page, music and sound effects.
+     Edit this block in shared/spael-bar.html, then run:  python3 tools/sync-bar.py
+     That copies it into every game, so all games stay the same. -->
+<style>
+/* A game can move the bar by setting these on :root in its own CSS (outside this block):
+   --spael-left / --spael-bottom (desktop, bottom-left)   --spael-m-top / --spael-m-left / --spael-m-right (phones) */
+#spaelBar{position:fixed;z-index:60;left:var(--spael-left,calc(14px + env(safe-area-inset-left,0px)));bottom:var(--spael-bottom,calc(14px + env(safe-area-inset-bottom,0px)));display:flex;gap:4px;align-items:center;padding:4px;border-radius:999px;background:rgba(251,249,253,.86);-webkit-backdrop-filter:blur(10px);backdrop-filter:blur(10px);box-shadow:0 2px 12px rgba(53,47,69,.16);font:800 13px Figtree,"Segoe UI",system-ui,sans-serif;color:#352f45;-webkit-user-select:none;user-select:none}
+#spaelBar a,#spaelBar button{all:unset;box-sizing:border-box;display:inline-flex;align-items:center;justify-content:center;gap:6px;height:36px;min-width:36px;padding:0 10px;border-radius:999px;cursor:pointer;color:inherit;font:inherit;line-height:1;white-space:nowrap}
+#spaelBar a{padding:0 13px 0 10px;background:#2c5597;color:#fff}
+#spaelBar a:hover{filter:brightness(1.1)}
+#spaelBar button:hover{background:rgba(53,47,69,.08)}
+#spaelBar a:focus-visible,#spaelBar button:focus-visible{outline:3px solid #2c5597;outline-offset:2px}
+#spaelBar svg{width:20px;height:20px;fill:none;stroke:currentColor;stroke-width:2.2;stroke-linecap:round;stroke-linejoin:round;flex:none}
+#spaelBar .off{color:rgba(53,47,69,.42)}
+#spaelBar .slash{display:none}
+#spaelBar .off .slash{display:inline}
+#spaelBar .lbl{display:none}
+@media (min-width:900px){#spaelBar button .lbl{display:inline;font-size:12px;font-weight:700}}
+#spaelMore{display:none!important}
+@media (max-width:760px){
+ #spaelBar{bottom:auto;top:var(--spael-m-top,calc(12px + env(safe-area-inset-top,0px)));left:var(--spael-m-left,auto);right:var(--spael-m-right,calc(12px + env(safe-area-inset-right,0px)));flex-direction:column;align-items:stretch;padding:3px;border-radius:22px}
+ #spaelMore{display:inline-flex!important}
+ #spaelBar:not(.open)>:not(#spaelMore){display:none}
+ #spaelBar .ic-x{display:none}#spaelBar.open .ic-x{display:inline}#spaelBar.open .ic-dots{display:none}
+}
+</style>
+<nav id="spaelBar" aria-label="Game menu">
+  <button id="spaelMore" type="button" aria-expanded="false" aria-controls="spaelBar"><svg viewBox="0 0 24 24"><g class="ic-dots"><path d="M4 7h16M4 12h16M4 17h16"/></g><g class="ic-x"><path d="M6 6l12 12M18 6L6 18"/></g></svg></button>
+  <a id="spaelHome" href="../index.html"><svg viewBox="0 0 24 24"><path d="M15 5l-7 7 7 7"/></svg><span id="spaelHomeT">Menu</span></a>
+  <button id="spaelMusic" type="button" aria-pressed="true"><svg viewBox="0 0 24 24"><path d="M9 18V5l11-2v13"/><circle cx="6.5" cy="18" r="2.5"/><circle cx="17.5" cy="16" r="2.5"/><path class="slash" d="M3 3l18 18"/></svg><span class="lbl" id="spaelMusicT">Music</span></button>
+  <button id="spaelSfx" type="button" aria-pressed="true"><svg viewBox="0 0 24 24"><path d="M4 9v6h4l5 4V5L8 9z"/><path d="M16.5 8.5a5 5 0 010 7M19 6a8.5 8.5 0 010 12"/><path class="slash" d="M3 3l18 18"/></svg><span class="lbl" id="spaelSfxT">Effects</span></button>
+</nav>
+<script>
+/* Shared menu bar. Settings are shared by every game on the site:
+   spael-music / spael-sfx = 'on' | 'off'. The game listens for the "spael:sfx" event to mute its own effects. */
+(function(){
+"use strict";
+const TXT={en:{home:'Menu',homeA:'Back to all games',music:'Music',sfx:'Effects',on:'on',off:'off',more:'Menu, music and sound'},
+           fo:{home:'Forsíða',homeA:'Aftur til øll spølini',music:'Tónleikur',sfx:'Ljóð',on:'tendrað',off:'sløkt',more:'Forsíða, tónleikur og ljóð'}};
+const get=(k,d)=>{try{const v=localStorage.getItem(k);return v===null?d:v==='on';}catch(e){return d;}};
+const put=(k,v)=>{try{localStorage.setItem(k,v?'on':'off');}catch(e){}};
+let music=get('spael-music',true),sfx=get('spael-sfx',true);
+const $=id=>document.getElementById(id);
+const L=()=>((document.documentElement.lang||'en').toLowerCase().startsWith('fo')?TXT.fo:TXT.en);
+function paint(){const t=L();$('spaelMore').setAttribute('aria-label',t.more);$('spaelMore').title=t.more;$('spaelHomeT').textContent=t.home;$('spaelHome').setAttribute('aria-label',t.homeA);$('spaelHome').title=t.homeA;
+  $('spaelMusicT').textContent=t.music;$('spaelSfxT').textContent=t.sfx;
+  [['spaelMusic',music,t.music],['spaelSfx',sfx,t.sfx]].forEach(([id,on,name])=>{const b=$(id);b.classList.toggle('off',!on);b.setAttribute('aria-pressed',String(on));const lab=name+': '+(on?t.on:t.off);b.setAttribute('aria-label',lab);b.title=lab;});}
+function tellGame(){window.dispatchEvent(new CustomEvent('spael:sfx',{detail:sfx}));}
+/* keep clicks on the bar from reaching the game underneath */
+['pointerdown','mousedown','touchstart','click'].forEach(ev=>$('spaelBar').addEventListener(ev,e=>e.stopPropagation()));
+$('spaelBar').addEventListener('keydown',e=>e.stopPropagation());
+
+/* ---------- music: a soft, looping folk tune made in the browser ---------- */
+let ac=null,out=null,timer=null,next=0,step=0,last=7,playing=false;
+const BPM=80,E8=60/BPM/2;                       // one eighth note
+const SCALE=[50,52,53,55,57,60,62,64,65,67,69,72,74]; // D dorian-ish, MIDI
+const CHORDS=[[50,57,62,65],[48,55,60,64],[53,60,65,69],[48,55,60,64],[50,57,62,65],[45,52,57,60],[46,53,58,62],[48,55,60,64]]; // Dm C F C Dm Am Bb C
+const hz=m=>440*Math.pow(2,(m-69)/12);
+function audio(){if(ac)return true;try{ac=new (window.AudioContext||window.webkitAudioContext)();}catch(e){return false;}
+  out=ac.createGain();out.gain.value=0;out.connect(ac.destination);
+  const d=ac.createDelay(1);d.delayTime.value=E8*3;const fb=ac.createGain();fb.gain.value=0.32;const wet=ac.createGain();wet.gain.value=0.28;
+  d.connect(fb);fb.connect(d);d.connect(wet);wet.connect(out);out.echo=d;return true;}
+function voice(type,m,t,dur,vol,att,dest,cut){const o=ac.createOscillator(),g=ac.createGain();o.type=type;o.frequency.value=hz(m);
+  let node=o;if(cut){const f=ac.createBiquadFilter();f.type='lowpass';f.frequency.value=cut;o.connect(f);node=f;}
+  node.connect(g);g.connect(dest||out);g.gain.setValueAtTime(0.0001,t);g.gain.linearRampToValueAtTime(vol,t+att);g.gain.exponentialRampToValueAtTime(0.0001,t+dur);o.start(t);o.stop(t+dur+0.05);}
+function pluck(m,t,vol){voice('triangle',m,t,1.1,vol,0.006);voice('sine',m+12,t,0.5,vol*0.35,0.004);const g=ac.createGain();g.gain.value=1;
+  const o=ac.createOscillator();o.type='triangle';o.frequency.value=hz(m);const eg=ac.createGain();eg.gain.setValueAtTime(0.0001,t);eg.gain.linearRampToValueAtTime(vol*0.5,t+0.006);eg.gain.exponentialRampToValueAtTime(0.0001,t+0.8);o.connect(eg);eg.connect(out.echo);o.start(t);o.stop(t+0.85);}
+function schedule(){while(next<ac.currentTime+0.3){const bar=Math.floor(step/8)%CHORDS.length,b8=step%8,ch=CHORDS[bar],phrase=Math.floor(step/64)%4;
+    if(b8===0){ch.slice(1).forEach(m=>voice('triangle',m,next,E8*8.6,0.035,0.9,null,900));voice('sine',ch[0]-12,next,E8*8.4,0.09,0.25);}
+    if(b8===4)voice('sine',ch[0]-12,next,E8*4.2,0.05,0.1);
+    const quiet=phrase===3;                       // every fourth phrase rests, so the loop breathes
+    const chance=b8%2===0?0.78:0.28;
+    if(!quiet&&Math.random()<chance){let i=last+[-2,-1,-1,0,1,1,2][(Math.random()*7)|0];i=Math.max(2,Math.min(SCALE.length-1,i));
+      if(b8===0){const tones=ch.map(c=>c%12);let best=i,bd=99;for(let k=Math.max(0,i-2);k<=Math.min(SCALE.length-1,i+2);k++)if(tones.includes(SCALE[k]%12)&&Math.abs(k-i)<bd){bd=Math.abs(k-i);best=k;}i=best;}
+      last=i;pluck(SCALE[i]+12,next,b8===0?0.085:0.06);}
+    next+=E8;step++;}}
+function startMusic(){if(!music||playing||!audio())return;if(ac.state==='suspended')ac.resume();playing=true;next=ac.currentTime+0.1;
+  out.gain.cancelScheduledValues(ac.currentTime);out.gain.setValueAtTime(out.gain.value,ac.currentTime);out.gain.linearRampToValueAtTime(0.5,ac.currentTime+2.5);
+  schedule();timer=setInterval(schedule,100);}
+function stopMusic(){if(!playing)return;playing=false;clearInterval(timer);const t=ac.currentTime;out.gain.cancelScheduledValues(t);out.gain.setValueAtTime(out.gain.value,t);out.gain.linearRampToValueAtTime(0,t+0.4);}
+/* browsers only allow sound after the first tap or key press */
+const kick=()=>{startMusic();};
+['pointerdown','keydown','touchend'].forEach(ev=>window.addEventListener(ev,kick,{passive:true}));
+document.addEventListener('visibilitychange',()=>{if(!ac)return;if(document.hidden){clearInterval(timer);ac.suspend();}else if(playing){ac.resume();next=ac.currentTime+0.1;timer=setInterval(schedule,100);}});
+
+/* phones: the bar folds into one round button */
+const bar=$('spaelBar');
+function fold(open){bar.classList.toggle('open',open);$('spaelMore').setAttribute('aria-expanded',String(open));}
+$('spaelMore').addEventListener('click',()=>fold(!bar.classList.contains('open')));
+document.addEventListener('pointerdown',e=>{if(bar.classList.contains('open')&&!bar.contains(e.target))fold(false);},true);
+$('spaelMusic').addEventListener('click',()=>{music=!music;put('spael-music',music);paint();if(music)startMusic();else stopMusic();});
+$('spaelSfx').addEventListener('click',()=>{sfx=!sfx;put('spael-sfx',sfx);paint();tellGame();});
+new MutationObserver(paint).observe(document.documentElement,{attributes:true,attributeFilter:['lang']});
+paint();tellGame();
+})();
+</script>
+<!-- SPAEL-BAR END -->

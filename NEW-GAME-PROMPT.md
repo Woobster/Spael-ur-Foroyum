@@ -9,6 +9,10 @@ Look at hare-season/index.html and fish-season/index.html first and match them.
 FILES
 - One self-contained file: <game-folder>/index.html. three.js r128 from cdnjs, everything else inline.
 - Add a card for it on the front page index.html (both EN and FO texts), then commit and push to main.
+- Add the shared menu bar with `python3 tools/sync-bar.py` (Menu back to the front page, Music, Effects).
+  Don't make a separate sound button: listen for `addEventListener('spael:sfx', e => ...)` and mute the game's
+  own effects when e.detail is false. Keep the bottom-left corner (desktop) and a top corner (phones) free for the bar,
+  or move it with the --spael-* CSS variables described in the README.
 
 LANGUAGE
 - English and Faroese from the start. Put every visible text in one TEXT block at the top of the script,
