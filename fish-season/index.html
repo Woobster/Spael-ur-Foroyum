@@ -396,13 +396,13 @@ function load(){try{const s=JSON.parse(localStorage.getItem(SAVE)||'null');if(!s
 load();
 
 // ---------- Audio
-let AC=null,master=null,noiseBuf=null;
+let AC=null,master=null,noiseBuf=null,ambG=null;
 function initAudio(){if(AC){if(AC.state==='suspended')AC.resume().catch(()=>{});return;}
  try{AC=new(window.AudioContext||window.webkitAudioContext)();master=AC.createGain();master.gain.value=soundOn?0.55:0;master.connect(AC.destination);
   noiseBuf=AC.createBuffer(1,AC.sampleRate*2,AC.sampleRate);const d=noiseBuf.getChannelData(0);for(let i=0;i<d.length;i++)d[i]=Math.random()*2-1;
   const s=AC.createBufferSource();s.buffer=noiseBuf;s.loop=true;const fl=AC.createBiquadFilter();fl.type='lowpass';fl.frequency.value=360;
   const g=AC.createGain();g.gain.value=0.05;const lfo=AC.createOscillator();lfo.frequency.value=0.11;const lg=AC.createGain();lg.gain.value=0.035;
-  lfo.connect(lg);lg.connect(g.gain);s.connect(fl);fl.connect(g);g.connect(master);s.start();lfo.start();}catch(e){AC=null;}}
+  lfo.connect(lg);lg.connect(g.gain);s.connect(fl);fl.connect(g);g.connect(master);s.start();lfo.start();ambG=g;loadSounds();}catch(e){AC=null;}}
 function tone(f,dur,type,vol,slide,delay){if(!AC||!soundOn)return;const t=AC.currentTime+(delay||0),o=AC.createOscillator(),g=AC.createGain();
  o.type=type||'sine';o.frequency.setValueAtTime(f,t);if(slide)o.frequency.exponentialRampToValueAtTime(Math.max(20,f*slide),t+dur);
  g.gain.setValueAtTime(0.0001,t);g.gain.exponentialRampToValueAtTime(vol||0.15,t+0.012);g.gain.exponentialRampToValueAtTime(0.0001,t+dur);
@@ -426,6 +426,39 @@ const SFX={
  gull(){tone(1350,0.2,'triangle',0.035,0.6);tone(1280,0.24,'triangle',0.03,0.55,0.27);},
  splash(){hiss(0.3,0.08,1400,300,0.9);}
 };
+
+// ---------- Sound files (from Openverse)
+// Put sound files in the fish-season/sounds/ folder with these names: .mp3, .ogg, .wav or .m4a all work.
+// Any sound without a file keeps the built-in synth sound, so nothing breaks if a file is missing.
+// 'vol' is the loudness (1 = as recorded). sounds/README.md says what each one should sound like.
+const SOUND_FILES={
+ ambience:{file:'waves',vol:0.35},   // looping sea/wind background
+ gull:{file:'gull',vol:0.45},
+ cast:{file:'cast',vol:0.7},         // rod whoosh / line whizz
+ plop:{file:'plop',vol:0.8},         // float lands in the water
+ bite:{file:'bite',vol:0.8},         // fish grabs the bait
+ strike:{file:'reel',vol:0.7},       // you strike / reel in
+ splash:{file:'splash',vol:0.5},     // fish jumping
+ pop:{file:'catch',vol:0.7},         // fish lands (pitch rises with the combo)
+ coin:{file:'coin',vol:0.6},
+ buy:{file:'buy',vol:0.7},
+ fanfare:{file:'fanfare',vol:0.8},   // new area / giant halibut
+ frenzy:{file:'frenzy',vol:0.7},
+ miss:{file:'miss',vol:0.6}
+};
+const SOUND_EXT=['mp3','ogg','wav','m4a'];
+const BUF={};let ambSrc=null;
+function decode(b){return new Promise((res,rej)=>{try{const p=AC.decodeAudioData(b,res,rej);if(p&&p.catch)p.catch(rej);}catch(e){rej(e);}});}
+function loadSounds(){for(const k in SOUND_FILES){let i=0;const next=()=>{if(i>=SOUND_EXT.length)return;const url='sounds/'+SOUND_FILES[k].file+'.'+SOUND_EXT[i++];
+  fetch(url).then(r=>r.ok?r.arrayBuffer():Promise.reject()).then(decode).then(buf=>{BUF[k]=buf;if(k==='ambience')startAmbience();}).catch(next);};next();}}
+function startAmbience(){if(!AC||!BUF.ambience||ambSrc)return;ambSrc=AC.createBufferSource();ambSrc.buffer=BUF.ambience;ambSrc.loop=true;
+ const g=AC.createGain();g.gain.setValueAtTime(0.0001,AC.currentTime);g.gain.exponentialRampToValueAtTime(SOUND_FILES.ambience.vol,AC.currentTime+2);
+ ambSrc.connect(g);g.connect(master);ambSrc.start();if(ambG)ambG.gain.setTargetAtTime(0,AC.currentTime,0.6);}
+function sample(k,rate){const b=BUF[k];if(!b)return false;if(!AC||!soundOn)return true;const s=AC.createBufferSource();s.buffer=b;s.playbackRate.value=rate||1;
+ const g=AC.createGain();g.gain.value=SOUND_FILES[k]?SOUND_FILES[k].vol:0.7;s.connect(g);g.connect(master);s.start();return true;}
+for(const k of Object.keys(SFX)){const synth=SFX[k];
+ SFX[k]=function(c){const rate=k==='pop'?Math.pow(1.035,Math.min(c||0,20)):(['plop','splash','gull','nib','coin'].includes(k)?0.9+Math.random()*0.2:1);
+  if(!sample(k,rate))synth.apply(SFX,arguments);};}
 
 // ---------- Terrain
 const N=120,CELL=2,X0=-120,Z0=-196,X1=X0+N*CELL,Z1=Z0+N*CELL;
