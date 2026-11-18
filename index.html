@@ -31,6 +31,7 @@ a{color:inherit}
 .hero svg.land{position:absolute;left:50%;bottom:0;transform:translateX(-50%);width:max(100%,1100px);height:auto;aspect-ratio:1440/400;display:block}
 .land .bob{animation:bob 4.6s ease-in-out infinite;transform-box:fill-box;transform-origin:50% 100%}
 .land .b2{animation-duration:3.4s;animation-delay:-1.2s}
+.land .b3{animation-duration:5.6s;animation-delay:-2.4s}
 @keyframes bob{50%{transform:translateY(2.5px) rotate(-1deg)}}
 .land .fly{animation:fly 38s linear infinite}
 @keyframes fly{from{transform:translate(380px,150px)}to{transform:translate(1180px,110px)}}
@@ -52,9 +53,13 @@ h1{font:400 clamp(48px,11vw,108px)/1 var(--display);margin:18px 0 10px;color:var
 @keyframes drift{to{transform:translateX(calc(100vw + 320px))}}
 
 /* Games */
-main{position:relative;z-index:3;max-width:1160px;margin:-120px auto 0;padding:0 16px 48px}
-.grid{display:grid;grid-template-columns:repeat(3,minmax(0,1fr));gap:22px}
+main{position:relative;z-index:3;max-width:1340px;margin:-120px auto 0;padding:0 16px 48px}
+.grid{display:grid;grid-template-columns:repeat(4,minmax(0,1fr));gap:22px}
+@media (max-width:1299px){.grid{grid-template-columns:repeat(3,minmax(0,1fr))}}
 @media (max-width:999px){.grid{grid-template-columns:repeat(2,minmax(0,1fr))}}
+/* a leftover last card stretches across the row, picture beside the text, instead of sitting alone */
+.card.wide{grid-column:1/-1;display:grid;grid-template-columns:minmax(0,1fr) minmax(0,1.25fr)}
+.card.wide .art{aspect-ratio:auto;min-height:100%}
 @media (max-width:699px){.grid{grid-template-columns:minmax(0,1fr)}}
 .card{display:flex;flex-direction:column;background:var(--paper-solid);border-radius:24px;overflow:hidden;
   box-shadow:0 14px 40px rgba(53,47,69,.18);text-decoration:none;transition:transform .18s ease,box-shadow .18s ease}
@@ -79,6 +84,7 @@ main{position:relative;z-index:3;max-width:1160px;margin:-120px auto 0;padding:0
 .card.row .play{background:#352f45}
 .card.puffin .play{background:#e8743b}
 .card.farm .play{background:#b8892f}
+.card.ferry .play{background:#2f6f8f}
 .play svg{width:18px;height:18px;fill:currentColor}
 .card:hover .play{filter:brightness(1.07)}
 
@@ -195,6 +201,19 @@ footer .stripe{display:block;width:72px;height:6px;margin:0 auto 14px;border-rad
       <path d="M66 8 C68 -20 78 -28 81 -22 C83 -16 76 -2 72 10Z" fill="#8a7a69"/>
       <circle cx="68" cy="18" r="2.6" fill="#352f45"/>
       <circle cx="-2" cy="30" r="8" fill="#f7f4fa"/>
+    </g>
+
+    <!-- coastal ferry and helicopter (Ferry Season) -->
+    <g class="bob b3"><g transform="translate(470 186) scale(.62)">
+      <path d="M0 8 L52 8 L58 14 L52 20 L0 20Z" fill="#f7f4fa"/><rect x="0" y="16" width="56" height="4" fill="#2c5597"/>
+      <rect x="10" y="1" width="26" height="8" rx="1.5" fill="#f4f1ea"/><rect x="13" y="3" width="20" height="3" fill="#6f7f99"/>
+      <rect x="38" y="-1" width="5" height="9" fill="#d9493a"/>
+    </g></g>
+    <g transform="translate(1040 92) scale(.8)">
+      <path d="M-24 -10 H24" stroke="#352f45" stroke-width="3" stroke-linecap="round"/><path d="M0 -10 V-4" stroke="#352f45" stroke-width="3"/>
+      <ellipse cx="0" cy="2" rx="14" ry="9" fill="#d9493a"/><path d="M10 -2 Q18 0 14 6Z" fill="#b8cfe4"/>
+      <path d="M-12 2 L-30 -2 L-30 4Z" fill="#d9493a"/><path d="M-32 -6 V4" stroke="#352f45" stroke-width="2.5"/>
+      <path d="M-10 12 H10 M-6 9 V12 M6 9 V12" stroke="#352f45" stroke-width="2"/>
     </g>
 
     <!-- fishing boat -->
@@ -507,6 +526,52 @@ footer .stripe{display:block;width:72px;height:6px;margin:0 auto 14px;border-rad
       </div>
     </a>
 
+    <a class="card ferry" href="ferry-season/">
+      <div class="art">
+        <svg viewBox="0 0 400 250" preserveAspectRatio="xMidYMid slice" aria-hidden="true">
+          <rect width="400" height="250" fill="#93b7c9"/>
+          <g fill="#ffffff" opacity=".22"><path d="M0 60 L400 40 V44 L0 64Z"/><path d="M0 150 L400 130 V133 L0 153Z"/></g>
+          <!-- islands -->
+          <path d="M18 34 L96 18 L150 40 L138 92 L84 110 L30 88Z" fill="#a9b77f"/><path d="M84 110 L138 92 L150 40 L160 70 L140 104Z" fill="#94a770"/>
+          <path d="M250 150 L330 126 L384 150 L378 214 L312 236 L258 206Z" fill="#a9b77f"/><path d="M312 236 L378 214 L384 150 L392 196Z" fill="#94a770"/>
+          <path d="M60 176 L104 166 L118 196 L84 214 L56 200Z" fill="#d1b77d"/>
+          <path d="M300 30 L340 22 L356 46 L322 62Z" fill="#a9b77f"/>
+          <!-- route -->
+          <path d="M120 84 C170 110 220 130 268 166" fill="none" stroke="#2c5597" stroke-width="5" stroke-linecap="round" stroke-dasharray="2 10"/>
+          <path d="M324 50 C300 90 300 120 304 150" fill="none" stroke="#d9493a" stroke-width="4" stroke-linecap="round" stroke-dasharray="2 9" opacity=".8"/>
+          <g fill="#f7f4fa" stroke="#352f45" stroke-width="3"><circle cx="120" cy="84" r="7"/><circle cx="268" cy="166" r="7"/><circle cx="324" cy="50" r="6"/><circle cx="104" cy="190" r="6"/></g>
+          <!-- ferry -->
+          <g transform="translate(176 104) rotate(32)">
+            <path d="M0 6 L52 6 L58 12 L52 18 L0 18Z" fill="#f7f4fa"/>
+            <rect x="0" y="14" width="56" height="4" fill="#2c5597"/>
+            <rect x="10" y="0" width="26" height="8" rx="1.5" fill="#f4f1ea"/><rect x="13" y="2" width="20" height="3" fill="#6f7f99"/>
+            <rect x="38" y="-2" width="5" height="9" fill="#d9493a"/>
+            <g fill="#3e3b45"><rect x="4" y="9" width="5" height="4" rx="1"/><rect x="12" y="9" width="5" height="4" rx="1"/></g>
+          </g>
+          <path d="M150 92 q10 6 20 6" stroke="#fff" stroke-width="3" fill="none" stroke-linecap="round" opacity=".7"/>
+          <!-- helicopter -->
+          <g transform="translate(300 92)">
+            <path d="M-24 -10 H24" stroke="#352f45" stroke-width="3" stroke-linecap="round"/>
+            <path d="M0 -10 V-4" stroke="#352f45" stroke-width="3"/>
+            <ellipse cx="0" cy="2" rx="14" ry="9" fill="#d9493a"/>
+            <path d="M10 -2 Q18 0 14 6Z" fill="#b8cfe4"/>
+            <path d="M-12 2 L-30 -2 L-30 4Z" fill="#d9493a"/><path d="M-32 -6 V4" stroke="#352f45" stroke-width="2.5"/>
+            <path d="M-10 12 H10 M-6 9 V12 M6 9 V12" stroke="#352f45" stroke-width="2"/>
+          </g>
+          <!-- fog bank -->
+          <g fill="#f3f1f7" opacity=".75"><ellipse cx="60" cy="236" rx="80" ry="16"/><ellipse cx="140" cy="244" rx="70" ry="12"/></g>
+        </svg>
+        <span class="chip" data-t="ferry.chip">Puzzle · Routes</span>
+      </div>
+      <div class="body">
+        <div class="title"><h2 data-t="ferry.title">Ferry Season</h2><span data-t="ferry.alt">Strandferðsla</span></div>
+        <p data-t="ferry.text">Draw ferry routes between the islands. Carry passengers, mail, crates and sheep by ferry, boat and helicopter through fog and storms, across 16 puzzles from 3 November to 12 March.</p>
+        <ul class="places"><li>Nólsoy</li><li>Hestur</li><li>Skúvoy</li><li>Mykines</li><li>Kalsoy</li><li>Suðuroy</li></ul>
+        <span class="play"><svg viewBox="0 0 24 24"><path d="M7 4.5v15l12-7.5z"/></svg><span data-t="play">Play</span></span>
+      </div>
+    </a>
+
+
 
   </div>
 
@@ -535,6 +600,8 @@ const TEXT={
   'puffin.text':'Photograph puffins, gannets, skuas and storm petrels on the bird cliffs. Hold to focus, catch the rare poses, fill your bird book and upgrade your camera.',
   'farm.chip':'Idle · Farming','farm.title':'Cozy Faroese Farm','farm.alt':'Hoyggj',
   'farm.text':'Cut the meadow, carry the hay home in your leypur and sell it. Work your way up from bare hands to a combine harvester, dry hay on hesjur racks and grow your farm.',
+  'ferry.chip':'Puzzle · Routes','ferry.title':'Ferry Season','ferry.alt':'Strandferðsla',
+  'ferry.text':'Draw ferry routes between the islands. Carry passengers, mail, crates and sheep by ferry, boat and helicopter through fog and storms, across 16 puzzles from 3 November to 12 March.',
   about:'All the games save your progress in your own browser, so you can come back any time.',made:'Made in the Faroe Islands',visits:'visits'},
  fo:{tag:'Hugnalig smá spøl úr Føroyum. Ókeypis at spæla í kaganum.',play:'Spæl',
   'hare.chip':'Idle · 3D','hare.title':'Haruveiða','hare.alt':'Hare Season',
@@ -549,6 +616,8 @@ const TEXT={
   'puffin.text':'Mynda lundar, súlur, skúgvar og drunnhvítar í fuglabjørgunum. Halt inni fyri at skarpstilla, fang tær sjáldsomu støðurnar, fyll fuglabókina og betra um myndatólið.',
   'farm.chip':'Idle · Hoyggj','farm.title':'Bóndagarðurin','farm.alt':'Cozy Faroese Farm',
   'farm.text':'Slá bøin, ber hoyggið heim í leypinum og sel tað. Byrja við berum hondum og arbeið teg upp til stórar maskinur, turka hoyggið á hesjum og stækka garðin.',
+  'ferry.chip':'Uppgáva · Leiðir','ferry.title':'Strandferðsla','ferry.alt':'Ferry Season',
+  'ferry.text':'Tekna ferðaleiðir millum oyggjarnar. Flyt ferðafólk, post, kassar og seyð við ferju, báti og tyrlu gjøgnum mjørka og stormar, í 16 uppgávum frá 3. november til 12. mars.',
   about:'Spølini goyma, hvussu langt tú ert komin, í tínum egna kaga, so tú kanst koma aftur nær tú vilt.',made:'Gjørt í Føroyum',visits:'vitjanir'}
 };
 (function(){let L='en';try{const v=localStorage.getItem('spael-lang');L=v==='fo'||v==='en'?v:((navigator.language||'').toLowerCase().startsWith('fo')?'fo':'en');}catch(e){}
@@ -561,5 +630,12 @@ const TEXT={
  fetch('https://woobster.goatcounter.com/counter/TOTAL.json').then(r=>r.ok?r.json():Promise.reject()).then(d=>{if(d&&d.count){n.textContent=d.count;el.hidden=false;}}).catch(()=>{});})();
 </script>
 <script data-goatcounter="https://woobster.goatcounter.com/count" async src="//gc.zgo.at/count.js"></script>
+<script>
+/* when the cards don't fill the last row, the leftover card goes wide */
+(function(){const g=document.querySelector('.grid');if(!g)return;const cards=[...g.children].filter(c=>c.classList.contains('card'));
+  function fit(){const cols=getComputedStyle(g).gridTemplateColumns.split(' ').filter(Boolean).length;cards.forEach(c=>c.classList.remove('wide'));
+    if(cols>1&&cards.length%cols===1)cards[cards.length-1].classList.add('wide');}
+  fit();addEventListener('resize',fit);})();
+</script>
 </body>
 </html>

@@ -12,6 +12,7 @@ sheep-season/index.html Sheep Season
 kapprodur/index.html    Kappróður · Rowing Season
 puffin-watch/index.html Puffin Watch · Lundi
 hay-farm/index.html     Cozy Faroese Farm · Hoyggj
+ferry-season/index.html Ferry Season · Strandferðsla
 shared/spael-bar.html   The menu bar every game shares (Menu, Music, Effects)
 tools/sync-bar.py       Copies the menu bar into every game
 NEW-GAME-PROMPT.md      Prompt for making more games in the same style
