@@ -1,0 +1,2357 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no">
+<title>Cozy Faroese Farm</title>
+<link rel="preconnect" href="https://fonts.googleapis.com">
+<link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+<link rel="stylesheet" href="https://fonts.googleapis.com/css2?family=Bagel+Fat+One&family=Figtree:wght@500;700;800&display=swap">
+<style>
+  /* Look shared with Hare Season: pastel Faroese palette, floating pill HUD, Bagel Fat One + Figtree.
+     (Fonts load from Google Fonts when online; the game falls back to system fonts offline.) */
+  :root {
+    --ink: #352f45; --ink-soft: #6c6580;
+    --paper: rgba(251,249,253,.84); --paper-solid: #f7f4fa;
+    --line: rgba(53,47,69,.12);
+    --accent: #d9493a; --accent-ink: #fff;   /* Merkið red */
+    --blue: #2c5597;                          /* Merkið blue */
+    --gold: #f0b23a; --mist: #dcd5e6; --white: #fff;
+    --turf: #8ea56a; --turf-dark: #6f8a55;
+    --display: "Bagel Fat One", "Arial Rounded MT Bold", "Trebuchet MS", system-ui, sans-serif;
+    --ui: "Figtree", "Segoe UI", system-ui, -apple-system, sans-serif;
+    --top-h: 0px;
+    --radius: 14px;
+    color-scheme: light;
+  }
+  * { box-sizing: border-box; -webkit-tap-highlight-color: transparent; }
+  html, body { margin: 0; height: 100%; overflow: hidden; background: var(--mist); }
+  body { font-family: var(--ui); color: var(--ink); user-select: none; -webkit-user-select: none; }
+  canvas { position: fixed; inset: 0; display: block; touch-action: none; }
+  #fx { pointer-events: none; z-index: 30; }
+  button:focus-visible { outline: 3px solid var(--blue); outline-offset: 2px; }
+
+  /* ---------- floating HUD (top-left column) ---------- */
+  #topbar { position: fixed; top: calc(14px + env(safe-area-inset-top,0px)); left: calc(14px + env(safe-area-inset-left,0px)); z-index: 20; display: flex; flex-direction: column; align-items: flex-start; gap: 6px; pointer-events: none; }
+  #title { display: none; }
+  #resources { display: flex; flex-direction: column; align-items: flex-start; gap: 6px; }
+  #resources .small { display: flex; gap: 6px; flex-wrap: wrap; }
+  .res { display: flex; align-items: center; gap: 7px; background: var(--paper); backdrop-filter: blur(8px); -webkit-backdrop-filter: blur(8px);
+    padding: 4px 12px 4px 5px; border-radius: 999px; box-shadow: 0 2px 10px rgba(53,47,69,.12); transition: transform .12s ease; }
+  .res .ico { width: 24px; height: 24px; border-radius: 50%; display: grid; place-items: center; font-size: 13px; background: var(--white); box-shadow: inset 0 0 0 1px var(--line); flex: none; }
+  .res .lbl { font-size: 10px; font-weight: 800; color: var(--ink-soft); line-height: 1; text-transform: uppercase; letter-spacing: .08em; white-space: nowrap; }
+  .res .val { font-size: 14px; font-weight: 800; line-height: 1.15; font-variant-numeric: tabular-nums; white-space: nowrap; }
+  .res.bump { transform: scale(1.08); }
+  .res.full .val { color: var(--accent); }
+  /* money pill, as in Hare Season */
+  #res-money { padding: 7px 14px 7px 8px; gap: 8px; }
+  #res-money .ico { width: 24px; height: 24px; font-size: 0; background: radial-gradient(circle at 35% 35%, #ffe7a3, var(--gold) 60%, #c98a1c); box-shadow: inset 0 -2px 0 rgba(0,0,0,.15); }
+  #res-money .lbl { display: none; }
+  #res-money .val { font-size: 20px; }
+  #savedot { font-size: 11px; font-weight: 800; color: var(--ink); background: var(--paper); padding: 3px 10px; border-radius: 999px; opacity: 0; transition: opacity .4s; }
+  #savedot.show { opacity: 1; }
+
+  /* big carried-hay counter, bottom centre */
+  #counter { position: fixed; left: 50%; bottom: calc(76px + env(safe-area-inset-bottom,0px)); transform: translateX(-50%); z-index: 20; pointer-events: none;
+    font-family: var(--display); color: var(--white); font-size: clamp(36px, 5.5vw, 64px); line-height: 1; white-space: nowrap;
+    text-shadow: 0 3px 0 rgba(53,47,69,.2), 0 6px 24px rgba(53,47,69,.28); display: flex; gap: .22em; align-items: baseline; font-variant-numeric: tabular-nums; }
+  #counter span { font-size: .55em; }
+  #counter.full b { color: #ffd2cc; }
+  #counter.bump b { display: inline-block; animation: bump .18s ease-out; }
+  @keyframes bump { 50% { transform: scale(1.12); } }
+
+  /* Menu pill, bottom-left */
+  #menubtn { position: fixed; left: calc(14px + env(safe-area-inset-left,0px)); bottom: calc(14px + env(safe-area-inset-bottom,0px)); z-index: 25; pointer-events: auto;
+    border: 0; border-radius: 999px; padding: 11px 20px; font: 400 19px var(--display); background: var(--blue); color: var(--white); box-shadow: 0 4px 14px rgba(53,47,69,.25); cursor: pointer; }
+  #menubtn:hover { filter: brightness(1.08); }
+
+  /* ---------- farmhouse / menu window (Hare Season modal sheet) ---------- */
+  #backdrop { position: fixed; inset: 0; background: rgba(53,47,69,.35); z-index: 35; display: none; }
+  #panel { position: fixed; left: 50%; top: 50%; transform: translate(-50%, -50%);
+    width: min(780px, 94vw); height: min(690px, calc(100vh - 28px));
+    background: var(--paper-solid); border-radius: 20px; box-shadow: 0 20px 60px rgba(53,47,69,.35); overflow: hidden;
+    display: none; flex-direction: column; z-index: 36; }
+  body.open #panel { display: flex; } body.open #backdrop { display: block; }
+  #phead { display: flex; align-items: baseline; gap: 10px; padding: 18px 20px 6px; }
+  #ptitle { flex: 1; font-family: var(--display); font-size: 28px; line-height: 1.05; }
+  #ptitle small { display: block; font-family: var(--ui); font-size: 12px; font-weight: 700; color: var(--ink-soft); text-transform: uppercase; letter-spacing: .1em; margin-top: 4px; }
+  #pclose { border: 0; background: transparent; font-size: 28px; line-height: 1; cursor: pointer; color: var(--ink); padding: 0 4px; }
+  #tabs { display: flex; flex-wrap: wrap; gap: 4px; padding: 8px 14px 10px; border-bottom: 1px solid var(--line); }
+  .tab { flex: 1 1 70px; border: none; background: transparent; border-radius: 12px; padding: 6px 2px 5px; font: 800 11.5px var(--ui); color: var(--ink-soft); cursor: pointer;
+    display: flex; flex-direction: column; align-items: center; gap: 3px; }
+  .tab .ti { font-size: 17px; line-height: 1; }
+  .tab:hover { background: rgba(53,47,69,.06); color: var(--ink); }
+  .tab.active { background: var(--blue); color: var(--white); }
+  .tab.locked { opacity: .45; }
+  #content { flex: 1; overflow-y: auto; padding: 14px 16px 24px; -webkit-overflow-scrolling: touch; }
+  #content::-webkit-scrollbar { width: 8px; } #content::-webkit-scrollbar-thumb { background: rgba(53,47,69,.15); border-radius: 4px; }
+  h2 { font-family: var(--display); font-weight: 400; font-size: 22px; margin: 4px 0 10px; }
+  h3 { font-size: 11px; text-transform: uppercase; letter-spacing: .12em; color: var(--ink-soft); margin: 18px 0 8px; font-weight: 800; }
+  .card { background: rgba(255,255,255,.7); border-radius: var(--radius); padding: 12px; margin-bottom: 10px; box-shadow: inset 0 0 0 1px var(--line); }
+  .card:hover { background: rgba(255,255,255,.95); }
+  .card.locked { background: rgba(255,255,255,.35); }
+  .card.locked .name, .card.locked .desc { color: var(--ink-soft); }
+  .row { display: flex; align-items: center; justify-content: space-between; gap: 8px; }
+  .name { font-weight: 800; font-size: 14px; }
+  .lvl { font-size: 11px; font-weight: 800; color: var(--blue); background: rgba(44,85,151,.1); padding: 2px 7px; border-radius: 999px; white-space: nowrap; }
+  .desc { font-size: 12.5px; font-weight: 600; color: var(--ink-soft); margin: 4px 0 8px; line-height: 1.45; }
+  .effect { font-size: 12.5px; font-weight: 700; font-variant-numeric: tabular-nums; }
+  .effect b { color: var(--blue); }
+  .req { font-size: 12px; font-weight: 700; color: #a2702a; }
+  button.buy, button.btn { font: 800 13px var(--ui); font-variant-numeric: tabular-nums; cursor: pointer; border-radius: 10px; padding: 8px 12px; min-width: 74px; border: 0;
+    background: var(--accent); color: var(--accent-ink); white-space: nowrap; box-shadow: 0 2px 0 rgba(0,0,0,.15); transition: transform .08s, filter .15s; }
+  button.buy:hover:not(:disabled), button.btn:hover:not(:disabled) { filter: brightness(1.07); }
+  button.buy:active:not(:disabled), button.btn:active:not(:disabled) { transform: translateY(1px); }
+  button.buy:disabled, button.btn:disabled { background: rgba(53,47,69,.12); color: var(--ink-soft); box-shadow: none; cursor: default; }
+  button.buy:disabled:not([data-need]) { background: var(--gold); color: var(--ink); } /* "Maxed" */
+  button.btn.secondary { background: rgba(53,47,69,.08); color: var(--ink); box-shadow: none; }
+  button.btn.danger { background: var(--accent); }
+  .statgrid { display: grid; grid-template-columns: 1fr 1fr; gap: 8px; }
+  .stat { background: rgba(255,255,255,.7); box-shadow: inset 0 0 0 1px var(--line); border-radius: 12px; padding: 9px 10px; }
+  .stat .k { font-size: 11px; font-weight: 700; color: var(--ink-soft); }
+  .stat .v { font-size: 16px; font-weight: 800; font-variant-numeric: tabular-nums; }
+  .equip { display: flex; gap: 12px; align-items: center; }
+  .equip .big { font-size: 30px; width: 52px; height: 52px; display: grid; place-items: center; background: var(--white); box-shadow: inset 0 0 0 1px var(--line); border-radius: 13px; flex: none; }
+  .hint { font-size: 13px; font-weight: 700; color: var(--ink); line-height: 1.5; background: rgba(240,178,58,.18); border-radius: 14px; padding: 10px 12px; margin: 8px 0; }
+  .keys b { display: inline-block; min-width: 20px; padding: 0 5px; border-radius: 5px; background: var(--white); box-shadow: inset 0 0 0 1px var(--line), 0 1px 0 var(--line); font-size: 11px; text-align: center; color: var(--ink); }
+  .bar { height: 8px; background: rgba(255,255,255,.8); box-shadow: inset 0 0 0 1px var(--line); border-radius: 99px; overflow: hidden; margin-top: 7px; display: flex; }
+  .bar i { display: block; height: 100%; }
+  .slider { display: flex; align-items: center; gap: 10px; margin: 8px 0; font-size: 13px; font-weight: 700; }
+  .slider label { width: 90px; }
+  .slider input[type=range] { flex: 1; accent-color: var(--blue); }
+  .slider input[type=checkbox] { accent-color: var(--blue); width: 16px; height: 16px; }
+  .slider .pct { width: 36px; text-align: right; font-variant-numeric: tabular-nums; color: var(--ink-soft); font-size: 12px; }
+  .btnrow { display: flex; gap: 8px; flex-wrap: wrap; }
+  .soon { text-align: center; padding: 26px 10px; color: var(--ink-soft); font-size: 13px; font-weight: 700; line-height: 1.5; }
+  .soon .ti { font-size: 40px; display: block; margin-bottom: 8px; }
+  .confirm { margin-top: 10px; padding: 10px; border-radius: 12px; background: rgba(217,73,58,.12); font-size: 13px; font-weight: 700; }
+  .cardgrid { display: grid; grid-template-columns: repeat(auto-fill, minmax(290px, 1fr)); gap: 10px; }
+  .cardgrid .card { margin-bottom: 0; }
+
+  /* ---------- action pill (like Hare Season's "Flock call") ---------- */
+  #act { position: fixed; left: 50%; bottom: calc(18px + env(safe-area-inset-bottom,0px)); transform: translateX(-50%); z-index: 25;
+    border: 0; background: var(--paper); backdrop-filter: blur(8px); -webkit-backdrop-filter: blur(8px); border-radius: 999px; padding: 6px 6px 6px 16px; min-height: 44px;
+    display: none; align-items: center; gap: 10px; cursor: pointer; box-shadow: 0 2px 10px rgba(53,47,69,.16); font: 800 14px var(--ui); color: var(--ink); white-space: nowrap; }
+  #act.show { display: flex; }
+  #act .k { font: 400 15px var(--display); background: var(--accent); color: var(--white); border-radius: 999px; padding: 6px 14px; letter-spacing: .04em; }
+  #act:active:not(:disabled) { transform: translateX(-50%) translateY(1px); }
+  #act:disabled { cursor: default; color: var(--ink-soft); }
+  #act:disabled .k { background: rgba(53,47,69,.15); color: var(--ink-soft); }
+
+  #toast { position: fixed; left: 50%; top: calc(16px + env(safe-area-inset-top,0px)); transform: translateX(-50%) translateY(-10px);
+    background: var(--paper); backdrop-filter: blur(8px); -webkit-backdrop-filter: blur(8px); color: var(--ink); padding: 10px 18px; border-radius: 14px;
+    font-weight: 800; font-size: 14px; box-shadow: 0 4px 20px rgba(53,47,69,.15); opacity: 0; transition: all .3s; z-index: 40; pointer-events: none; max-width: min(86vw, 520px); text-align: center; }
+  #toast.show { opacity: 1; transform: translateX(-50%) translateY(0); }
+  #audiohint { position: fixed; right: 14px; bottom: 14px; z-index: 25; font-size: 12px; font-weight: 800; background: var(--paper); padding: 6px 12px; border-radius: 999px; color: var(--ink-soft);
+    box-shadow: 0 2px 10px rgba(53,47,69,.12); transition: opacity .5s; pointer-events: none; }
+  @media (max-width: 640px) {
+    #res-money .val { font-size: 17px; }
+    .res .lbl { display: none; }
+    #counter { bottom: calc(70px + env(safe-area-inset-bottom,0px)); }
+    #menubtn { padding: 9px 15px; font-size: 16px; }
+    #act { font-size: 13px; }
+  }
+  @media (prefers-reduced-motion: reduce) { #counter.bump b { animation: none; } }
+</style>
+
+</head>
+<body>
+<canvas id="scene"></canvas>
+<canvas id="fx"></canvas>
+
+<div id="topbar">
+  <div id="title"><div class="flag"><i class="v"></i><i class="h"></i></div><span class="t">Cozy Faroese Farm</span></div>
+  <div id="resources"></div>
+  <div id="savedot">✓ Saved</div>
+</div>
+<button id="menubtn" title="Farm info, statistics & settings">Farm</button>
+<div id="counter"><b id="cnt">0</b><span id="cntunit">hay</span></div>
+
+<div id="backdrop"></div>
+<div id="panel">
+  <div id="phead"><div id="ptitle"></div><button id="pclose" title="Close (Esc)">✕</button></div>
+  <div id="tabs"></div>
+  <div id="content"></div>
+</div>
+
+<button id="act"><span id="actlabel"></span><span class="k">E</span></button>
+<div id="toast"></div>
+<div id="audiohint">🔈 Click or tap to enable sound</div>
+
+<script>
+"use strict";
+/* =====================================================================
+   COZY FAROESE FARM — walkable farm edition
+   A farmer walks around (keyboard / touch / mouse-hold). Standing in the
+   meadow, the harvest ring at his feet fills; each full circle cuts grass
+   into his basket. Barn = store & dry hay. Horse cart = carries hay to Tórshavn to sell.
+   Systems: CONFIG · WORLD · RESOURCES · UPGRADES · STATE/SAVE · SOUND ·
+            CAMERA · SCENERY · FIELD · PLAYER · HARVESTER · PLACES · FX ·
+            INPUT · UI · LOOP
+   ===================================================================== */
+
+/* ----------------------------- CONFIG -------------------------------- */
+const CONFIG = {
+  baseCycleTime: 2.5,       // seconds per harvest action with bare hands
+  baseYield: 1,             // hay per action on fully grown grass
+  baseRegrowTime: 180,       // seconds for cut grass to fully regrow
+  baseSellPrice: 1,         // kr per fresh hay
+  driedBonus: 1.5,          // dried barn hay sells for this × fresh price
+  baseRunSpeed: 150,        // world units per second
+  baseBasket: 10,           // hay the farmer can carry
+  baseBarnCap: 50,          // hay the barn can hold
+  baseDryRate: 0.5,         // hay per second that dries in the barn
+  minFreshnessYield: 0.3,   // fraction of yield still gained on stubble
+  cellW: 12, cellH: 10.2,   // grass grid cell size (fixed so the field can grow cell by cell)
+  autosaveSeconds: 20,
+  saveKey: "cozyFaroeseFarm.save.v2",
+};
+
+/* ------------------------------ WORLD -------------------------------- */
+// Everything lives in fixed world units and is scaled to fit the screen.
+const WORLD = {
+  w: 1400, h: 820, horizon: 290, seaBot: 345,
+  walk: { x0: 18, x1: 1382, y0: 378, y1: 806 },
+  field: { x: 70, y: 432, w: 264, h: 173 },        // resized by the "Expand the Meadow" upgrade
+  barn:  { x: 800, y: 585, door: { x: 800, y: 612 }, r: 72 },
+  cart:  { park: { x: 1185, y: 590 }, r: 92, exitX: 1720 },
+  house: { x: 1010, y: 482, door: { x: 1010, y: 508 }, r: 62 },
+  start: { x: 430, y: 560 },
+};
+
+// Meadow size per expansion level, in grass cells (cols × rows). Grows right and down.
+// Solid footprints the farmer can't walk through (world units, at ground level).
+const OBSTACLES = [
+  { x0: 704, x1: 896, y0: 540, y1: 594 },   // barn
+  { x0: 908, x1: 988, y0: 570, y1: 586 },   // drying rack
+  { x0: 936, x1: 1084, y0: 436, y1: 490 },  // farmhouse
+];
+const blocked = (x, y) => OBSTACLES.some(o => x > o.x0 && x < o.x1 && y > o.y0 && y < o.y1);
+
+// Top edge of the walkable land: just above the meadow on the left, level with the farmhouse on the right,
+// so the farmer never wanders up to the far-off village houses.
+function walkTop(x) { const a = 420, b = 470, t = Math.max(0, Math.min(1, (x - 690) / 80)); return a + (b - a) * t; }
+// Mild perspective: the farmer is a little smaller higher up the slope.
+const depthScale = y => 0.84 + 0.16 * Math.max(0, Math.min(1, (y - 420) / 230));
+
+const FIELD_STAGES = [[22, 17], [26, 20], [30, 23], [34, 26], [38, 29], [42, 32], [46, 34], [50, 36]];
+function applyFieldSize() {
+  const [c, r] = FIELD_STAGES[lvl("field")];
+  WORLD.field.w = c * CONFIG.cellW; WORLD.field.h = +(r * CONFIG.cellH).toFixed(2);
+}
+
+/* ---------------------------- VEHICLES ------------------------------- */
+// The farm's transport to Tórshavn. Each tier: name, icon, base load capacity, base trip time (s).
+const VEHICLES = [
+  { name: "Pony cart",        icon: "🐴", cap: 20,   trip: 8,   motor: false },
+  { name: "Horse carriage",   icon: "🐎", cap: 55,   trip: 7.5, motor: false },
+  { name: "Pickup truck",     icon: "🛻", cap: 150,  trip: 6.5, motor: true },
+  { name: "Pickup + trailer", icon: "🛻", cap: 380,  trip: 6.5, motor: true },
+  { name: "Lorry",            icon: "🚚", cap: 1000, trip: 6,   motor: true },
+  { name: "Lorry + trailer",  icon: "🚛", cap: 2600, trip: 6,   motor: true },
+];
+
+/* ---------------------------- RESOURCES ------------------------------ */
+const RESOURCES = [
+  { id: "money", name: "Króna",  icon: "🪙", label: () => "Króna", value: () => fmt(state.money) + " kr" },
+  { id: "carry", name: "Carrying", icon: "🧺", icon2: () => currentTool().kind === "ride" ? currentTool().icon : currentCarrier().icon,
+    label: () => (currentTool().kind === "ride" ? "Tank" : currentCarrier().name) + (state.carry.dried > 0.05 ? ` · ${fmt(state.carry.dried)} dried` : ""),
+    value: () => `${fmt(carryTotal())} / ${fmt(getStats().basket)}`, full: () => carryTotal() >= getStats().basket - 1e-6 },
+  { id: "barn",  name: "Barn",   icon: "🛖", label: () => state.barn.dried > 0 ? `Barn · ${fmt(state.barn.dried)} dried` : "Barn",
+    value: () => `${fmt(barnTotal())} / ${fmt(getStats().barnCap)}`, full: () => barnTotal() >= getStats().barnCap - 1e-6 },
+  { id: "cart",  name: "Cart",   icon: "🐴", icon2: () => getStats().vehicle.icon, label: () => getStats().vehicle.name,
+    value: () => Cart.state === "parked" ? `${fmt(cartTotal())} / ${fmt(getStats().cartCap)}` : `away · ${Math.ceil(Cart.eta())}s` },
+];
+
+/* ------------------------------ TOOLS -------------------------------- */
+// The ONLY way to grow the harvest ring is a better tool. Bought in order at the farmhouse.
+// radius: ring size · cycle: × harvest time · yield: × hay per action · carry: extra hopper/bag
+// capacity on top of the basket · run: × movement speed · motor: buzzes when cutting.
+const TOOL_TIERS = ["Manual hand tools", "Handheld motorised tools", "Walk-behind machines", "Ride-on mowers & compact tractors", "Heavy machinery"];
+const TOOLS = [
+  // Tier 1 — manual
+  { id: "hands",   tier: 0, kind: "hand", art: "none",     icon: "✋", name: "Bare Hands",              cost: 0,       radius: 12,  cycle: 1.00, yield: 1,   carry: 0,    run: 1,    desc: "Pluck grass a fistful at a time. Slow, with a tiny reach." },
+  { id: "scissors",tier: 0, kind: "hand", art: "scissors", icon: "✂️", name: "Garden Scissors",         cost: 15,      radius: 14,  cycle: 0.78, yield: 1,   carry: 0,    run: 1,    desc: "Quick little snips — much faster than plucking by hand." },
+  { id: "shears",  tier: 0, kind: "hand", art: "shears",   icon: "✂️", name: "Long-Handled Grass Shears", cost: 40,    radius: 18,  cycle: 0.80, yield: 1.2, carry: 0,    run: 1,    desc: "Cut standing upright, with a slightly wider snip." },
+  { id: "sickle",  tier: 0, kind: "hand", art: "sickle",   icon: "🌙", name: "Hand Sickle",             cost: 95,      radius: 22,  cycle: 0.78, yield: 1.5, carry: 0,    run: 1,    desc: "A curved one-handed slash that takes many blades in a small arc." },
+  { id: "scythe",  tier: 0, kind: "hand", art: "scythe",   icon: "🌾", name: "European Scythe",         cost: 220,     radius: 28,  cycle: 0.85, yield: 2,   carry: 0,    run: 1,    desc: "Two-handed sweeping arcs that lay the grass down in neat rows." },
+  // Tier 2 — handheld motorised
+  { id: "hedge",   tier: 1, kind: "hand", art: "hedge",    icon: "🔧", name: "Powered Hedge Trimmer",   cost: 480,     radius: 31,  cycle: 0.70, yield: 2.5, carry: 0,    run: 1,    motor: 1, desc: "Giant motorised shears with a straight cutting bar." },
+  { id: "string",  tier: 1, kind: "hand", art: "string",   icon: "🌀", name: "Cordless String Trimmer", cost: 950,     radius: 34,  cycle: 0.60, yield: 3,   carry: 0,    run: 1,    motor: 1, desc: "A whirring line that cuts a full circle as you walk." },
+  { id: "brush",   tier: 1, kind: "hand", art: "brush",    icon: "⚙️", name: "Gas Brush Cutter",        cost: 1900,    radius: 37,  cycle: 0.55, yield: 4,   carry: 0,    run: 1,    motor: 1, desc: "A spinning metal blade that slices tall hay and tough reeds." },
+  // Tier 3 — walk-behind
+  { id: "reel",    tier: 2, kind: "walk", art: "reel",     icon: "🛞", name: "Manual Reel Mower",       cost: 3600,    radius: 39,  cycle: 0.55, yield: 5,   carry: 10,   run: 1,    desc: "Helical blades spun by your own walking. No fuel needed." },
+  { id: "push",    tier: 2, kind: "walk", art: "push",     icon: "🚜", name: "Walk-Behind Push Mower",  cost: 6800,    radius: 42,  cycle: 0.50, yield: 6,   carry: 25,   run: 1,    motor: 1, desc: "Your first engine on wheels — with a grass-catcher bag (+25 hay)." },
+  { id: "selfprop",tier: 2, kind: "walk", art: "self",     icon: "🚜", name: "Self-Propelled Mower",    cost: 12500,   radius: 45,  cycle: 0.45, yield: 7,   carry: 40,   run: 1.15, motor: 1, desc: "Pulls itself along: faster walking and a wider deck." },
+  { id: "sickbar", tier: 2, kind: "walk", art: "sicklebar",icon: "🚜", name: "Walk-Behind Sickle Bar Mower", cost: 21000, radius: 50, cycle: 0.45, yield: 9, carry: 50,  run: 1.1,  motor: 1, desc: "Reciprocating teeth slice tall hay cleanly instead of mulching it." },
+  { id: "twowheel",tier: 2, kind: "walk", art: "twowheel", icon: "🚜", name: "Two-Wheel Tractor",       cost: 35000,   radius: 52,  cycle: 0.40, yield: 11,  carry: 80,   run: 1.2,  motor: 1, desc: "A heavy-duty walk-behind tractor with a rotary mower up front." },
+  // Tier 4 — ride-on
+  { id: "lawntrac",tier: 3, kind: "ride", art: "lawn",     icon: "🚜", name: "Lawn Tractor",            cost: 56000,   radius: 56,  cycle: 0.40, yield: 14,  carry: 150,  run: 1.5,  motor: 1, desc: "Sit down and drive! Covers medium fields quickly." },
+  { id: "ztr",     tier: 3, kind: "ride", art: "ztr",      icon: "🏎️", name: "Zero-Turn Mower",         cost: 86000,   radius: 58,  cycle: 0.35, yield: 16,  carry: 180,  run: 1.8,  motor: 1, desc: "Fast and agile, turning on the spot around every corner." },
+  { id: "flail",   tier: 3, kind: "ride", art: "flail",    icon: "🚜", name: "Compact Tractor + Flail Mower", cost: 130000, radius: 63, cycle: 0.35, yield: 20, carry: 250, run: 1.6, motor: 1, desc: "Dozens of swinging blades chew through thick, overgrown grass." },
+  { id: "disc",    tier: 3, kind: "ride", art: "disc",     icon: "🚜", name: "Tractor + Disc Mower",    cost: 200000,  radius: 68,  cycle: 0.32, yield: 25,  carry: 350,  run: 1.7,  motor: 1, desc: "A dedicated hay mower: wide swaths of tall grass, fast." },
+  { id: "tedder",  tier: 3, kind: "ride", art: "tedder",   icon: "🚜", name: "Tractor + Tedder & Rake", cost: 300000,  radius: 70,  cycle: 0.30, yield: 30,  carry: 450,  run: 1.7,  motor: 1, desc: "Fluffs and rows the cut hay so it dries and gathers better." },
+  { id: "sqbaler", tier: 3, kind: "ride", art: "sqbaler",  icon: "🧱", name: "Tractor + Small Square Baler", cost: 450000, radius: 74, cycle: 0.30, yield: 38, carry: 600, run: 1.7, motor: 1, desc: "Presses your hay into tidy square bales as you drive." },
+  // Tier 5 — heavy
+  { id: "rdbaler", tier: 4, kind: "ride", art: "roundbaler",icon: "🛢️", name: "Tractor + Round Baler",  cost: 700000,  radius: 78, cycle: 0.28, yield: 48,  carry: 900,  run: 1.8,  motor: 1, desc: "Giant round bales, high capacity." },
+  { id: "swather", tier: 4, kind: "ride", art: "swather",  icon: "🚜", name: "Self-Propelled Windrower", cost: 1100000, radius: 84, cycle: 0.26, yield: 60,  carry: 1200, run: 1.9,  motor: 1, desc: "A huge front header that cuts and rows the hay in one pass." },
+  { id: "forage",  tier: 4, kind: "ride", art: "forage",   icon: "🚜", name: "Forage Harvester",        cost: 1700000, radius: 90, cycle: 0.24, yield: 75,  carry: 1600, run: 2.0,  motor: 1, desc: "Chops the grass and blows it straight into a trailing wagon." },
+  { id: "combine", tier: 4, kind: "ride", art: "combine",  icon: "🌾", name: "Combine Harvester",       cost: 2600000, radius: 98, cycle: 0.22, yield: 95,  carry: 2400, run: 2.1,  motor: 1, desc: "The ultimate machine. A massive header and a huge onboard tank." },
+];
+// What the farmer carries hay in. Bought in order at the farmhouse, like tools.
+// style "back" = worn on the back; "pull" = pulled along behind. Machines' tanks/bags add on top.
+const CARRIERS = [
+  { id: "leypur",   icon: "🧺", name: "Small Leypur",     style: "back", size: 1,   cap: 10,  cost: 0,    desc: "The traditional Faroese back-basket of woven willow." },
+  { id: "bigleypur",icon: "🧺", name: "Large Leypur",     style: "back", size: 1.35,cap: 18,  cost: 12,   desc: "A bigger leypur with a strap across the forehead." },
+  { id: "sack",     icon: "🛍️", name: "Burlap Sack",      style: "sack", size: 1,   cap: 30,  cost: 35,   desc: "Stuff it full and sling it over your shoulder." },
+  { id: "net",      icon: "🕸️", name: "Hay Net",          style: "net",  size: 1,   cap: 45,  cost: 90,   desc: "A rope net that holds a huge bundle of hay on your back." },
+  { id: "barrow",   icon: "🛒", name: "Wheelbarrow",      style: "pull", art: "barrow",   cap: 70,  cost: 220,  desc: "One wheel, two handles, a lot more hay." },
+  { id: "handcart", icon: "🛒", name: "Hand Cart",        style: "pull", art: "handcart", cap: 110, cost: 550,  desc: "A two-wheeled wooden cart you pull along behind you." },
+  { id: "sledge",   icon: "🛷", name: "Hay Sledge",       style: "pull", art: "sledge",   cap: 170, cost: 1400, desc: "Slides easily over wet island grass — piled high with hay." },
+  { id: "trailer",  icon: "🚛", name: "Garden Trailer",   style: "pull", art: "trailer",  cap: 260, cost: 3500, desc: "A small steel trailer with high mesh sides." },
+];
+const CARRIER_INDEX = Object.fromEntries(CARRIERS.map((c, i) => [c.id, i]));
+const carrierIdx = () => CARRIER_INDEX[state.carrier] ?? 0;
+const currentCarrier = () => CARRIERS[carrierIdx()];
+const nextCarrier = () => CARRIERS[carrierIdx() + 1] || null;
+const TOOL_INDEX = Object.fromEntries(TOOLS.map((t, i) => [t.id, i]));
+const toolIdx = () => TOOL_INDEX[state.equipment] ?? 0;
+const currentTool = () => TOOLS[toolIdx()];
+const nextTool = () => TOOLS[toolIdx() + 1] || null;
+
+/* ---------------------------- UPGRADES ------------------------------- */
+// id, category, name, desc, maxLevel, cost(level), value(level), show(value), requires?
+const UPGRADES = [
+  { id: "speed", category: "Harvesting", name: "Nimble Hands",
+    desc: "Practise the rhythm of the harvest. The ring fills faster with any tool.",
+    maxLevel: 10, cost: l => 5 * Math.pow(1.62, l),
+    value: l => +(CONFIG.baseCycleTime - 0.1 * l).toFixed(2), show: v => v.toFixed(2) + " s / action" },
+
+  { id: "boots", category: "Farmer", name: "Sturdy Sheepskin Boots",
+    desc: "Good boots for wet Faroese grass. Run faster between field, barn and cart.",
+    maxLevel: 6, cost: l => 14 * Math.pow(1.9, l),
+    value: l => Math.round(CONFIG.baseRunSpeed * Math.pow(1.12, l)), show: v => (v / 50).toFixed(1) + " m/s" },
+
+  { id: "loft", category: "Barn", name: "Barn Loft",
+    desc: "Clear out the loft to store more hay.",
+    maxLevel: 6, cost: l => 30 * Math.pow(2, l),
+    value: l => Math.round(CONFIG.baseBarnCap * Math.pow(1.6, l)), show: v => v + " hay storage",
+    requires: { text: "Store hay in the barn once", met: s => s.stats.timesStored >= 1 } },
+  { id: "racks", category: "Barn", name: "Hesjur Drying Racks",
+    desc: "Traditional racks for drying hay in the island wind. Hay in the barn dries faster.",
+    maxLevel: 6, cost: l => 25 * Math.pow(1.9, l),
+    value: l => +(CONFIG.baseDryRate * Math.pow(1.5, l)).toFixed(2), show: v => v.toFixed(2) + " hay/s drying",
+    requires: { text: "Store hay in the barn once", met: s => s.stats.timesStored >= 1 } },
+
+  { id: "field", category: "Land", name: "Expand the Meadow",
+    desc: "Move the stone wall outward and claim more grassland. New grass sprouts in the extra space.",
+    maxLevel: FIELD_STAGES.length - 1, cost: l => 18 * Math.pow(2.1, l),
+    value: l => FIELD_STAGES[l][0] * FIELD_STAGES[l][1], show: v => fmt(v) + " patches of grass" },
+  { id: "regrow", category: "Land", name: "Seaweed Fertiliser",
+    desc: "Spread kelp from the shore, an old island trick. Cut grass grows back sooner.",
+    maxLevel: 6, cost: l => 15 * Math.pow(1.8, l),
+    value: l => CONFIG.baseRegrowTime * Math.pow(0.84, l), show: v => fmtTime(v) + " regrowth",
+    requires: { text: "Buy Nimble Hands level 2", met: s => s.upgrades.speed >= 2 } },
+
+  { id: "vehicle", category: "Transport", name: "New Vehicle",
+    desc: "Trade up your transport to Tórshavn: pony cart → horse carriage → pickup truck → trailer → lorry.",
+    maxLevel: VEHICLES.length - 1, cost: l => [120, 900, 4500, 22000, 110000][l] || Infinity,
+    value: l => l, show: v => VEHICLES[v].icon + " " + VEHICLES[v].name },
+  { id: "cartload", category: "Transport", name: "Bigger Load",
+    desc: "Higher sides, better lashing ropes. Every vehicle carries more hay.",
+    maxLevel: 6, cost: l => 20 * Math.pow(2, l),
+    value: l => +Math.pow(1.4, l).toFixed(3), show: v => "×" + v.toFixed(2) + " load",
+    requires: { text: "Deliver one load to Tórshavn", met: s => s.stats.timesSold >= 1 } },
+  { id: "trips", category: "Transport", name: "Quicker Trips",
+    desc: "Better roads and a well-fed horse (or a tuned engine) — the round trip is shorter.",
+    maxLevel: 6, cost: l => 25 * Math.pow(1.95, l),
+    value: l => +Math.pow(0.85, l).toFixed(3), show: v => "×" + v.toFixed(2) + " trip time",
+    requires: { text: "Deliver one load to Tórshavn", met: s => s.stats.timesSold >= 1 } },
+  { id: "price", category: "Transport", name: "Tórshavn Connections",
+    desc: "Better connections at the harbour market raise the price your hay fetches.",
+    maxLevel: 10, cost: l => 25 * Math.pow(1.85, l),
+    value: l => +(CONFIG.baseSellPrice + 0.3 * l).toFixed(2), show: v => v.toFixed(2) + " kr / hay",
+    requires: { text: "Deliver one load to Tórshavn", met: s => s.stats.timesSold >= 1 } },
+];
+const UPGRADE_BY_ID = Object.fromEntries(UPGRADES.map(u => [u.id, u]));
+
+/* ------------------------- STATE & SAVING ---------------------------- */
+function defaultState() {
+  return {
+    version: 2,
+    money: 0,
+    carry: { fresh: 0, dried: 0 },
+    barn: { fresh: 0, dried: 0 },
+    cart: { fresh: 0, dried: 0, pending: 0, pendingDried: false },
+    player: { x: WORLD.start.x, y: WORLD.start.y },
+    upgrades: Object.fromEntries(UPGRADES.map(u => [u.id, 0])),
+    equipment: "hands", carrier: "leypur", reachRefunded: true, refund2: true,
+    stats: { totalHay: 0, actions: 0, totalMoney: 0, haySold: 0, timesSold: 0, timesStored: 0, hayStored: 0, upgradesBought: 0, playTime: 0, distance: 0 },
+    settings: { master: 0.7, sfx: 0.8, ambience: 0.5, sfxOn: true, ambienceOn: true },
+  };
+}
+let state = defaultState();
+
+function mergeInto(base, saved) {
+  for (const k in saved) {
+    if (saved[k] && typeof saved[k] === "object" && !Array.isArray(saved[k]) && base[k] && typeof base[k] === "object") mergeInto(base[k], saved[k]);
+    else if (k in base && typeof saved[k] === typeof base[k]) base[k] = saved[k];
+  }
+  return base;
+}
+const Save = {
+  save(silent) {
+    state.player.x = Player.x; state.player.y = Player.y;
+    try { localStorage.setItem(CONFIG.saveKey, JSON.stringify(state)); if (!silent) flashSaved(); return true; }
+    catch (e) { if (!silent) toast("Couldn't save — storage unavailable"); return false; }
+  },
+  load() {
+    try {
+      const raw = localStorage.getItem(CONFIG.saveKey); if (!raw) return false;
+      const saved = JSON.parse(raw);
+      state = mergeInto(defaultState(), saved);
+      // "Wider Reach" was removed (tools set the reach now) — refund what was spent on it
+      const oldReach = saved.upgrades && saved.upgrades.radius | 0;
+      if (oldReach > 0 && !saved.reachRefunded) { for (let l = 0; l < oldReach; l++) state.money += Math.ceil(20 * Math.pow(2.05, l)); setTimeout(() => toast("Wider Reach was replaced by tools — your króna for it were refunded"), 800); }
+      state.reachRefunded = true;
+      // "Bigger Armfuls" and "Bigger Basket" were removed (tools set the yield, carriers the capacity) — refund them
+      if (!saved.refund2) {
+        const u = saved.upgrades || {}; let back = 0;
+        for (let l = 0; l < (u.yield | 0); l++) back += Math.ceil(8 * Math.pow(1.72, l));
+        for (let l = 0; l < (u.basket | 0); l++) back += Math.ceil(10 * Math.pow(1.85, l));
+        if (back > 0) { state.money += back; setTimeout(() => toast(`Bigger Armfuls & Bigger Basket were replaced — ${fmt(back)} kr refunded`), 1600); }
+      }
+      state.refund2 = true;
+      if (!(state.carrier in CARRIER_INDEX)) state.carrier = "leypur";
+      if (!(state.equipment in TOOL_INDEX)) state.equipment = "hands";
+      for (const u of UPGRADES) state.upgrades[u.id] = Math.max(0, Math.min(u.maxLevel, state.upgrades[u.id] | 0));
+      Player.place(state.player.x, state.player.y);
+      if (state.cart.pending > 0) { state.money += state.cart.pending; state.stats.totalMoney += state.cart.pending; state.cart.pending = 0; }
+      Cart.reset(); onFieldChanged(false);
+      return true;
+    } catch (e) { return false; }
+  },
+  reset() {
+    try { localStorage.removeItem(CONFIG.saveKey); } catch (e) {}
+    const settings = state.settings; state = defaultState(); state.settings = settings;
+    Player.place(WORLD.start.x, WORLD.start.y);
+    Cart.reset(); onFieldChanged(false);
+  },
+};
+
+/* ----------------------------- DERIVED ------------------------------- */
+const lvl = id => state.upgrades[id] || 0;
+const stat = id => UPGRADE_BY_ID[id].value(lvl(id));
+function getStats() {
+  return {
+    tool: currentTool(),
+    carrier: currentCarrier(),
+    cycleTime: stat("speed") * currentTool().cycle, yield: currentTool().yield, radius: currentTool().radius,
+    basket: currentCarrier().cap + currentTool().carry, runSpeed: Math.round(stat("boots") * currentTool().run),
+    barnCap: stat("loft"), dryRate: stat("racks"),
+    regrowTime: stat("regrow"), sellPrice: stat("price"),
+    vehicle: VEHICLES[lvl("vehicle")],
+    cartCap: Math.round(VEHICLES[lvl("vehicle")].cap * stat("cartload")),
+    tripTime: VEHICLES[lvl("vehicle")].trip * stat("trips"),
+  };
+}
+const cartTotal = () => state.cart.fresh + state.cart.dried;
+const carryTotal = () => state.carry.fresh + state.carry.dried;
+const barnTotal = () => state.barn.fresh + state.barn.dried;
+const upgradeCost = u => Math.ceil(u.cost(lvl(u.id)));
+const isUnlocked = u => !u.requires || u.requires.met(state);
+
+/* ---------------------------- FORMATTING ----------------------------- */
+function fmt(n) {
+  if (n < 0.05) return "0";
+  if (n < 10) return (Math.floor(n * 10) / 10).toFixed(1).replace(/\.0$/, "");
+  if (n < 10000) return Math.floor(n).toLocaleString("en-US");
+  const units = ["k", "M", "B", "T"]; let i = -1;
+  while (n >= 1000 && i < units.length - 1) { n /= 1000; i++; }
+  return n.toFixed(n < 100 ? 2 : 1) + units[i];
+}
+function fmtTime(s) {
+  s = Math.floor(s); const h = Math.floor(s / 3600), m = Math.floor(s % 3600 / 60), sec = s % 60;
+  return h ? `${h}h ${m}m` : m ? `${m}m ${sec}s` : `${sec}s`;
+}
+const dist = (a, b) => Math.hypot(a.x - b.x, a.y - b.y);
+
+/* ------------------------------ SOUND -------------------------------- */
+const Sound = {
+  ctx: null, master: null, buses: {}, noise: null, started: false,
+  init() {
+    if (this.started) { this.ctx.resume(); return; }
+    const AC = window.AudioContext || window.webkitAudioContext; if (!AC) return;
+    this.ctx = new AC();
+    this.master = this.ctx.createGain(); this.master.connect(this.ctx.destination);
+    for (const b of ["sfx", "ambience"]) { const g = this.ctx.createGain(); g.connect(this.master); this.buses[b] = g; }
+    const len = this.ctx.sampleRate * 2, buf = this.ctx.createBuffer(1, len, this.ctx.sampleRate), d = buf.getChannelData(0);
+    for (let i = 0; i < len; i++) d[i] = Math.random() * 2 - 1;
+    this.noise = buf; this.started = true;
+    this.applySettings(); this.startWind(); this.scheduleBird();
+    document.getElementById("audiohint").style.opacity = 0;
+  },
+  applySettings() {
+    if (!this.started) return;
+    const s = state.settings, t = this.ctx.currentTime;
+    this.master.gain.setTargetAtTime(s.master, t, 0.05);
+    this.buses.sfx.gain.setTargetAtTime(s.sfxOn ? s.sfx : 0, t, 0.05);
+    this.buses.ambience.gain.setTargetAtTime(s.ambienceOn ? s.ambience : 0, t, 0.05);
+  },
+  startWind() {
+    const c = this.ctx, src = c.createBufferSource(); src.buffer = this.noise; src.loop = true;
+    const lp = c.createBiquadFilter(); lp.type = "lowpass"; lp.frequency.value = 380; lp.Q.value = 0.6;
+    const g = c.createGain(); g.gain.value = 0.18;
+    const lfo = c.createOscillator(); lfo.frequency.value = 0.07;
+    const lg = c.createGain(); lg.gain.value = 0.11; lfo.connect(lg).connect(g.gain);
+    const lfo2 = c.createOscillator(); lfo2.frequency.value = 0.05;
+    const l2 = c.createGain(); l2.gain.value = 160; lfo2.connect(l2).connect(lp.frequency);
+    src.connect(lp).connect(g).connect(this.buses.ambience);
+    src.start(); lfo.start(); lfo2.start();
+  },
+  scheduleBird() { setTimeout(() => { if (this.started) { this.bird(); this.scheduleBird(); } }, 4000 + Math.random() * 9000); },
+  bird() {
+    const c = this.ctx, t0 = c.currentTime, n = 2 + Math.floor(Math.random() * 4), base = 2800 + Math.random() * 1400;
+    const pan = c.createStereoPanner ? c.createStereoPanner() : null;
+    if (pan) { pan.pan.value = Math.random() * 1.6 - 0.8; pan.connect(this.buses.ambience); }
+    for (let i = 0; i < n; i++) {
+      const t = t0 + i * (0.09 + Math.random() * 0.05), o = c.createOscillator(), g = c.createGain();
+      o.frequency.setValueAtTime(base * (1 + Math.random() * 0.15), t);
+      o.frequency.exponentialRampToValueAtTime(base * (0.75 + Math.random() * 0.5), t + 0.07);
+      g.gain.setValueAtTime(0.0001, t); g.gain.exponentialRampToValueAtTime(0.05, t + 0.01); g.gain.exponentialRampToValueAtTime(0.0001, t + 0.08);
+      o.connect(g).connect(pan || this.buses.ambience); o.start(t); o.stop(t + 0.1);
+    }
+  },
+  noiseHit(t, f0, f1, dur, vol, type = "bandpass", q = 1.2) {
+    const c = this.ctx, src = c.createBufferSource(); src.buffer = this.noise;
+    const f = c.createBiquadFilter(); f.type = type; f.Q.value = q;
+    f.frequency.setValueAtTime(f0, t); f.frequency.exponentialRampToValueAtTime(f1, t + dur * 0.7);
+    const g = c.createGain(); g.gain.setValueAtTime(0.0001, t); g.gain.exponentialRampToValueAtTime(vol, t + 0.02); g.gain.exponentialRampToValueAtTime(0.0001, t + dur);
+    src.connect(f).connect(g).connect(this.buses.sfx); src.start(t, Math.random()); src.stop(t + dur + 0.05);
+  },
+  tones(freqs, step, type, vol, dur = 0.35) {
+    if (!this.started) return;
+    const c = this.ctx, t0 = c.currentTime;
+    freqs.forEach((f, i) => {
+      const t = t0 + i * step, o = c.createOscillator(), g = c.createGain(); o.type = type; o.frequency.value = f;
+      g.gain.setValueAtTime(0.0001, t); g.gain.exponentialRampToValueAtTime(vol, t + 0.015); g.gain.exponentialRampToValueAtTime(0.0001, t + dur);
+      o.connect(g).connect(this.buses.sfx); o.start(t); o.stop(t + dur + 0.05);
+    });
+  },
+  harvest(fresh) {
+    if (!this.started) return; const t = this.ctx.currentTime;
+    this.noiseHit(t, 1800, 5200, 0.26, 0.18 + 0.22 * fresh);
+    this.tones([560 + fresh * 200], 0, "triangle", 0.05, 0.15);
+  },
+  step(i) { if (this.started) this.noiseHit(this.ctx.currentTime, i ? 700 : 900, 300, 0.09, 0.05, "lowpass", 0.7); },
+  store() {
+    if (!this.started) return; const c = this.ctx, t = c.currentTime;
+    this.noiseHit(t, 600, 200, 0.35, 0.25, "lowpass", 0.8);
+    const o = c.createOscillator(), g = c.createGain(); o.frequency.setValueAtTime(160, t); o.frequency.exponentialRampToValueAtTime(70, t + 0.2);
+    g.gain.setValueAtTime(0.0001, t); g.gain.exponentialRampToValueAtTime(0.18, t + 0.01); g.gain.exponentialRampToValueAtTime(0.0001, t + 0.25);
+    o.connect(g).connect(this.buses.sfx); o.start(t); o.stop(t + 0.3);
+  },
+  motor(i) {
+    if (!this.started) return; const c = this.ctx, t = c.currentTime, o = c.createOscillator(), lp = c.createBiquadFilter(), g = c.createGain();
+    o.type = "sawtooth"; o.frequency.setValueAtTime(i > 12 ? 55 : 110 + Math.random() * 10, t); o.frequency.linearRampToValueAtTime(i > 12 ? 70 : 150, t + 0.12);
+    lp.type = "lowpass"; lp.frequency.value = i > 12 ? 300 : 900;
+    g.gain.setValueAtTime(0.0001, t); g.gain.exponentialRampToValueAtTime(0.05, t + 0.02); g.gain.exponentialRampToValueAtTime(0.0001, t + 0.3);
+    o.connect(lp).connect(g).connect(this.buses.sfx); o.start(t); o.stop(t + 0.32);
+  },
+  coin() { this.tones([988, 1319, 1568], 0.07, "triangle", 0.09); },
+  // clip-clop of a Faroese pony, or a little engine for motor vehicles
+  depart(motor, dur) {
+    if (!this.started) return; const c = this.ctx, t0 = c.currentTime;
+    if (!motor) {
+      for (let i = 0; i < dur / 0.19; i++) {
+        const t = t0 + i * 0.19 + (i % 2) * 0.03, vol = 0.12 * (1 - i / (dur / 0.19)) + 0.01;
+        const o = c.createOscillator(), g = c.createGain(); o.type = "triangle";
+        o.frequency.setValueAtTime(i % 2 ? 420 : 520, t); o.frequency.exponentialRampToValueAtTime(180, t + 0.05);
+        g.gain.setValueAtTime(0.0001, t); g.gain.exponentialRampToValueAtTime(vol, t + 0.004); g.gain.exponentialRampToValueAtTime(0.0001, t + 0.07);
+        o.connect(g).connect(this.buses.sfx); o.start(t); o.stop(t + 0.08);
+      }
+      this.tones([660, 990], 0.12, "sine", 0.03, 0.2); // harness bell
+    } else {
+      const o = c.createOscillator(), o2 = c.createOscillator(), lp = c.createBiquadFilter(), g = c.createGain();
+      o.type = "sawtooth"; o2.type = "square"; o.frequency.setValueAtTime(42, t0); o.frequency.linearRampToValueAtTime(70, t0 + dur * 0.6);
+      o2.frequency.setValueAtTime(21, t0); o2.frequency.linearRampToValueAtTime(35, t0 + dur * 0.6);
+      lp.type = "lowpass"; lp.frequency.value = 380;
+      g.gain.setValueAtTime(0.0001, t0); g.gain.exponentialRampToValueAtTime(0.12, t0 + 0.15); g.gain.exponentialRampToValueAtTime(0.0001, t0 + dur);
+      o.connect(lp); o2.connect(lp); lp.connect(g).connect(this.buses.sfx);
+      o.start(t0); o2.start(t0); o.stop(t0 + dur + 0.05); o2.stop(t0 + dur + 0.05);
+    }
+  },
+  upgrade() { this.tones([523, 659, 784, 1047], 0.075, "triangle", 0.08); },
+  bump() { this.tones([196, 165], 0.08, "sine", 0.06, 0.2); },
+};
+
+/* ------------------------------ CAMERA ------------------------------- */
+const sceneCanvas = document.getElementById("scene"), ctx = sceneCanvas.getContext("2d");
+const fxCanvas = document.getElementById("fx"), fctx = fxCanvas.getContext("2d");
+let W = 0, H = 0, DPR = 1;
+const cam = { k: 1, ox: 0, oy: 0, play: null, follow: false };
+const toWorld = (sx, sy) => ({ x: (sx - cam.ox) / cam.k, y: (sy - cam.oy) / cam.k });
+const toScreen = (wx, wy) => ({ x: cam.ox + wx * cam.k, y: cam.oy + wy * cam.k });
+
+function computeLayout() {
+  DPR = Math.min(window.devicePixelRatio || 1, 2);
+  W = window.innerWidth; H = window.innerHeight;
+  for (const c of [sceneCanvas, fxCanvas]) {
+    c.width = Math.round(W * DPR); c.height = Math.round(H * DPR);
+    c.style.width = W + "px"; c.style.height = H + "px";
+  }
+  const css = getComputedStyle(document.documentElement);
+  const topH = parseFloat(css.getPropertyValue("--top-h"));
+  // On narrow screens the panel floats over the farm instead of squeezing it.
+  cam.play = { x: 0, y: topH, w: W, h: H - topH };
+  const kFit = Math.min(cam.play.w / WORLD.w, cam.play.h / WORLD.h);
+  // Zoom in close enough that the farmer reads clearly; the camera follows him around the farm.
+  cam.k = Math.max(kFit, Math.min(cam.play.w / 460, Math.max(cam.play.h / 700, Math.min(cam.play.w, cam.play.h * 1.6) / 1100)));
+  cam.follow = WORLD.w * cam.k > cam.play.w + 1;
+  updateCamera(true);
+}
+function updateCamera(snap) {
+  const p = cam.play, k = cam.k;
+  // bottom of the world sits on the bottom of the screen; sky extends upward
+  let ox = cam.follow ? p.x + p.w / 2 - Player.x * k : p.x + (p.w - WORLD.w * k) / 2;
+  if (cam.follow) ox = Math.min(p.x, Math.max(p.x + p.w - WORLD.w * k, ox));
+  let oy = p.y + p.h - WORLD.h * k;
+  if (WORLD.h * k > p.h + 1) { oy = p.y + p.h / 2 - Player.y * k; oy = Math.min(p.y, Math.max(p.y + p.h - WORLD.h * k, oy)); }
+  if (snap) { cam.ox = ox; cam.oy = oy; } else { cam.ox += (ox - cam.ox) * 0.12; cam.oy += (oy - cam.oy) * 0.12; }
+}
+
+/* ----------------------------- SCENERY ------------------------------- */
+function rng(seed) { return () => { seed = (seed * 1664525 + 1013904223) >>> 0; return seed / 4294967296; }; }
+const BG = { x0: -260, x1: WORLD.w + 260, y0: -420, y1: WORLD.h + 40 };
+let bgCache = null, bgScale = 1;
+
+/* ------------------------- LOW-POLY HELPERS -------------------------- */
+// Flat-shaded "low-poly" drawing in 2D, matching Hare Season's palette and lighting.
+const PAL = {
+  skyTop: "#b8cfe4", fog: "#dfd8e8", sea: "#93b7c9", sea2: "#a5c4d3",
+  grass: "#a9b77f", moss: "#94a770", ochre: "#d1b77d", dry: "#c3a56e", heath: "#9e8a80",
+  rock: "#8f8a9b", rock2: "#a49eaf", snow: "#f3f1f7", shore: "#bcb19c", far: "#949bb1", far2: "#8a92a9",
+  turf: "#8ea56a", turfLight: "#a3b87c", turfDark: "#76905a",
+  stones: ["#9a96a5", "#8b8796", "#aaa5b3", "#837f8d"], wall: ["#9993a3", "#8a8595", "#a7a1b0"],
+  tufts: ["#d8c07e", "#c9ad6c", "#e2cd92", "#b9a061", "#a8b27a"], heather: ["#8d6f80", "#7b6474", "#a08b76", "#957a86"],
+  ink: "#352f45", dark: "#3e3b45", red: "#b8473d", white: "#f4f1ea", window: "#6f7f99", door: "#c4463a",
+  road: "#d6c7a4", roadEdge: "#c2b08b",
+};
+function hash2(x, y) { const s = Math.sin(x * 127.1 + y * 311.7) * 43758.5453; return s - Math.floor(s); }
+function vnoise(x, y) {
+  const xi = Math.floor(x), yi = Math.floor(y), xf = x - xi, yf = y - yi, u = xf * xf * (3 - 2 * xf), v = yf * yf * (3 - 2 * yf);
+  const a = hash2(xi, yi), b = hash2(xi + 1, yi), c = hash2(xi, yi + 1), d = hash2(xi + 1, yi + 1);
+  return a + (b - a) * u + (c - a) * v + (a - b - c + d) * u * v;
+}
+const _rgbCache = {};
+function rgbOf(hex) { if (_rgbCache[hex]) return _rgbCache[hex]; const n = parseInt(hex.slice(1), 16); return (_rgbCache[hex] = [n >> 16 & 255, n >> 8 & 255, n & 255]); }
+function mixRgb(a, b, t) { return [a[0] + (b[0] - a[0]) * t, a[1] + (b[1] - a[1]) * t, a[2] + (b[2] - a[2]) * t]; }
+function rgbStr(c, k = 1) { return `rgb(${Math.max(0, Math.min(255, c[0] * k)) | 0},${Math.max(0, Math.min(255, c[1] * k)) | 0},${Math.max(0, Math.min(255, c[2] * k)) | 0})`; }
+function shade(hex, k) { return rgbStr(rgbOf(hex), k); }
+// light comes from the upper left, slightly towards the viewer (like Hare Season's sun)
+const LIGHT = (() => { const l = [-0.45, 0.6, 0.66], m = Math.hypot(...l); return l.map(v => v / m); })();
+// brightness of a triangle given 3 points with pseudo-height h (x right, y down, h out of screen)
+function triLight(a, b, c, amp = 0.3) {
+  const ux = b.x - a.x, uy = -(b.y - a.y), uz = b.h - a.h, vx = c.x - a.x, vy = -(c.y - a.y), vz = c.h - a.h;
+  let nx = uy * vz - uz * vy, ny = uz * vx - ux * vz, nz = ux * vy - uy * vx;
+  if (nz < 0) { nx = -nx; ny = -ny; nz = -nz; }
+  const m = Math.hypot(nx, ny, nz) || 1;
+  return 1 - amp * 0.5 + amp * ((nx * LIGHT[0] + ny * LIGHT[1] + nz * LIGHT[2]) / m);
+}
+function fillTri(g, a, b, c, col) {
+  g.beginPath(); g.moveTo(a.x, a.y); g.lineTo(b.x, b.y); g.lineTo(c.x, c.y); g.closePath();
+  g.fillStyle = col; g.fill(); g.strokeStyle = col; g.lineWidth = 0.6; g.stroke(); // stroke hides hairline seams
+}
+// A triangulated strip mesh: columns of vertices from a top edge down to a base.
+// vert(ci, ri) -> {x, y, h}; color(cx, cy, tri) -> rgb array
+function meshStrip(g, cols, rows, vert, color, amp) {
+  const V = [];
+  for (let c = 0; c <= cols; c++) { V[c] = []; for (let r = 0; r <= rows; r++) V[c][r] = vert(c, r); }
+  for (let c = 0; c < cols; c++) for (let r = 0; r < rows; r++) {
+    const a = V[c][r], b = V[c + 1][r], d = V[c][r + 1], e = V[c + 1][r + 1];
+    const flip = hash2(c * 1.7, r * 2.3) > 0.5;
+    const tris = flip ? [[a, b, e], [a, e, d]] : [[a, b, d], [b, e, d]];
+    for (const [p, q, s] of tris) {
+      const cx = (p.x + q.x + s.x) / 3, cy = (p.y + q.y + s.y) / 3;
+      fillTri(g, p, q, s, rgbStr(color(cx, cy), triLight(p, q, s, amp)));
+    }
+  }
+}
+// faceted boulder: a polygon split into triangles around an off-centre peak
+function rock(g, x, y, s, seed, tones = PAL.stones) {
+  const n = 6 + (hash2(seed, 1) * 3 | 0), pts = [], base = rgbOf(tones[(hash2(seed, 2) * tones.length) | 0]);
+  for (let i = 0; i < n; i++) {
+    const a = (i / n) * Math.PI * 2 + hash2(seed, i) * 0.5, r = s * (0.8 + hash2(i, seed) * 0.35);
+    pts.push({ x: x + Math.cos(a) * r * 1.25, y: y + Math.sin(a) * r * (Math.sin(a) > 0 ? 0.45 : 0.85) });
+  }
+  g.fillStyle = "rgba(53,47,69,0.18)"; g.beginPath(); g.ellipse(x + s * 0.25, y + s * 0.35, s * 1.3, s * 0.4, 0, 0, Math.PI * 2); g.fill();
+  const peak = { x: x - s * 0.2, y: y - s * 0.45 };
+  for (let i = 0; i < n; i++) {
+    const p = pts[i], q = pts[(i + 1) % n], mx = (p.x + q.x) / 2 - peak.x, my = (p.y + q.y) / 2 - peak.y, m = Math.hypot(mx, my) || 1;
+    const k = 0.86 + 0.3 * ((mx / m) * LIGHT[0] - (my / m) * LIGHT[1]);
+    const col = rgbStr(base, k);
+    g.beginPath(); g.moveTo(peak.x, peak.y); g.lineTo(p.x, p.y); g.lineTo(q.x, q.y); g.closePath(); g.fillStyle = col; g.fill(); g.strokeStyle = col; g.lineWidth = 0.6; g.stroke();
+  }
+}
+// grass tuft: a few thin flat-shaded spikes
+function tuft(g, x, y, s, col) {
+  for (let i = -1; i <= 1; i++) {
+    g.beginPath(); g.moveTo(x + i * s * 0.5 - s * 0.25, y); g.lineTo(x + i * s * 0.9, y - s * (2.2 - Math.abs(i) * 0.6)); g.lineTo(x + i * s * 0.5 + s * 0.25, y); g.closePath();
+    g.fillStyle = shade(col, i < 0 ? 1.08 : i > 0 ? 0.88 : 1); g.fill();
+  }
+}
+// low-poly building: front wall, a visible right side, a turf (or slate) roof and gable.
+// Returns the front-face rectangle so details (doors, windows) can be drawn onto it.
+function house3(g, o) {
+  const { x, y, w, h, d = 14, rh, wall, roof = PAL.turf } = o;
+  const L = x - w / 2, Rr = x + w / 2, top = y - h, dx = d, dy = d * 0.5;
+  const poly = (pts, col) => { g.beginPath(); g.moveTo(pts[0][0], pts[0][1]); for (let i = 1; i < pts.length; i++) g.lineTo(pts[i][0], pts[i][1]); g.closePath(); g.fillStyle = col; g.fill(); g.strokeStyle = col; g.lineWidth = 0.6; g.stroke(); };
+  g.fillStyle = "rgba(53,47,69,0.2)"; g.beginPath(); g.moveTo(L + 4, y + 2); g.lineTo(Rr + dx + 10, y - dy + 2); g.lineTo(Rr + dx + 16, y + 6); g.lineTo(L + 8, y + 8); g.closePath(); g.fill();
+  poly([[L, y], [Rr, y], [Rr, top], [L, top]], shade(wall, 1));                       // front wall
+  poly([[Rr, y], [Rr + dx, y - dy], [Rr + dx, top - dy], [Rr, top]], shade(wall, 0.78)); // side wall
+  const ridgeY = top - rh - dy * 0.5, rx = dx * 0.5;
+  poly([[Rr, top], [Rr + dx, top - dy], [Rr + rx, ridgeY]], shade(wall, 0.72));       // gable
+  poly([[L - 3, top + 1], [Rr + 3, top + 1], [Rr + rx + 2, ridgeY], [L + rx - 2, ridgeY]], shade(roof, 1.05)); // roof slope
+  poly([[Rr + 3, top + 1], [Rr + dx + 3, top - dy + 1], [Rr + rx + 2, ridgeY]], shade(roof, 0.82));          // roof edge
+  poly([[L + rx - 2, ridgeY], [Rr + rx + 2, ridgeY], [Rr + rx + 2, ridgeY + 3], [L + rx - 2, ridgeY + 3]], shade(roof, 1.18)); // ridge highlight
+  return { L, R: Rr, top, y, ridgeY, rx };
+}
+function windowLP(g, x, y, w, h, trim = PAL.white, glass = PAL.window) {
+  g.fillStyle = trim; g.fillRect(x - 1.5, y - 1.5, w + 3, h + 3);
+  g.fillStyle = glass; g.fillRect(x, y, w, h);
+  g.fillStyle = shade(glass, 1.25); g.beginPath(); g.moveTo(x, y); g.lineTo(x + w * 0.6, y); g.lineTo(x, y + h * 0.6); g.closePath(); g.fill();
+}
+
+function buildBackground() {
+  bgScale = cam.k * Math.min(DPR, 1.5);
+  bgCache = document.createElement("canvas");
+  bgCache.width = Math.ceil((BG.x1 - BG.x0) * bgScale); bgCache.height = Math.ceil((BG.y1 - BG.y0) * bgScale);
+  const g = bgCache.getContext("2d"); g.setTransform(bgScale, 0, 0, bgScale, -BG.x0 * bgScale, -BG.y0 * bgScale);
+  const R = rng(7), { horizon, seaBot, field } = WORLD, X0 = BG.x0, X1 = BG.x1, XW = X1 - X0;
+  const fog = rgbOf(PAL.fog);
+
+  // sky
+  const sky = g.createLinearGradient(0, BG.y0, 0, horizon + 20);
+  sky.addColorStop(0, PAL.skyTop); sky.addColorStop(1, PAL.fog);
+  g.fillStyle = sky; g.fillRect(X0, BG.y0, XW, horizon + 60 - BG.y0);
+
+  // far sea, faceted
+  meshStrip(g, Math.ceil(XW / 60), 2,
+    (c, r) => ({ x: X0 + c * 60 + (r % 2 ? 30 : 0) * 0 + (hash2(c, r + 9) - 0.5) * 20, y: horizon - 6 + r * ((seaBot - horizon + 14) / 2) + (r > 0 && r < 2 ? (hash2(c, r) - 0.5) * 10 : 0), h: hash2(c * 3, r * 5) * 10 }),
+    () => mixRgb(rgbOf(PAL.sea), rgbOf(PAL.sea2), 0.3), 0.18);
+
+  // mountains: steep flat-topped Faroese massifs, lilac rock over green lower slopes
+  function profile(peaks, baseY, x) {
+    let y = baseY;
+    for (const p of peaks) { const d = Math.abs(x - p.x) / p.w; if (d < 1) y = Math.min(y, baseY - p.h * (d < p.flat ? 1 - (hash2(x * 0.05, p.x) * 0.06) : Math.pow(1 - (d - p.flat) / (1 - p.flat), 1.25))); }
+    return y;
+  }
+  function range(peaks, baseY, maxH, haze, greenFrom, seed) {
+    const step = 38, cols = Math.ceil(XW / step), rows = 7;
+    const xs = []; for (let c = 0; c <= cols; c++) xs.push(X0 + c * step + (c > 0 && c < cols ? (hash2(c, seed) - 0.5) * 18 : 0));
+    meshStrip(g, cols, rows, (c, r) => {
+      const x = xs[c], top = profile(peaks, baseY, x), t = r / rows;
+      const y = top + (baseY + 4 - top) * Math.pow(t, 1.15) + (r > 0 && r < rows ? (hash2(c * 2.1, r + seed) - 0.5) * 12 : 0);
+      return { x, y, h: (baseY - top) * (1 - t) * 0.9 + (hash2(c, r * 3 + seed) - 0.5) * 22 };
+    }, (cx, cy) => {
+      const ht = (baseY - cy) / maxH, n = vnoise(cx * 0.012 + seed, cy * 0.02), j = hash2(cx * 0.3, cy * 0.3);
+      let c;
+      if (ht > 0.82 && n > 0.45) c = rgbOf(PAL.snow);
+      else if (ht > greenFrom + n * 0.15) c = rgbOf(j > 0.5 ? PAL.rock : PAL.rock2);
+      else if (ht > greenFrom - 0.12) c = rgbOf(n > 0.5 ? PAL.heath : PAL.rock2);
+      else c = rgbOf(n < 0.4 ? PAL.moss : n < 0.65 ? PAL.grass : PAL.ochre);
+      return haze ? mixRgb(c, fog, haze) : c;
+    }, 0.34);
+  }
+  range([
+    { x: -60, w: 330, h: 230, flat: 0.25 }, { x: 520, w: 260, h: 175, flat: 0.15 },
+    { x: 980, w: 390, h: 250, flat: 0.3 }, { x: 1520, w: 330, h: 210, flat: 0.2 },
+  ], horizon, 250, 0.3, 0.28, 3);
+  range([
+    { x: -120, w: 420, h: 200, flat: 0.1 }, { x: 1460, w: 460, h: 175, flat: 0.25 },
+  ], seaBot + 8, 200, 0, 0.42, 11);
+
+  // rolling meadow, faceted
+  const meadowTop = x => seaBot + 6 + Math.sin(x * 0.006) * 10 + Math.sin(x * 0.017 + 1) * 4;
+  {
+    const step = 46, cols = Math.ceil(XW / step), rows = Math.ceil((BG.y1 - seaBot) / 40);
+    meshStrip(g, cols, rows, (c, r) => {
+      const x = X0 + c * step + (c > 0 && c < cols ? (hash2(c, r * 7) - 0.5) * 22 : 0);
+      const y0 = meadowTop(x), y = r === 0 ? y0 : y0 + r * ((BG.y1 + 20 - y0) / rows) + (r < rows ? (hash2(c * 5, r) - 0.5) * 18 : 0);
+      return { x, y, h: vnoise(x * 0.008, y * 0.01) * 60 + hash2(c, r) * 8 };
+    }, (cx, cy) => {
+      const n = vnoise(cx * 0.006 + 3, cy * 0.008), n2 = vnoise(cx * 0.02, cy * 0.02 + 7);
+      if (cy < seaBot + 22 && n2 > 0.55) return rgbOf(PAL.shore);
+      let c = rgbOf(n < 0.35 ? PAL.moss : n < 0.58 ? PAL.grass : n < 0.78 ? PAL.ochre : PAL.dry);
+      if (n2 > 0.8) c = mixRgb(c, rgbOf(PAL.heath), 0.45);
+      return c;
+    }, 0.22);
+  }
+
+  // distant village
+  drawChurch(g, 300, seaBot + 30, 0.85);
+  drawTurfHouse(g, 1250, seaBot + 22, 0.62, PAL.dark);
+  drawTurfHouse(g, 1315, seaBot + 28, 0.72, PAL.red);
+  drawTurfHouse(g, 690, seaBot + 26, 0.55, "#f1ede6");
+  // a distant dry-stone wall across the slope
+  for (let i = 0; i < 70; i++) { const t = i / 70, x = -200 + t * 760, y = seaBot + 48 - Math.sin(t * 5) * 10; rock(g, x, y, 3.2, i + 300, PAL.wall); }
+
+  // roads: field gate → barn → cart stop → east to Tórshavn, plus a lane to the farmhouse and village
+  const gate = fieldGate(), door = WORLD.barn.door, park = WORLD.cart.park;
+  const road = new Path2D();
+  road.moveTo(field.x + field.w + 6, gate.mid);
+  road.bezierCurveTo(field.x + field.w + 90, gate.mid + 10, door.x - 90, door.y + 14, door.x, door.y + 12);
+  road.bezierCurveTo(door.x + 140, door.y + 10, park.x - 160, park.y + 4, park.x, park.y + 4);
+  road.lineTo(BG.x1 + 20, park.y + 4);
+  const hd = WORLD.house.door;
+  road.moveTo(door.x + 40, door.y + 4);
+  road.bezierCurveTo(900, 590, hd.x - 40, hd.y + 30, hd.x, hd.y + 4);
+  road.bezierCurveTo(hd.x + 90, hd.y - 10, 1100, 420, 1060, seaBot + 34);
+  g.lineCap = "round"; g.lineJoin = "round";
+  g.strokeStyle = PAL.roadEdge; g.lineWidth = 22; g.stroke(road);
+  g.strokeStyle = PAL.road; g.lineWidth = 15; g.stroke(road);
+
+  // scattered boulders, heather and yellow tufts (kept off the roads, buildings and the meadow's full extent)
+  const hit = document.createElement("canvas").getContext("2d"); hit.lineWidth = 40;
+  const blocked = (x, y) => (x > 50 && x < 700 && y > 410 && y < 820) || (x > 680 && x < 1010 && y > 440 && y < 625) || (x > 900 && x < 1110 && y > 370 && y < 525) || hit.isPointInStroke(road, x, y);
+  const items = [];
+  for (let i = 0; i < 520; i++) {
+    const x = X0 + R() * XW, y = meadowTop(x) + 12 + R() * (BG.y1 - meadowTop(x) - 12);
+    if (blocked(x, y)) continue;
+    const k = R(); items.push({ x, y, k, s: R(), i });
+  }
+  items.sort((a, b) => a.y - b.y);
+  for (const it of items) {
+    const depth = 0.55 + 0.45 * ((it.y - seaBot) / (BG.y1 - seaBot));
+    if (it.k < 0.2) rock(g, it.x, it.y, (5 + it.s * it.s * 16) * depth, it.i);
+    else if (it.k < 0.45) { g.fillStyle = shade(PAL.heather[it.i % 4], 1); g.beginPath(); g.ellipse(it.x, it.y, 5 * depth, 2.6 * depth, 0, 0, Math.PI * 2); g.fill(); g.fillStyle = shade(PAL.heather[it.i % 4], 1.15); g.beginPath(); g.ellipse(it.x - 1.2, it.y - 0.8, 2.6 * depth, 1.2 * depth, 0, 0, Math.PI * 2); g.fill(); }
+    else tuft(g, it.x, it.y, (2.4 + it.s * 2) * depth, PAL.tufts[it.i % 5]);
+  }
+
+  // the hay meadow bed: darker faceted earth framed by a dry-stone wall with a gate gap
+  roundRect(g, field.x - 3, field.y - 3, field.w + 6, field.h + 6, 6); g.fillStyle = "#7f8a5c"; g.fill();
+  g.save(); roundRect(g, field.x, field.y, field.w, field.h, 5); g.clip();
+  meshStrip(g, Math.ceil(field.w / 30), Math.ceil(field.h / 26), (c, r) => ({ x: field.x - 4 + c * 30 + (hash2(c, r + 1) - 0.5) * 10, y: field.y - 4 + r * 26 + (hash2(c + 3, r) - 0.5) * 10, h: hash2(c * 9, r * 4) * 18 }),
+    (cx, cy) => vnoise(cx * 0.03, cy * 0.03) > 0.5 ? rgbOf("#8b9462") : rgbOf("#7d8a58"), 0.3);
+  g.restore();
+  drawStoneWall(g, field, R, gate);
+
+  // signs: the meadow ("Bøur") and the road to Tórshavn
+  signpost(g, field.x + field.w + 22, gate.y0 - 14, "Bøur");
+  signpost(g, park.x + 150, park.y - 34, "Tórshavn →");
+}
+function fieldGate() {
+  const f = WORLD.field, mid = f.y + f.h * 0.55;
+  return { mid, y0: mid - 32, y1: mid + 32 };
+}
+function signpost(g, x, y, text) {
+  g.font = "800 9px Figtree, 'Segoe UI', sans-serif";
+  const w = g.measureText(text).width + 14;
+  g.fillStyle = "#8a7465"; g.fillRect(x - 2, y + 10, 4, 26); g.fillStyle = "#6e5c50"; g.fillRect(x, y + 10, 2, 26);
+  g.fillStyle = "#f7f4fa"; g.beginPath(); g.moveTo(x - w / 2, y - 6); g.lineTo(x + w / 2, y - 6); g.lineTo(x + w / 2, y + 14); g.lineTo(x - w / 2, y + 14); g.closePath(); g.fill();
+  g.fillStyle = "#dcd5e6"; g.fillRect(x - w / 2, y + 11, w, 3);
+  g.fillStyle = PAL.ink; g.textAlign = "center"; g.textBaseline = "middle"; g.fillText(text, x, y + 3);
+}
+
+function roundRect(g, x, y, w, h, r) {
+  g.beginPath(); g.moveTo(x + r, y); g.arcTo(x + w, y, x + w, y + h, r); g.arcTo(x + w, y + h, x, y + h, r);
+  g.arcTo(x, y + h, x, y, r); g.arcTo(x, y, x + w, y, r); g.closePath();
+}
+function drawTurfHouse(g, x, y, s, wall) {
+  const f = house3(g, { x, y, w: 46 * s, h: 20 * s, d: 12 * s, rh: 12 * s, wall });
+  const trim = wall === "#f1ede6" ? PAL.dark : PAL.white;
+  windowLP(g, f.L + 6 * s, y - 14 * s, 5 * s, 6 * s, trim); windowLP(g, f.R - 11 * s, y - 14 * s, 5 * s, 6 * s, trim);
+  g.fillStyle = PAL.door; g.fillRect(x - 3 * s, y - 11 * s, 6 * s, 11 * s);
+}
+function drawChurch(g, x, y, s) {
+  // white Faroese village church with a dark roof and small tower
+  const f = house3(g, { x, y, w: 40 * s, h: 20 * s, d: 12 * s, rh: 12 * s, wall: "#f1ede6", roof: PAL.dark });
+  for (let i = 0; i < 3; i++) windowLP(g, f.L + 9 * s + i * 9 * s, y - 15 * s, 3.5 * s, 7 * s, "#f1ede6");
+  house3(g, { x: f.L + 2 * s, y, w: 11 * s, h: 32 * s, d: 9 * s, rh: 13 * s, wall: "#f1ede6", roof: PAL.dark });
+}
+function drawStoneWall(g, f, R, gate) {
+  const stones = [], step = 10;
+  for (let x = f.x - 10; x <= f.x + f.w + 10; x += step * (0.7 + R() * 0.5)) { stones.push([x, f.y - 9 + R() * 3, 1]); stones.push([x, f.y + f.h + 9 + R() * 3, 1.15]); }
+  for (let y = f.y; y <= f.y + f.h; y += step * (0.7 + R() * 0.5)) {
+    stones.push([f.x - 10 + R() * 3, y, 1.05]);
+    if (y < gate.y0 || y > gate.y1) stones.push([f.x + f.w + 10 - R() * 3, y, 1.05]);
+  }
+  stones.sort((a, b) => a[1] - b[1]);
+  stones.forEach(([x, y, s], i) => { rock(g, x, y, (5 + R() * 2.5) * s, i * 7 + 1, PAL.wall); if (R() < 0.5) rock(g, x + (R() - 0.5) * 4, y - 5 * s, (3.5 + R() * 2) * s, i * 7 + 2, PAL.wall); });
+  // gate posts
+  for (const gy of [gate.y0, gate.y1]) { g.fillStyle = "#8a7465"; g.fillRect(f.x + f.w + 6, gy - 16, 6, 20); g.fillStyle = "#6e5c50"; g.fillRect(f.x + f.w + 9, gy - 16, 3, 20); }
+}
+
+/* -------------------------- CLOUDS & BIRDS --------------------------- */
+const clouds = [], birds = [];
+let birdTimer = 5;
+function makeCloudSprite(w, h, R) {
+  // low-poly cloud: a cluster of faceted blobs, bright on top, lilac-grey underneath
+  const sc = cam.k * Math.min(DPR, 1.5), c = document.createElement("canvas");
+  c.width = Math.ceil(w * sc); c.height = Math.ceil(h * sc);
+  const g = c.getContext("2d"); g.scale(sc, sc);
+  const n = 4 + (R() * 4 | 0);
+  for (let i = 0; i < n; i++) {
+    const bx = w * (0.18 + 0.64 * (i / Math.max(1, n - 1))) + (R() - 0.5) * w * 0.08, r = h * (0.24 + R() * 0.16), by = h * 0.62 - r * 0.35 + (R() - 0.5) * h * 0.1;
+    const k = 7, pts = []; for (let j = 0; j < k; j++) { const a = j / k * Math.PI * 2 + R() * 0.3; pts.push([bx + Math.cos(a) * r * 1.3, by + Math.sin(a) * r * 0.8]); }
+    for (let j = 0; j < k; j++) {
+      const p = pts[j], q = pts[(j + 1) % k], my = (p[1] + q[1]) / 2 - by;
+      g.fillStyle = my > r * 0.25 ? "#e4dfec" : my > -r * 0.2 ? "#f1eef6" : "#fbfaff";
+      g.beginPath(); g.moveTo(bx - r * 0.2, by - r * 0.25); g.lineTo(p[0], p[1]); g.lineTo(q[0], q[1]); g.closePath(); g.fill(); g.strokeStyle = g.fillStyle; g.lineWidth = 0.6; g.stroke();
+    }
+  }
+  return c;
+}
+function buildClouds() {
+  clouds.length = 0; const R = rng(42);
+  for (let i = 0; i < 10; i++) {
+    const w = 150 + R() * 230, h = w * (0.35 + R() * 0.15);
+    clouds.push({ img: makeCloudSprite(w, h, R), w, h, x: BG.x0 + R() * (BG.x1 - BG.x0), y: -200 + R() * 330, v: 4 + R() * 7 });
+  }
+}
+
+/* ------------------------------ FIELD -------------------------------- */
+const Field = {
+  cols: 0, rows: 0, cw: 0, ch: 0, growth: null, blades: null,
+  // (Re)build the grass grid. When the meadow grows, existing cells keep their growth
+  // and the new strip starts as fresh sprouts (newGrowth).
+  build(keep, newGrowth = 1) {
+    const f = WORLD.field, oldCols = this.cols, oldRows = this.rows, old = this.growth;
+    this.cw = CONFIG.cellW; this.ch = CONFIG.cellH;
+    this.cols = Math.round(f.w / this.cw); this.rows = Math.round(f.h / this.ch);
+    const n = this.cols * this.rows; this.growth = new Float32Array(n).fill(newGrowth);
+    if (keep && old) for (let r = 0; r < Math.min(oldRows, this.rows); r++) for (let c = 0; c < Math.min(oldCols, this.cols); c++) this.growth[r * this.cols + c] = old[r * oldCols + c];
+    const R = rng(99), per = 3; this.blades = new Float32Array(n * per * 7); let k = 0;
+    for (let i = 0; i < n; i++) for (let b = 0; b < per; b++) {
+      this.blades[k++] = i; this.blades[k++] = R(); this.blades[k++] = R();
+      this.blades[k++] = (R() - 0.5) * 0.6; this.blades[k++] = R() * Math.PI * 2;
+      this.blades[k++] = R() < 0.5 ? 0 : 1; this.blades[k++] = 0.75 + R() * 0.5;
+    }
+  },
+  update(dt, regrowTime) { const g = this.growth, r = dt / regrowTime; for (let i = 0; i < g.length; i++) if (g[i] < 1) g[i] = Math.min(1, g[i] + r); },
+  contains(x, y) { const f = WORLD.field; return x >= f.x && x <= f.x + f.w && y >= f.y && y <= f.y + f.h; },
+  forCells(cx, cy, r, fn) {
+    const f = WORLD.field, r2 = r * r;
+    const c0 = Math.max(0, Math.floor((cx - r - f.x) / this.cw)), c1 = Math.min(this.cols - 1, Math.floor((cx + r - f.x) / this.cw));
+    const r0 = Math.max(0, Math.floor((cy - r - f.y) / this.ch)), r1 = Math.min(this.rows - 1, Math.floor((cy + r - f.y) / this.ch));
+    for (let row = r0; row <= r1; row++) for (let col = c0; col <= c1; col++) {
+      const x = f.x + (col + 0.5) * this.cw, y = f.y + (row + 0.5) * this.ch;
+      if ((x - cx) ** 2 + (y - cy) ** 2 <= r2) fn(row * this.cols + col, x, y);
+    }
+  },
+  harvest(cx, cy, r) {
+    let sum = 0, count = 0; const cut = [];
+    this.forCells(cx, cy, r, (i, x, y) => { sum += this.growth[i]; count++; if (this.growth[i] > 0.35) cut.push([x, y]); this.growth[i] = 0; });
+    return { freshness: count ? sum / count : 0, cut };
+  },
+  freshnessAt(cx, cy, r) { let s = 0, c = 0; this.forCells(cx, cy, r, i => { s += this.growth[i]; c++; }); return c ? s / c : 0; },
+  draw(g, t) {
+    const f = WORLD.field, cols = this.cols, cw = this.cw, ch = this.ch, gr = this.growth;
+    // cut patches: ochre stubble, drawn as low-poly diamonds
+    g.save(); roundRect(g, f.x, f.y, f.w, f.h, 5); g.clip();
+    g.fillStyle = "rgba(216,192,126,0.75)"; g.beginPath();
+    const rr = Math.max(cw, ch) * 0.85;
+    for (let i = 0; i < gr.length; i++) if (gr[i] < 0.6) {
+      const x = f.x + (i % cols + 0.5) * cw, y = f.y + (((i / cols) | 0) + 0.5) * ch;
+      g.moveTo(x - rr, y); g.lineTo(x, y - rr * 0.8); g.lineTo(x + rr, y); g.lineTo(x, y + rr * 0.8); g.closePath();
+    }
+    g.fill(); g.restore();
+    // grass blades as thin flat-shaded triangles; each blade has a lit and a shaded half
+    const colors = ["#d8c07e", "#c9ad6c", "#b9b878", "#a9ad70", "#a3b27a", "#94a770", "#8ea56a", "#7f9a5f"];
+    const lit = colors.map(() => new Path2D()), dark = colors.map(() => new Path2D());
+    const B = this.blades, wind = 0.6 + 0.4 * Math.sin(t * 0.25);
+    const inF = this.contains(Player.x, Player.y), mx = inF ? Player.x : -9999, my = inF ? Player.y : -9999, pr = 34;
+    for (let k = 0; k < B.length; k += 7) {
+      const i = B[k], col = i % cols, row = (i / cols) | 0, growth = gr[i];
+      const bx = f.x + (col + B[k + 1]) * cw, by = f.y + (row + B[k + 2]) * ch;
+      const depth = 0.75 + 0.45 * (row / this.rows), len = (3 + 15 * growth) * depth * B[k + 6], hw = 1.5 * depth;
+      let sway = Math.sin(t * 1.7 + bx * 0.025 + B[k + 4]) * 0.22 * wind + B[k + 3];
+      const dx = bx - mx, dy = by - my, d2 = dx * dx + dy * dy;
+      if (d2 < pr * pr) sway += (dx / pr) * 0.7 * (1 - Math.sqrt(d2) / pr);
+      const bucket = (growth < 0.25 ? 0 : growth < 0.55 ? 2 : growth < 0.85 ? 4 : 6) + B[k + 5];
+      const tx = bx + sway * len, ty = by - len;
+      lit[bucket].moveTo(bx - hw, by); lit[bucket].lineTo(tx, ty); lit[bucket].lineTo(bx, by); lit[bucket].closePath();
+      dark[bucket].moveTo(bx, by); dark[bucket].lineTo(tx, ty); dark[bucket].lineTo(bx + hw, by); dark[bucket].closePath();
+    }
+    for (let b = 0; b < colors.length; b++) { g.fillStyle = shade(colors[b], 1.07); g.fill(lit[b]); g.fillStyle = shade(colors[b], 0.86); g.fill(dark[b]); }
+  },
+};
+
+/* --------------------------- CARRIER ART ----------------------------- */
+function hayHeap(g, x, y, w, h, load, t) {
+  if (load <= 0.01) return;
+  const hh = h * Math.pow(load, 0.7);
+  g.fillStyle = state.carry.dried > state.carry.fresh ? "#d8b65a" : "#c9c26a";
+  g.beginPath(); g.moveTo(x - w / 2, y); g.bezierCurveTo(x - w / 2, y - hh * 1.3, x + w / 2, y - hh * 1.3, x + w / 2, y); g.closePath(); g.fill();
+  g.strokeStyle = "rgba(140,110,40,0.55)"; g.lineWidth = 1;
+  for (let i = 0; i < 6; i++) { const sx = x - w * 0.38 + i * w * 0.15; g.beginPath(); g.moveTo(sx, y - 1); g.lineTo(sx + Math.sin(t + i) * 2, y - hh * (0.55 + (i % 3) * 0.13)); g.stroke(); }
+}
+function drawCarrier(g, c, x, y, by, f, load, t, a, mv) {
+  if (c.style === "pull") {
+    // pulled along behind the farmer by a handle
+    g.save(); g.translate(x - f * 34, y); g.scale(f, 1);
+    g.strokeStyle = "#6e5c50"; g.lineWidth = 2.2; g.lineCap = "round";
+    if (c.art === "barrow") {
+      g.beginPath(); g.moveTo(10, -16); g.lineTo(28, by - y - 6); g.stroke();
+      hayHeap(g, -2, -18, 26, 16, load, t);
+      g.fillStyle = "#5f8456"; g.beginPath(); g.moveTo(-16, -20); g.lineTo(12, -20); g.lineTo(6, -9); g.lineTo(-10, -9); g.closePath(); g.fill();
+      wheel(g, -14, -6, 6, a, "#3e3b45", "#d6d2dc"); g.strokeStyle = "#6c6580"; g.beginPath(); g.moveTo(4, -9); g.lineTo(4, -1); g.stroke();
+    } else if (c.art === "handcart") {
+      g.beginPath(); g.moveTo(14, -18); g.lineTo(28, by - y - 6); g.stroke();
+      hayHeap(g, -2, -22, 34, 20, load, t);
+      g.fillStyle = "#8a7465"; g.fillRect(-18, -24, 34, 10); g.fillStyle = "#6e5c50"; g.fillRect(-18, -24, 34, 2);
+      wheel(g, -2, -9, 9, a, "#8a7465", "#4c3f3b");
+    } else if (c.art === "sledge") {
+      g.beginPath(); g.moveTo(16, -10); g.lineTo(28, by - y - 6); g.stroke();
+      hayHeap(g, -4, -10, 44, 30, load, t);
+      g.fillStyle = "#8a7465"; g.fillRect(-26, -10, 42, 6);
+      g.strokeStyle = "#5a3b22"; g.lineWidth = 2.4; g.beginPath(); g.moveTo(-28, -2); g.lineTo(14, -2); g.quadraticCurveTo(22, -2, 20, -10); g.stroke();
+    } else {
+      g.strokeStyle = "#6c6580"; g.beginPath(); g.moveTo(18, -14); g.lineTo(28, by - y - 6); g.stroke();
+      hayHeap(g, -6, -26, 46, 26, load, t);
+      g.fillStyle = "#8f8a9b"; g.fillRect(-30, -28, 48, 16);
+      g.strokeStyle = "rgba(255,255,255,0.35)"; g.lineWidth = 1; for (let i = 0; i < 8; i++) { g.beginPath(); g.moveTo(-28 + i * 6, -28); g.lineTo(-28 + i * 6, -12); g.stroke(); }
+      wheel(g, -6, -9, 9, a, "#3e3b45", "#d6d2dc");
+    }
+    g.restore();
+    // a hand reaching back to the handle
+    g.strokeStyle = "#3e4c78"; g.lineWidth = 4.5; g.lineCap = "round";
+    g.beginPath(); g.moveTo(x - f * 4, by - 17); g.lineTo(x - f * 9, by - 7); g.stroke();
+    g.fillStyle = "#efbf9b"; g.beginPath(); g.arc(x - f * 9, by - 6, 2.4, 0, Math.PI * 2); g.fill();
+    return;
+  }
+  const bx = x - f * 10, k = c.size || 1;
+  if (c.style === "back") {
+    if (load > 0) {
+      g.fillStyle = state.carry.dried > state.carry.fresh ? "#d8b65a" : "#c9c26a";
+      g.beginPath(); g.ellipse(bx, by - 18 * k - load * 9, (7 + load * 6) * k, (5 + load * 9) * k, 0, 0, Math.PI * 2); g.fill();
+      g.strokeStyle = "rgba(140,110,40,0.6)"; g.lineWidth = 1;
+      for (let i = 0; i < 6; i++) { const b = i * 1.1 + t; g.beginPath(); g.moveTo(bx + Math.cos(b) * 4, by - 18 * k - load * 9); g.lineTo(bx + Math.cos(b) * (8 + load * 6) * k, by - 22 * k - load * 16 * k + Math.sin(b) * 3); g.stroke(); }
+    }
+    g.fillStyle = "#8a7465"; roundRect(g, bx - 7 * k, by - 22 * k, 14 * k, 16 * k, 3); g.fill();
+    g.strokeStyle = "#6e5c50"; g.lineWidth = 1; for (let i = 0; i < 3; i++) { g.beginPath(); g.moveTo(bx - 7 * k, by - 18 * k + i * 4.5 * k); g.lineTo(bx + 7 * k, by - 18 * k + i * 4.5 * k); g.stroke(); }
+  } else if (c.style === "sack") {
+    const r = 7 + load * 6;
+    g.fillStyle = "#b39469"; g.beginPath(); g.ellipse(bx, by - 16 - load * 4, r * 0.85, r, -0.2 * f, 0, Math.PI * 2); g.fill();
+    g.strokeStyle = "#8a7048"; g.lineWidth = 1.5; g.beginPath(); g.moveTo(bx - 3, by - 16 - load * 4 - r + 2); g.lineTo(bx + 3, by - 16 - load * 4 - r + 2); g.stroke();
+    if (load > 0.3) { g.strokeStyle = "#c9c26a"; g.beginPath(); g.moveTo(bx, by - 16 - load * 4 - r); g.lineTo(bx + 2, by - 20 - load * 4 - r); g.stroke(); }
+  } else if (c.style === "net") {
+    const r = 8 + load * 12;
+    if (load > 0.01) { g.fillStyle = state.carry.dried > state.carry.fresh ? "#d8b65a" : "#c9c26a"; g.beginPath(); g.ellipse(bx - f * load * 3, by - 16 - load * 8, r, r * 0.9, 0, 0, Math.PI * 2); g.fill(); }
+    g.strokeStyle = "#6e5c50"; g.lineWidth = 1;
+    for (let i = -2; i <= 2; i++) { g.beginPath(); g.moveTo(bx - f * load * 3 + i * r * 0.4, by - 16 - load * 8 - r * 0.85); g.lineTo(bx - f * load * 3 + i * r * 0.25, by - 16 - load * 8 + r * 0.85); g.stroke(); }
+    g.beginPath(); g.moveTo(bx + 4 * f, by - 22); g.lineTo(x + f * 2, by - 4); g.stroke();
+  }
+}
+
+/* ---------------------------- TOOL ART ------------------------------- */
+// All tool art is drawn facing right (+x) in local coordinates; callers flip with scale(face, 1).
+function drawHead(g, x, hy, f, flop) {
+  // low-poly head: a heptagon with a lit and a shaded half, white beard, stocking cap (húgva)
+  const hep = (cx, cy, r, sx = 1, sy = 1) => { g.beginPath(); for (let i = 0; i < 7; i++) { const a = i / 7 * Math.PI * 2 - Math.PI / 2; g.lineTo(cx + Math.cos(a) * r * sx, cy + Math.sin(a) * r * sy); } g.closePath(); };
+  hep(x, hy, 7.6); g.fillStyle = "#efbf9b"; g.fill();
+  g.fillStyle = "#d9a580"; g.beginPath(); g.moveTo(x + f * 0.5, hy - 7.6); for (let i = 0; i <= 3; i++) { const a = -Math.PI / 2 + (i / 7) * Math.PI * 2 * f; g.lineTo(x + Math.cos(a) * 7.6, hy + Math.sin(a) * 7.6); } g.lineTo(x + f * 0.5, hy + 2); g.closePath(); g.fill();
+  // beard
+  g.fillStyle = "#e8e4ea"; g.beginPath(); g.moveTo(x - 6.5, hy + 1.5); g.lineTo(x + 6.5, hy + 1.5); g.lineTo(x + f * 4, hy + 9); g.lineTo(x - f * 1, hy + 10.5); g.lineTo(x - f * 5.5, hy + 7); g.closePath(); g.fill();
+  g.fillStyle = "#d6d1db"; g.beginPath(); g.moveTo(x + f * 1, hy + 2); g.lineTo(x + f * 6.5, hy + 1.5); g.lineTo(x + f * 4, hy + 9); g.lineTo(x - f * 1, hy + 10.5); g.closePath(); g.fill();
+  g.fillStyle = "#e79e86"; g.fillRect(x + f * 4.6 - 1.4, hy + 0.2, 2.8, 2.4); // nose
+  g.fillStyle = "#1f1b22"; g.fillRect(x + f * 2.8 - 0.9, hy - 2.4, 1.8, 2.2); // eye
+  // Faroese húgva (as worn in Sheep Season): red-on-black pinstripe, tall crown folded over to one side, no bobble
+  const stripes = (path, k) => {
+    g.save(); path(); g.fillStyle = k < 1 ? "#241a27" : "#2b1f2e"; g.fill(); g.clip();
+    g.fillStyle = k < 1 ? "#a82b33" : "#c1323a"; for (let sx = x - 18; sx < x + 12; sx += 2.6) g.fillRect(sx, hy - 16, 0.9, 18);
+    g.restore();
+  };
+  stripes(() => { g.beginPath(); g.moveTo(x - 8, hy - 2.5); g.lineTo(x - 6.5, hy - 12); g.lineTo(x + 5.5, hy - 12.5); g.lineTo(x + 8, hy - 2.5); g.closePath(); }, 1); // crown
+  stripes(() => { g.beginPath(); g.moveTo(x + f * 1, hy - 12.3); g.lineTo(x - f * 4, hy - 12); g.lineTo(x - f * 12, hy - 7 + flop * 0.5); g.lineTo(x - f * 13, hy - 2.5 + flop); g.lineTo(x - f * 9.5, hy - 2 + flop); g.lineTo(x - f * 2, hy - 8.5); g.closePath(); }, 0.85); // fold
+  g.fillStyle = "#2b1f2e"; g.fillRect(x - 8, hy - 4.2, 16, 2.4); // brim band
+}
+function sweater(g, x, top, h) {
+  // navy knitted sweater with white bands, flat-shaded on the right
+  g.fillStyle = "#3e4c78"; g.beginPath(); g.moveTo(x - 7, top); g.lineTo(x + 7, top); g.lineTo(x + 9.5, top + 4); g.lineTo(x + 9, top + h); g.lineTo(x - 9, top + h); g.lineTo(x - 9.5, top + 4); g.closePath(); g.fill();
+  g.fillStyle = "#33406a"; g.beginPath(); g.moveTo(x + 1, top); g.lineTo(x + 7, top); g.lineTo(x + 9.5, top + 4); g.lineTo(x + 9, top + h); g.lineTo(x + 1, top + h); g.closePath(); g.fill();
+  g.fillStyle = "#f1ede4"; g.fillRect(x - 9.5, top + 5, 19, 2.6); g.fillRect(x - 9, top + h - 5, 18, 2.2);
+  g.fillStyle = "#dcd7d0"; g.fillRect(x + 1, top + 5, 8.5, 2.6); g.fillRect(x + 1, top + h - 5, 8, 2.2);
+}
+// farmer sitting in a driver's seat (local coords, facing right)
+function seatedFarmer(g, sx, sy, t, mv) {
+  const bob = Math.sin(t * 14) * 0.6 * mv;
+  sweater(g, sx, sy - 20 + bob, 20);
+  g.strokeStyle = "#3e4c78"; g.lineWidth = 5; g.lineCap = "round";
+  g.beginPath(); g.moveTo(sx + 5, sy - 15 + bob); g.lineTo(sx + 14, sy - 10 + bob); g.stroke();
+  g.fillStyle = "#efbf9b"; g.beginPath(); g.arc(sx + 15, sy - 10 + bob, 2.6, 0, Math.PI * 2); g.fill();
+  drawHead(g, sx, sy - 28 + bob, 1, Math.sin(t * 3) * 1.2);
+}
+// glass cab with the farmer sitting inside
+function cab(g, x, y, w, h, t, mv) {
+  roundRect(g, x, y, w, h, 4); g.fillStyle = "rgba(169,199,214,0.9)"; g.fill();
+  seatedFarmer(g, x + w * 0.45, y + h, t, mv);
+  roundRect(g, x, y, w, h, 4); g.fillStyle = "rgba(200,225,235,0.25)"; g.fill(); g.strokeStyle = "#3e3b45"; g.lineWidth = 2; g.stroke();
+  g.fillStyle = "#3e3b45"; g.fillRect(x - 2, y - 4, w + 4, 5);
+}
+function blade(g, col = "#c9cfd4") { g.strokeStyle = col; g.lineCap = "round"; }
+
+// ---- hand-held tools, drawn at the hand position ----
+const HELD_ART = {
+  scissors(g, t, act) {
+    const sp = act ? 1 + Math.abs(Math.sin(t * 14)) * 3 : 1.5;
+    g.lineWidth = 2; blade(g);
+    g.beginPath(); g.moveTo(1, 0); g.lineTo(11, -sp); g.moveTo(1, 0); g.lineTo(11, sp); g.stroke();
+    g.strokeStyle = "#d9493a"; g.lineWidth = 1.6; g.beginPath(); g.arc(-2, -2, 2.4, 0, 7); g.moveTo(1, 2); g.arc(-2, 2, 2.4, 0, 7); g.stroke();
+  },
+  shears(g, t, act) {
+    const sp = act ? Math.abs(Math.sin(t * 10)) * 0.25 : 0.08;
+    g.lineWidth = 2.6; g.strokeStyle = "#8a7465";
+    g.beginPath(); g.moveTo(-1, -2); g.lineTo(12, 15); g.moveTo(1, 2); g.lineTo(13, 15); g.stroke();
+    g.save(); g.translate(12.5, 15); blade(g); g.lineWidth = 2.2;
+    g.beginPath(); g.moveTo(0, 0); g.lineTo(Math.cos(0.5 - sp) * 11, Math.sin(0.5 - sp) * 11); g.moveTo(0, 0); g.lineTo(Math.cos(0.5 + sp) * 11, Math.sin(0.5 + sp) * 11); g.stroke(); g.restore();
+  },
+  sickle(g) {
+    g.strokeStyle = "#8a7465"; g.lineWidth = 3.2; g.lineCap = "round"; g.beginPath(); g.moveTo(-1, -1); g.lineTo(3, 5); g.stroke();
+    blade(g); g.lineWidth = 2.4; g.beginPath(); g.arc(9, 1, 8, -2.6, 0.5); g.stroke();
+  },
+  scythe(g) {
+    g.strokeStyle = "#8a7465"; g.lineWidth = 2.6; g.lineCap = "round";
+    g.beginPath(); g.moveTo(-6, -14); g.lineTo(9, 21); g.stroke();
+    g.lineWidth = 2; g.beginPath(); g.moveTo(-1, -2); g.lineTo(5, -4); g.stroke();
+    blade(g); g.lineWidth = 2.6; g.beginPath(); g.moveTo(9, 21); g.quadraticCurveTo(-2, 25, -18, 20); g.stroke();
+  },
+  hedge(g, t, act) {
+    g.fillStyle = "#e08a3c"; roundRect(g, -4, -5, 13, 9, 3); g.fill();
+    g.fillStyle = "#3e3b45"; g.fillRect(-2, -7, 7, 2);
+    blade(g, "#a49eaf"); g.lineWidth = 3; g.beginPath(); g.moveTo(9, -1); g.lineTo(34, -1); g.stroke();
+    g.lineWidth = 1.2; const o = act ? (t * 40) % 3 : 0;
+    for (let i = 0; i < 8; i++) { const xx = 11 + i * 3 + o; g.beginPath(); g.moveTo(xx, -3); g.lineTo(xx, 1.5); g.stroke(); }
+  },
+  string(g, t, act) {
+    g.fillStyle = "#3e3b45"; roundRect(g, -8, -6, 9, 9, 2); g.fill();
+    g.fillStyle = "#7ab33c"; g.fillRect(-7, -5, 3, 7);
+    blade(g, "#a49eaf"); g.lineWidth = 2; g.beginPath(); g.moveTo(0, 0); g.lineTo(20, 24); g.stroke();
+    g.fillStyle = "#7ab33c"; g.beginPath(); g.ellipse(20, 25, 5, 2.5, 0, 0, 7); g.fill();
+    if (act) { g.strokeStyle = "rgba(255,255,255,0.55)"; g.lineWidth = 1; g.beginPath(); g.ellipse(20, 26, 11, 3.5, 0, 0, 7); g.stroke(); }
+  },
+  brush(g, t, act) {
+    g.fillStyle = "#e08a3c"; roundRect(g, -12, -11, 11, 11, 3); g.fill();
+    blade(g, "#a49eaf"); g.lineWidth = 2.4; g.beginPath(); g.moveTo(-3, -4); g.lineTo(22, 24); g.stroke();
+    g.fillStyle = "#e6e2ec"; g.beginPath(); g.ellipse(22, 25, 10, 3, 0, 0, 7); g.fill();
+    g.strokeStyle = "#8f8a9b"; g.lineWidth = 1; const a = act ? t * 30 : 0;
+    for (let i = 0; i < 6; i++) { const b = a + i; g.beginPath(); g.moveTo(22 + Math.cos(b) * 7, 25 + Math.sin(b) * 2); g.lineTo(22 + Math.cos(b) * 10, 25 + Math.sin(b) * 3); g.stroke(); }
+  },
+};
+
+// ---- walk-behind machines, drawn on the ground in front of the farmer ----
+// Returns where the handle grip is (local), so the arms can reach it.
+const WALK_ART = {
+  reel(g, t, a) {
+    wheel(g, 0, -9, 9, a, "#7b7584", "#d6d2dc");
+    g.strokeStyle = "#2c5597"; g.lineWidth = 2; for (let i = 0; i < 4; i++) { const b = a * 2 + i * 1.57; g.beginPath(); g.moveTo(6 + Math.cos(b) * 5, -7 + Math.sin(b) * 5); g.lineTo(14 + Math.cos(b + 0.6) * 5, -7 + Math.sin(b + 0.6) * 5); g.stroke(); }
+    return { hx: -4, hy: -12 };
+  },
+  push(g, t, a, big) {
+    const w = big ? 40 : 32, col = big ? "#2c5597" : "#d9493a";
+    g.fillStyle = "#3d7a34"; roundRect(g, -20, -26, 13, 18, 4); g.fill(); // grass catcher bag
+    g.fillStyle = col; roundRect(g, -8, -16, w, 10, 4); g.fill();
+    g.fillStyle = "#3e3b45"; roundRect(g, w / 2 - 12, -26, 12, 11, 3); g.fill();
+    g.fillStyle = "#f0b23a"; g.fillRect(w / 2 - 9, -29, 6, 3);
+    wheel(g, -2, -5, 5, a, "#7b7584", "#d6d2dc"); wheel(g, w - 12, -5, big ? 6 : 5, a, "#7b7584", "#d6d2dc");
+    return { hx: -6, hy: -14 };
+  },
+  self(g, t, a) { return WALK_ART.push(g, t, a, true); },
+  sicklebar(g, t, a, _b, act) {
+    g.fillStyle = "#e08a3c"; roundRect(g, -10, -30, 18, 14, 3); g.fill();
+    g.fillStyle = "#3e3b45"; g.fillRect(-6, -34, 6, 4);
+    wheel(g, 0, -11, 11, a, "#7b7584", "#d6d2dc");
+    blade(g, "#a49eaf"); g.lineWidth = 3; g.beginPath(); g.moveTo(8, -3); g.lineTo(48, -3); g.stroke();
+    g.lineWidth = 1.2; const o = act ? (t * 30) % 4 : 0;
+    for (let i = 0; i < 10; i++) { const xx = 10 + i * 4 + o; g.beginPath(); g.moveTo(xx, -5); g.lineTo(xx + 2, -1); g.stroke(); }
+    return { hx: -8, hy: -24 };
+  },
+  twowheel(g, t, a) {
+    g.fillStyle = "#6c6580"; g.fillRect(14, -12, 26, 8); g.fillStyle = "#d9493a"; roundRect(g, 14, -16, 26, 8, 3); g.fill();
+    g.fillStyle = "#d9493a"; roundRect(g, -14, -40, 24, 22, 4); g.fill();
+    g.fillStyle = "#3e3b45"; g.fillRect(-10, -46, 8, 6); g.fillRect(0, -44, 3, 8);
+    wheel(g, 0, -13, 13, a, "#3e3b45", "#d6d2dc");
+    return { hx: -12, hy: -30 };
+  },
+};
+
+// ---- ride-on machines: draw the machine with the farmer in the seat ----
+function tractor(g, s, col, a, t, mv) {
+  // compact tractor body; returns the seat position
+  g.fillStyle = col; roundRect(g, -2 * s, -32 * s, 34 * s, 16 * s, 4 * s); g.fill();   // hood
+  g.fillStyle = "rgba(0,0,0,0.15)"; for (let i = 0; i < 4; i++) g.fillRect((22 + i * 2.5) * s, -29 * s, 1.2 * s, 10 * s); // grille
+  g.fillStyle = col; roundRect(g, -26 * s, -36 * s, 26 * s, 14 * s, 4 * s); g.fill();   // rear fenders
+  g.fillStyle = "#3e3b45"; g.fillRect(-18 * s, -40 * s, 12 * s, 4 * s);              // seat
+  g.fillRect(-20 * s, -50 * s, 3 * s, 12 * s);
+  g.strokeStyle = "#3e3b45"; g.lineWidth = 2 * s; g.beginPath(); g.moveTo(-2 * s, -32 * s); g.lineTo(2 * s, -42 * s); g.stroke(); // steering column
+  g.fillStyle = "#6c6580"; g.fillRect(20 * s, -44 * s, 3 * s, 12 * s);                   // exhaust
+  if (mv) { g.fillStyle = "rgba(90,90,90,0.35)"; g.beginPath(); g.arc(21.5 * s - (t * 30 % 10), -48 * s - (t * 40 % 12), 3 * s, 0, 7); g.fill(); }
+  return { sx: -12 * s, sy: -38 * s, wheels: () => { wheel(g, -16 * s, -15 * s, 15 * s, a, "#3e3b45", "#f0b23a"); wheel(g, 24 * s, -9 * s, 9 * s, a, "#3e3b45", "#f0b23a"); } };
+}
+function bale(g, x, y, round) {
+  g.fillStyle = "#d8b65a";
+  if (round) { g.beginPath(); g.arc(x, y - 12, 12, 0, 7); g.fill(); g.strokeStyle = "#a8862e"; g.lineWidth = 1; g.beginPath(); g.arc(x, y - 12, 7, 0, 7); g.stroke(); }
+  else { g.fillRect(x - 10, y - 10, 20, 10); g.strokeStyle = "#a8862e"; g.lineWidth = 1; g.strokeRect(x - 10, y - 10, 20, 10); g.beginPath(); g.moveTo(x - 4, y - 10); g.lineTo(x - 4, y); g.moveTo(x + 4, y - 10); g.lineTo(x + 4, y); g.stroke(); }
+}
+const RIDE_ART = {
+  lawn(g, t, a, mv) {
+    g.fillStyle = "#3e3b45"; roundRect(g, -14, -10, 36, 6, 3); g.fill(); // deck
+    g.fillStyle = "#5f8456"; roundRect(g, -22, -24, 54, 12, 5); g.fill();
+    g.fillStyle = "#f0b23a"; g.fillRect(-18, -34, 10, 10); g.fillRect(-20, -42, 4, 18);
+    g.strokeStyle = "#3e3b45"; g.lineWidth = 2; g.beginPath(); g.moveTo(8, -24); g.lineTo(12, -34); g.stroke();
+    seatedFarmer(g, -12, -30, t, mv);
+    wheel(g, -14, -8, 8, a, "#3e3b45", "#f0b23a"); wheel(g, 22, -6, 6, a, "#3e3b45", "#f0b23a");
+  },
+  ztr(g, t, a, mv) {
+    g.fillStyle = "#3e3b45"; roundRect(g, 0, -10, 40, 7, 3); g.fill();
+    g.fillStyle = "#d9493a"; roundRect(g, -24, -24, 44, 13, 5); g.fill();
+    g.fillStyle = "#3e3b45"; g.fillRect(-18, -32, 12, 8); g.fillRect(-20, -42, 4, 18);
+    seatedFarmer(g, -12, -28, t, mv);
+    g.strokeStyle = "#3e3b45"; g.lineWidth = 2.4; g.beginPath(); g.moveTo(-2, -24); g.lineTo(6, -36); g.lineTo(10, -36); g.stroke();
+    wheel(g, -14, -10, 10, a, "#3e3b45", "#d6d2dc"); wheel(g, 30, -4, 4, a * 2, "#3e3b45", "#d6d2dc");
+  },
+  flail(g, t, a, mv, act) {
+    g.fillStyle = "#8f8a9b"; roundRect(g, -58, -26, 30, 20, 3); g.fill();
+    if (act) { g.strokeStyle = "rgba(160,200,90,0.8)"; g.lineWidth = 1.5; for (let i = 0; i < 5; i++) { const b = t * 20 + i; g.beginPath(); g.moveTo(-43 + Math.cos(b) * 8, -6); g.lineTo(-43 + Math.cos(b) * 12, -2); g.stroke(); } }
+    const tr = tractor(g, 1, "#e08a3c", a, t, mv); seatedFarmer(g, tr.sx, tr.sy, t, mv); tr.wheels();
+  },
+  disc(g, t, a, mv, act) {
+    g.strokeStyle = "#6c6580"; g.lineWidth = 3; g.beginPath(); g.moveTo(-24, -20); g.lineTo(-40, -8); g.stroke();
+    g.fillStyle = "#d9493a"; g.fillRect(-82, -10, 46, 6);
+    g.fillStyle = "#e6e2ec"; for (let i = 0; i < 4; i++) { g.beginPath(); g.ellipse(-76 + i * 12, -3, 5, 2, act ? t * 20 + i : 0, 0, 7); g.fill(); }
+    const tr = tractor(g, 1, "#2c5597", a, t, mv); seatedFarmer(g, tr.sx, tr.sy, t, mv); tr.wheels();
+  },
+  tedder(g, t, a, mv, act) {
+    g.strokeStyle = "#6c6580"; g.lineWidth = 3; g.beginPath(); g.moveTo(-24, -20); g.lineTo(-80, -20); g.stroke();
+    for (const cx of [-46, -70]) {
+      g.strokeStyle = "#d9493a"; g.lineWidth = 2; const r0 = act || mv ? t * 6 : 0;
+      for (let i = 0; i < 6; i++) { const b = r0 + i * 1.05; g.beginPath(); g.moveTo(cx, -12); g.lineTo(cx + Math.cos(b) * 12, -12 + Math.sin(b) * 4); g.stroke(); }
+      g.fillStyle = "#6c6580"; g.fillRect(cx - 1.5, -20, 3, 8);
+    }
+    const tr = tractor(g, 1, "#d9493a", a, t, mv); seatedFarmer(g, tr.sx, tr.sy, t, mv); tr.wheels();
+  },
+  sqbaler(g, t, a, mv) {
+    if (mv) bale(g, -92 - (t * 30 % 20), 0, false);
+    g.fillStyle = "#d9493a"; roundRect(g, -78, -36, 48, 26, 4); g.fill();
+    g.fillStyle = "#f0b23a"; g.fillRect(-78, -14, 48, 3);
+    wheel(g, -56, -8, 8, a, "#3e3b45", "#d6d2dc");
+    const tr = tractor(g, 1, "#5f8456", a, t, mv); seatedFarmer(g, tr.sx, tr.sy, t, mv); tr.wheels();
+  },
+  roundbaler(g, t, a, mv) {
+    if (mv) bale(g, -112, 0, true);
+    g.fillStyle = "#5f8456"; roundRect(g, -100, -54, 56, 46, 18); g.fill();
+    g.strokeStyle = "rgba(0,0,0,0.2)"; g.lineWidth = 2; g.beginPath(); g.arc(-72, -31, 16, 0, 7); g.stroke();
+    g.fillStyle = "#f0b23a"; g.fillRect(-100, -20, 56, 3);
+    wheel(g, -72, -9, 9, a, "#3e3b45", "#d6d2dc");
+    const tr = tractor(g, 1.25, "#5f8456", a, t, mv); seatedFarmer(g, tr.sx, tr.sy, t, mv); tr.wheels();
+  },
+  swather(g, t, a, mv, act) {
+    g.fillStyle = "#f0b23a"; roundRect(g, -34, -58, 58, 42, 6); g.fill();            // body
+    cab(g, -12, -106, 42, 48, t, mv);
+    g.fillStyle = "#f0b23a"; roundRect(g, 26, -30, 40, 26, 4); g.fill();             // header
+    g.strokeStyle = "#d9493a"; g.lineWidth = 2; const r = act || mv ? t * 5 : 0;
+    for (let i = 0; i < 5; i++) { const b = r + i * 1.26; g.beginPath(); g.moveTo(48, -40); g.lineTo(48 + Math.cos(b) * 15, -40 + Math.sin(b) * 15); g.stroke(); }
+    wheel(g, 4, -18, 18, a, "#3e3b45", "#f0b23a"); wheel(g, -28, -11, 11, a, "#3e3b45", "#f0b23a");
+  },
+  forage(g, t, a, mv) {
+    // trailing wagon filling with chopped grass
+    const fill = Math.min(1, carryTotal() / getStats().basket);
+    g.fillStyle = "#8f8a9b"; g.fillRect(-140, -52, 64, 40);
+    g.fillStyle = "#9bbd56"; g.fillRect(-138, -50 + 36 * (1 - fill), 60, 36 * fill + 2);
+    wheel(g, -122, -10, 10, a, "#3e3b45", "#d6d2dc"); wheel(g, -94, -10, 10, a, "#3e3b45", "#d6d2dc");
+    g.strokeStyle = "#6c6580"; g.lineWidth = 3; g.beginPath(); g.moveTo(-76, -22); g.lineTo(-40, -22); g.stroke();
+    g.fillStyle = "#5f8456"; roundRect(g, -40, -60, 66, 46, 6); g.fill();
+    g.strokeStyle = "#5f8456"; g.lineWidth = 7; g.beginPath(); g.moveTo(-20, -60); g.quadraticCurveTo(-40, -110, -100, -64); g.stroke();
+    if (mv) { g.fillStyle = "rgba(155,189,86,0.8)"; for (let i = 0; i < 4; i++) { const u = (t * 2 + i / 4) % 1; g.beginPath(); g.arc(-100 + u * -6, -64 + u * 20, 2, 0, 7); g.fill(); } }
+    cab(g, -10, -106, 40, 48, t, mv);
+    g.fillStyle = "#6c6580"; roundRect(g, 26, -26, 26, 22, 4); g.fill();
+    wheel(g, 8, -18, 18, a, "#3e3b45", "#f0b23a"); wheel(g, -30, -12, 12, a, "#3e3b45", "#f0b23a");
+  },
+  combine(g, t, a, mv, act) {
+    g.fillStyle = "#d9493a"; roundRect(g, -64, -96, 96, 80, 8); g.fill();             // body
+    g.fillStyle = "#e9e4d6"; g.fillRect(-64, -60, 96, 6);
+    g.fillStyle = "#c4463a"; roundRect(g, -60, -120, 50, 26, 6); g.fill();             // grain tank
+    g.strokeStyle = "#6c6580"; g.lineWidth = 5; g.beginPath(); g.moveTo(-50, -112); g.lineTo(10, -128); g.stroke(); // unloading auger
+    cab(g, 2, -146, 44, 52, t, mv);
+    g.fillStyle = "#f0b23a"; roundRect(g, 30, -36, 52, 32, 4); g.fill();               // header
+    g.strokeStyle = "#d9493a"; g.lineWidth = 2.4; const r = act || mv ? t * 4 : 0;
+    for (let i = 0; i < 6; i++) { const b = r + i * 1.05; g.beginPath(); g.moveTo(58, -46); g.lineTo(58 + Math.cos(b) * 18, -46 + Math.sin(b) * 18); g.stroke(); }
+    wheel(g, 6, -24, 24, a, "#3e3b45", "#f0b23a"); wheel(g, -46, -14, 14, a, "#3e3b45", "#f0b23a");
+  },
+};
+
+/* ------------------------------ PLAYER ------------------------------- */
+const Player = {
+  x: WORLD.start.x, y: WORLD.start.y, vx: 0, vy: 0, face: 1, walk: 0, moving: false, lastStep: 0, swing: 0,
+  clamp(x, y) { const w = WORLD.walk; this.x = Math.max(w.x0, Math.min(w.x1, x)); this.y = Math.max(walkTop(this.x), Math.min(w.y1, y)); },
+  place(x, y) { if (blocked(x, y)) { x = WORLD.start.x; y = WORLD.start.y; } this.clamp(x, y); this.vx = this.vy = 0; }, // teleport (load / reset)
+  update(dt, dir, speed) {
+    const tx = dir.x * speed, ty = dir.y * speed, a = Math.min(1, dt * 12);
+    this.vx += (tx - this.vx) * a; this.vy += (ty - this.vy) * a;
+    const ox = this.x, oy = this.y;
+    const nx = this.x + this.vx * dt, ny = this.y + this.vy * dt;
+    // move each axis separately so the farmer slides along walls instead of sticking
+    if (blocked(nx, this.y)) this.vx = 0; else this.x = nx;
+    if (blocked(this.x, ny)) this.vy = 0; else this.y = ny;
+    const cx = this.x, cy = this.y; this.clamp(cx, cy);
+    if (this.x !== cx) this.vx = 0; // stop against the edge of the walkable area
+    if (this.y !== cy) this.vy = 0;
+    const sp = Math.hypot(this.vx, this.vy);
+    this.moving = sp > 12;
+    state.stats.distance += Math.hypot(this.x - ox, this.y - oy);
+    if (Math.abs(this.vx) > 8) this.face = this.vx > 0 ? 1 : -1;
+    if (this.moving) {
+      this.walk += dt * (6 + sp / 22);
+      const step = Math.floor(this.walk / Math.PI);
+      if (step !== this.lastStep) { this.lastStep = step; Sound.step(step & 1); if (!Field.contains(this.x, this.y)) FX.dust(this.x - this.face * 6, this.y); }
+    } else this.walk += (Math.round(this.walk / Math.PI) * Math.PI - this.walk) * Math.min(1, dt * 10);
+  },
+  draw(g, t) {
+    const x = this.x, y = this.y, f = this.face, mv = this.moving ? 1 : 0, ph = this.walk;
+    const tool = currentTool(), s = getStats();
+    const harvesting = Field.contains(x, y) && carryTotal() < s.basket - 1e-6;
+    const a = this.x / 9 * f;
+    g.save();
+    const ds = depthScale(y); g.translate(x, y); g.scale(ds, ds); g.translate(-x, -y);
+    if (tool.kind === "ride") {
+      const sw = Math.min(150, 40 + tool.radius * 0.8);
+      g.fillStyle = "rgba(20,30,15,0.28)"; g.beginPath(); g.ellipse(x - f * sw * 0.15, y, sw * 0.6, 7, 0, 0, Math.PI * 2); g.fill();
+      g.translate(x, y); g.scale(f, 1);
+      RIDE_ART[tool.art](g, t, a, mv, harvesting);
+      g.restore(); return;
+    }
+    const bob = -Math.abs(Math.sin(ph)) * 2.2 * mv;
+    const load = Math.min(1, carryTotal() / s.basket);
+    g.fillStyle = "rgba(20,30,15,0.28)"; g.beginPath(); g.ellipse(x, y, 14, 4.5, 0, 0, Math.PI * 2); g.fill();
+    // legs
+    const legSwing = Math.sin(ph) * 7 * mv;
+    g.lineCap = "round"; g.strokeStyle = "#5d4b40"; g.lineWidth = 5.5;
+    for (const sd of [-1, 1]) {
+      const hipX = x + sd * 3.5, footX = hipX + sd * legSwing * f, lift = Math.max(0, -Math.sin(ph) * sd) * 3 * mv;
+      g.beginPath(); g.moveTo(hipX, y - 17 + bob); g.lineTo(footX, y - 2 - lift); g.stroke();
+      g.fillStyle = "#2f2c35"; g.beginPath(); g.ellipse(footX + f * 2, y - 1.5 - lift, 4.5, 2.6, 0, 0, Math.PI * 2); g.fill();
+    }
+    const by = y - 17 + bob;
+    drawCarrier(g, currentCarrier(), x, y, by, f, load, t, a, mv);
+    sweater(g, x, by - 22, 22);
+    
+    if (tool.kind === "walk") {
+      // pushing a machine: it rolls along in front, both hands on the handle
+      g.save(); g.translate(x + f * 30, y); g.scale(f, 1);
+      const grip = WALK_ART[tool.art](g, t, a, false, harvesting);
+      g.strokeStyle = "#6c6580"; g.lineWidth = 2.4; g.beginPath(); g.moveTo(grip.hx, grip.hy); g.lineTo(-20, by - y - 9); g.stroke();
+      g.restore();
+      g.strokeStyle = "#3e4c78"; g.lineWidth = 5; g.lineCap = "round";
+      g.beginPath(); g.moveTo(x + f * 5, by - 17); g.lineTo(x + f * 11, by - 10); g.stroke();
+      g.fillStyle = "#efbf9b"; g.beginPath(); g.arc(x + f * 11, by - 9, 2.6, 0, Math.PI * 2); g.fill();
+    } else {
+      // arms: swing when walking, sweeping motion when harvesting; tool in hand
+      const cut = harvesting && !this.moving;
+      const armSwing = cut ? Math.sin(Harvester.progress * Math.PI * 2) * 8 : Math.sin(ph) * 6 * mv;
+      const hx = x + f * (9 + Math.max(0, armSwing) * 0.4), hy = by - 6 + armSwing * 0.3;
+      g.strokeStyle = "#3e4c78"; g.lineWidth = 5;
+      g.beginPath(); g.moveTo(x + f * 6, by - 18); g.lineTo(hx, hy - 1); g.stroke();
+      if (HELD_ART[tool.art]) {
+        g.save(); g.translate(hx, hy); g.scale(f, 1); g.rotate(cut ? Math.sin(Harvester.progress * Math.PI * 2) * 0.45 : 0);
+        HELD_ART[tool.art](g, t, harvesting); g.restore();
+      }
+      g.fillStyle = "#efbf9b"; g.beginPath(); g.arc(hx, hy, 2.6, 0, Math.PI * 2); g.fill();
+    }
+    drawHead(g, x, by - 30, f, Math.sin(ph * 0.5 + t) * 1.5 * mv);
+    g.restore();
+  },
+};
+
+/* ---------------------------- HARVESTER ------------------------------ */
+const Harvester = {
+  progress: 0, pulse: 0, fullWarned: false,
+  active() { return Field.contains(Player.x, Player.y); },
+  update(dt) {
+    const s = getStats(), full = carryTotal() >= s.basket - 1e-6;
+    if (!this.active()) return;
+    if (full) {
+      if (!this.fullWarned) { this.fullWarned = true; toast("🧺 Basket full — store it at the barn or load it onto the cart"); Sound.bump(); }
+      return;
+    }
+    this.fullWarned = false;
+    this.progress += dt / s.cycleTime;
+    if (this.progress >= 1) { this.progress -= 1; this.complete(s); }
+  },
+  complete(s) {
+    const { freshness, cut } = Field.harvest(Player.x, Player.y, s.radius);
+    const mult = CONFIG.minFreshnessYield + (1 - CONFIG.minFreshnessYield) * freshness;
+    const gained = Math.min(s.yield * mult, s.basket - carryTotal());
+    state.carry.fresh += gained; state.stats.totalHay += gained; state.stats.actions++;
+    this.pulse = 1;
+    FX.harvestBurst(Player.x, Player.y, s.radius, cut, gained, freshness);
+    Sound.harvest(freshness); if (s.tool.motor) Sound.motor(toolIdx());
+    UI.onHarvest();
+  },
+  draw(g, t) {
+    if (!this.active()) return;
+    const s = getStats(), r = s.radius, x = Player.x, y = Player.y;
+    const full = carryTotal() >= s.basket - 1e-6, fresh = Field.freshnessAt(x, y, r);
+    g.save();
+    g.beginPath(); g.arc(x, y, r, 0, Math.PI * 2);
+    // ring styled like Hare Season's crosshair: white with an ink outline, gold progress
+    g.fillStyle = full ? "rgba(217,73,58,0.10)" : "rgba(255,255,255,0.10)"; g.fill();
+    g.lineWidth = 8; g.strokeStyle = "rgba(53,47,69,0.42)"; g.stroke();
+    g.lineWidth = 4.5; g.strokeStyle = full ? "#ffd2cc" : "rgba(255,255,255,0.92)";
+    if (full) g.setLineDash([6, 6]);
+    g.stroke(); g.setLineDash([]);
+    const p = Math.min(1, this.progress);
+    if (!full && p > 0.002) {
+      g.beginPath(); g.arc(x, y, r, -Math.PI / 2, -Math.PI / 2 + p * Math.PI * 2);
+      g.lineWidth = 6; g.lineCap = "round"; g.strokeStyle = fresh > 0.5 ? "#f0b23a" : "#f6d79a"; g.stroke();
+      const a = -Math.PI / 2 + p * Math.PI * 2; g.fillStyle = "#fff";
+      g.beginPath(); g.arc(x + Math.cos(a) * r, y + Math.sin(a) * r, 3.5, 0, Math.PI * 2); g.fill();
+      g.lineWidth = 1.5; g.strokeStyle = "rgba(53,47,69,0.45)"; g.stroke();
+    }
+    g.restore();
+    if (this.pulse > 0) {
+      g.beginPath(); g.arc(x, y, r * (1 + (1 - this.pulse) * 0.6), 0, Math.PI * 2);
+      g.lineWidth = 3 * this.pulse; g.strokeStyle = `rgba(240,178,58,${this.pulse})`; g.stroke();
+    }
+  },
+};
+
+/* ------------------------------ PLACES ------------------------------- */
+// Interactive locations. Add new buildings here with a zone, prompt and action.
+const Places = {
+  near: null,
+  update() {
+    const nb = dist(Player, WORLD.barn.door) < WORLD.barn.r, nc = dist(Player, WORLD.cart.park) < WORLD.cart.r, nh = dist(Player, WORLD.house.door) < WORLD.house.r;
+    this.near = nb ? "barn" : nh ? "house" : nc ? "cart" : null;
+  },
+  prompt() {
+    const s = getStats();
+    if (this.near === "barn") {
+      const c = carryTotal(), b = barnTotal(), space = s.barnCap - b;
+      if (c > 0.05) return space > 0.05 ? { label: `🛖 Store ${fmt(Math.min(c, space))} hay`, ok: true } : { label: "Barn is full", ok: false };
+      if (b > 0.05) return { label: `🧺 Load ${fmt(Math.min(b, s.basket))} hay`, ok: true };
+      return { label: "Barn is empty", ok: false };
+    }
+    if (this.near === "cart") {
+      if (Cart.state !== "parked") return { label: `${s.vehicle.icon} In Tórshavn · back in ${Math.ceil(Cart.eta())}s`, ok: false };
+      if (Cart.leaveIn >= 0) return { label: `${s.vehicle.icon} Setting off…`, ok: false };
+      const space = s.cartCap - cartTotal();
+      if (carryTotal() > 0.05 && space > 0.05) return { label: `${s.vehicle.icon} Load ${fmt(Math.min(carryTotal(), space))} hay`, ok: true };
+      if (cartTotal() > 0.05) return { label: `${s.vehicle.icon} Send ${fmt(cartTotal())} hay to Tórshavn`, ok: true };
+      return { label: `${s.vehicle.icon} Empty — bring hay`, ok: false };
+    }
+    if (this.near === "house") return { label: "🏠 Go inside · upgrades", ok: true };
+    return null;
+  },
+};
+function interact() {
+  if (Places.near === "barn") barnAction();
+  else if (Places.near === "house") UI.open("home");
+  else if (Places.near === "cart") {
+    if (Cart.state !== "parked" || Cart.leaveIn >= 0) return;
+    if (carryTotal() > 0.05 && cartTotal() < getStats().cartCap - 0.05) loadCart(); else Cart.send();
+  }
+}
+
+function barnAction() {
+  if (Places.near !== "barn") return;
+  const s = getStats(), c = carryTotal(), space = s.barnCap - barnTotal();
+  if (c > 0.05) {
+    if (space <= 0.05) { Sound.bump(); toast("The barn is full — buy a Barn Loft upgrade or take hay to the cart"); return; }
+    let amt = Math.min(c, space), moved = amt;
+    const fromDried = Math.min(state.carry.dried, amt); state.carry.dried -= fromDried; state.barn.dried += fromDried; amt -= fromDried;
+    state.carry.fresh -= amt; state.barn.fresh += amt;
+    clean(state.carry);
+    state.stats.timesStored++; state.stats.hayStored += moved;
+    FX.haul(Player.x, Player.y - 30, WORLD.barn.door.x, WORLD.barn.door.y - 50, moved);
+    FX.float(WORLD.barn.door.x, WORLD.barn.y - 120, `Stored ${fmt(moved)} 🌾`, "#fff3c4");
+    Sound.store();
+    if (state.stats.timesStored === 1) { toast("Hay in the barn dries into hay worth 50% more"); UI.render(); }
+  } else {
+    let room = s.basket, total = 0;
+    const d = Math.min(state.barn.dried, room); state.barn.dried -= d; state.carry.dried += d; room -= d; total += d;
+    const f = Math.min(state.barn.fresh, room); state.barn.fresh -= f; state.carry.fresh += f; total += f;
+    clean(state.barn);
+    if (total < 0.05) return;
+    FX.haul(WORLD.barn.door.x, WORLD.barn.door.y - 50, Player.x, Player.y - 30, total);
+    Sound.store();
+  }
+  UI.bump("carry"); UI.bump("barn"); UI.refreshLive(true);
+}
+function clean(o) { for (const k in o) if (o[k] < 1e-6) o[k] = 0; }
+
+// Walk up to the parked cart and your basket is loaded into it automatically.
+function loadCart() {
+  const s = getStats(), space = s.cartCap - cartTotal();
+  let amt = Math.min(carryTotal(), space), moved = amt;
+  const d = Math.min(state.carry.dried, amt); state.carry.dried -= d; state.cart.dried += d; amt -= d;
+  state.carry.fresh -= amt; state.cart.fresh += amt; clean(state.carry);
+  FX.haul(Player.x, Player.y - 30, WORLD.cart.park.x - 10, WORLD.cart.park.y - 40, moved);
+  FX.float(WORLD.cart.park.x, WORLD.cart.park.y - 135, `+${fmt(moved)} loaded`, "#fff3c4");
+  Sound.store(); UI.bump("carry"); UI.bump("cart");
+  if (cartTotal() >= s.cartCap - 0.05) { Cart.leaveIn = 0.8; toast(`${s.vehicle.icon} Full load — off to Tórshavn!`); }
+  else if (state.stats.timesSold === 0 && cartTotal() < s.cartCap) toast(`${s.vehicle.icon} It leaves by itself when full (${fmt(s.cartCap)} hay) — or press E again to send it now`);
+}
+
+/* ------------------------------- CART -------------------------------- */
+// State machine: parked → leaving (drives off east) → away (in Tórshavn) → returning → parked (sells).
+const Cart = {
+  state: "parked", t: 0, x: WORLD.cart.park.x, dir: 1, leaveIn: -1, out: 1.6, away: 4, dust: 0,
+  reset() { this.state = "parked"; this.t = 0; this.x = WORLD.cart.park.x; this.dir = 1; this.leaveIn = -1; },
+  moving() { return this.state === "leaving" || this.state === "returning"; },
+  eta() {
+    if (this.state === "leaving") return this.out - this.t + this.away + this.out;
+    if (this.state === "away") return this.away - this.t + this.out;
+    if (this.state === "returning") return this.out - this.t;
+    return 0;
+  },
+  send() {
+    if (this.state !== "parked" || this.leaveIn >= 0) return;
+    if (cartTotal() < 0.05) { Sound.bump(); return; }
+    this.leaveIn = 0.15;
+  },
+  depart() {
+    const s = getStats(), T = s.tripTime;
+    this.out = Math.min(1.8, T * 0.25); this.away = Math.max(0.5, T - 2 * this.out);
+    this.state = "leaving"; this.t = 0; this.dir = 1;
+    Sound.depart(s.vehicle.motor, this.out + 0.3);
+  },
+  update(dt) {
+    const P = WORLD.cart.park.x, E = WORLD.cart.exitX;
+    if (this.leaveIn >= 0) { this.leaveIn -= dt; if (this.leaveIn < 0) this.depart(); }
+    if (this.state === "leaving") {
+      this.t += dt; const u = Math.min(1, this.t / this.out);
+      this.x = P + u * u * (E - P);
+      if (u >= 1) { this.state = "away"; this.t = 0; this.unload(); }
+    } else if (this.state === "away") {
+      this.t += dt;
+      if (this.t >= this.away) { this.state = "returning"; this.t = 0; this.dir = -1; Sound.depart(getStats().vehicle.motor, this.out + 0.3); }
+    } else if (this.state === "returning") {
+      this.t += dt; const u = Math.min(1, this.t / this.out);
+      this.x = E + (1 - (1 - u) * (1 - u)) * (P - E);
+      if (u >= 1) { this.reset(); this.payOut(); }
+    }
+    if (this.moving()) { this.dust -= dt; if (this.dust <= 0) { this.dust = 0.12; FX.dust(this.x - this.dir * 40, WORLD.cart.park.y); } }
+  },
+  // The load was sold in Tórshavn; the money arrives with the cart.
+  // In Tórshavn: the load is sold and the cart is emptied. The money rides home with it.
+  unload() {
+    const s = getStats(), fresh = state.cart.fresh, dried = state.cart.dried;
+    if (fresh + dried < 0.05) return;
+    state.cart.pending += (fresh + dried * CONFIG.driedBonus) * s.sellPrice;
+    state.cart.pendingDried = dried > 0.05;
+    state.cart.fresh = 0; state.cart.dried = 0;
+    state.stats.haySold += fresh + dried; state.stats.timesSold++;
+  },
+  // Back at the farm: the takings are paid out.
+  payOut() {
+    const earned = state.cart.pending; if (earned < 0.01) return;
+    const dried = state.cart.pendingDried;
+    state.cart.pending = 0; state.cart.pendingDried = false;
+    state.money += earned; state.stats.totalMoney += earned;
+    Sound.coin(); UI.bump("money"); UI.bump("cart");
+    const p = WORLD.cart.park;
+    FX.coins(p.x, p.y - 50, Math.min(12, 3 + Math.round(earned / 8)));
+    FX.float(p.x, p.y - 100, `+${fmt(earned)} kr`, "#ffe58a");
+    if (dried) FX.float(p.x, p.y - 124, "dried hay bonus!", "#f3f0dc");
+    if (state.stats.timesSold === 1) { toast("Sold in Tórshavn! New Transport upgrades unlocked"); UI.render(); }
+  },
+};
+
+function drawBarn(g, t) {
+  const { x, y } = WORLD.barn, w = 176, h = 96;
+  const fill = Math.min(1, barnTotal() / getStats().barnCap);
+  // hesja drying rack beside the barn; hay hangs on it while drying
+  const rx = x + w / 2 + 34, ry = y - 4;
+  for (const px of [rx, rx + 66]) { g.fillStyle = "#8a7465"; g.fillRect(px - 2, ry - 48, 4, 48); g.fillStyle = "#6e5c50"; g.fillRect(px, ry - 48, 2, 48); }
+  for (let i = 0; i < 4; i++) { g.fillStyle = "#8a7465"; g.fillRect(rx, ry - 13 - i * 10, 66, 2); }
+  const drying = Math.min(1, state.barn.fresh / 20);
+  for (let i = 0; i < 4; i++) if (drying > i / 4) {
+    const yy = ry - 18 - i * 10;
+    g.fillStyle = shade(PAL.tufts[4], 1.05); g.beginPath(); g.moveTo(rx + 3, yy + 8); g.lineTo(rx + 33, yy - 1); g.lineTo(rx + 63, yy + 8); g.closePath(); g.fill();
+    g.fillStyle = shade(PAL.tufts[4], 0.85); g.beginPath(); g.moveTo(rx + 33, yy - 1); g.lineTo(rx + 63, yy + 8); g.lineTo(rx + 40, yy + 8); g.closePath(); g.fill();
+  }
+  // the barn itself: tarred walls, turf roof
+  const f = house3(g, { x, y, w, h, d: 26, rh: 40, wall: PAL.dark });
+  g.strokeStyle = "rgba(255,255,255,0.05)"; g.lineWidth = 1;
+  for (let px = f.L + 8; px < f.R; px += 8) { g.beginPath(); g.moveTo(px, f.top); g.lineTo(px, y - 10); g.stroke(); }
+  for (let i = 0; i < 10; i++) rock(g, f.L + 9 + i * 17.5, y - 4, 6.5, i + 50, PAL.wall); // stone footing
+  // big door
+  g.fillStyle = PAL.white; g.fillRect(x - 28, y - 68, 56, 60);
+  g.fillStyle = PAL.red; g.fillRect(x - 24, y - 64, 48, 56);
+  g.fillStyle = shade(PAL.red, 0.85); g.fillRect(x, y - 64, 24, 56);
+  g.strokeStyle = PAL.white; g.lineWidth = 2.5; g.beginPath(); g.moveTo(x - 24, y - 64); g.lineTo(x + 24, y - 8); g.moveTo(x + 24, y - 64); g.lineTo(x - 24, y - 8); g.moveTo(x, y - 64); g.lineTo(x, y - 8); g.stroke();
+  windowLP(g, x - 66, y - 64, 14, 14); windowLP(g, x + 52, y - 64, 14, 14);
+  // loft hatch shows how full the barn is
+  const lx = x - 18, ly = f.top + 5;
+  g.fillStyle = PAL.white; g.fillRect(lx - 3, ly - 3, 42, 24);
+  g.fillStyle = "#24212d"; g.fillRect(lx, ly, 36, 18);
+  if (fill > 0) { const c = state.barn.dried >= state.barn.fresh ? "#e2cd92" : "#c9c26a"; g.fillStyle = c; g.fillRect(lx, ly + 18 * (1 - fill), 36, 18 * fill); g.fillStyle = shade(c, 0.85); g.fillRect(lx + 18, ly + 18 * (1 - fill), 18, 18 * fill); }
+  // tufts swaying on the turf
+  for (let i = 0; i < 12; i++) { const tx = f.L + 16 + f.rx + i * (w - 28) / 11, sw = Math.sin(t * 1.5 + i) * 1.2; g.fillStyle = shade(PAL.turf, 1.2); g.beginPath(); g.moveTo(tx - 2, f.ridgeY + 1); g.lineTo(tx + sw, f.ridgeY - 5); g.lineTo(tx + 2, f.ridgeY + 1); g.closePath(); g.fill(); }
+  label(g, x + 12, f.ridgeY - 18, `Barn ${fmt(barnTotal())}/${fmt(getStats().barnCap)}`, Places.near === "barn");
+}
+function drawCart(g, t) {
+  const s = getStats(), p = WORLD.cart.park, near = Places.near === "cart";
+  if (Cart.state === "away") {
+    // empty stop with a little wooden marker while the cart is in town
+    g.fillStyle = "rgba(20,30,15,0.12)"; g.beginPath(); g.ellipse(p.x, p.y + 2, 60, 9, 0, 0, Math.PI * 2); g.fill();
+    label(g, p.x, p.y - 40, `${s.vehicle.icon} In Tórshavn · back in ${Math.ceil(Cart.eta())}s`, near);
+    return;
+  }
+  const fill = Math.min(1, cartTotal() / s.cartCap), dried = state.cart.dried > state.cart.fresh;
+  drawVehicle(g, lvl("vehicle"), Cart.x, p.y, fill, dried, Cart.moving(), t, Cart.dir);
+  if (Cart.state === "parked") label(g, p.x, p.y - 108, Cart.leaveIn >= 0 ? `${s.vehicle.icon} Off to Tórshavn!` : `${s.vehicle.name} ${fmt(cartTotal())}/${fmt(s.cartCap)}`, near);
+}
+// Heima: the farmer's own turf-roof farmhouse — red walls, white windows, smoking chimney.
+function drawHouse(g, t) {
+  const { x, y } = WORLD.house, w = 140, h = 58;
+  const f = house3(g, { x, y, w, h, d: 22, rh: 32, wall: PAL.red });
+  for (let i = 0; i < 8; i++) rock(g, f.L + 9 + i * 17.5, y - 3, 5.5, i + 80, PAL.wall);
+  // warm windows
+  for (const wx of [x - 56, x - 34, x + 20, x + 42]) {
+    windowLP(g, wx, y - 48, 13, 16, PAL.white, "#f3d98a");
+    g.fillStyle = PAL.white; g.fillRect(wx + 5.5, y - 48, 2, 16); g.fillRect(wx, y - 41, 13, 2);
+  }
+  // door
+  g.fillStyle = PAL.white; g.fillRect(x - 11, y - 42, 22, 36);
+  g.fillStyle = "#2c5597"; g.fillRect(x - 8, y - 39, 16, 33);
+  g.fillStyle = shade("#2c5597", 0.82); g.fillRect(x, y - 39, 8, 33);
+  g.fillStyle = "#f0b23a"; g.fillRect(x + 3, y - 24, 2.5, 2.5);
+  // flowers on the turf
+  for (let i = 0; i < 6; i++) { g.fillStyle = i % 2 ? "#f0b23a" : "#f4f1ea"; g.fillRect(f.L + 20 + i * 19, f.ridgeY + 10 + (i % 3) * 6, 2.5, 2.5); }
+  // chimney (a little low-poly box) and peat smoke
+  const cx = x + 30, cy = f.ridgeY + 4;
+  g.fillStyle = "#a49eaf"; g.fillRect(cx - 6, cy - 14, 9, 16);
+  g.fillStyle = "#8f8a9b"; g.beginPath(); g.moveTo(cx + 3, cy - 14); g.lineTo(cx + 7, cy - 16); g.lineTo(cx + 7, cy); g.lineTo(cx + 3, cy + 2); g.closePath(); g.fill();
+  for (let i = 0; i < 5; i++) {
+    const u = ((t * 0.25 + i / 5) % 1), r = 4 + u * 9, sx = cx + Math.sin(u * 4 + i) * 6 + u * 18, sy = cy - 18 - u * 50;
+    g.fillStyle = `rgba(239,234,243,${0.75 * (1 - u)})`; g.beginPath();
+    for (let k = 0; k < 6; k++) { const a = k / 6 * Math.PI * 2 + i; g.lineTo(sx + Math.cos(a) * r, sy + Math.sin(a) * r); }
+    g.closePath(); g.fill();
+  }
+  label(g, x + 10, f.ridgeY - 30, "🏠 Home · upgrades", Places.near === "house");
+}
+function wheel(g, x, y, r, a, rim, hub) {
+  const oct = (rr, rot) => { g.beginPath(); for (let i = 0; i < 8; i++) { const b = rot + i * Math.PI / 4; g.lineTo(x + Math.cos(b) * rr, y + Math.sin(b) * rr); } g.closePath(); };
+  oct(r, a * 0.5); g.fillStyle = "#3e3b45"; g.fill();
+  oct(r * 0.7, a * 0.5); g.fillStyle = rim; g.fill();
+  g.fillStyle = "rgba(255,255,255,0.18)"; g.beginPath(); g.moveTo(x, y); for (let i = 4; i <= 6; i++) { const b = a * 0.5 + i * Math.PI / 4; g.lineTo(x + Math.cos(b) * r * 0.7, y + Math.sin(b) * r * 0.7); } g.closePath(); g.fill();
+  g.strokeStyle = "#3e3b45"; g.lineWidth = 1.3;
+  for (let i = 0; i < 4; i++) { const b = a + i * Math.PI / 4; g.beginPath(); g.moveTo(x - Math.cos(b) * r * 0.7, y - Math.sin(b) * r * 0.7); g.lineTo(x + Math.cos(b) * r * 0.7, y + Math.sin(b) * r * 0.7); g.stroke(); }
+  g.fillStyle = hub; g.fillRect(x - r * 0.2, y - r * 0.2, r * 0.4, r * 0.4);
+}
+function hayPile(g, x, y, w, h, fill, dried) {
+  if (fill <= 0.01) return;
+  const hh = h * Math.pow(fill, 0.7);
+  g.fillStyle = dried ? "#d8b65a" : "#c9c26a";
+  g.beginPath(); g.moveTo(x - w / 2, y); g.bezierCurveTo(x - w / 2, y - hh * 1.25, x + w / 2, y - hh * 1.25, x + w / 2, y); g.closePath(); g.fill();
+  g.strokeStyle = dried ? "rgba(150,110,30,0.55)" : "rgba(120,120,40,0.55)"; g.lineWidth = 1;
+  for (let i = 0; i < 7; i++) { const sx = x - w * 0.4 + i * w * 0.13; g.beginPath(); g.moveTo(sx, y - 2); g.lineTo(sx + 3, y - hh * (0.5 + (i % 3) * 0.15)); g.stroke(); }
+}
+// Faroese pony: small and sturdy, chestnut coat, blond mane.
+function pony(g, x, y, t, mv, coat, mane) {
+  const bob = -Math.abs(Math.sin(t * 9)) * 1.5 * mv;
+  g.lineCap = "round"; g.strokeStyle = coat; g.lineWidth = 3.4;
+  [-11, -6, 8, 13].forEach((lx, i) => {
+    const sw = Math.sin(t * 9 + (i % 2 ? Math.PI : 0) + (i > 1 ? Math.PI / 2 : 0)) * 5 * mv;
+    g.beginPath(); g.moveTo(x + lx, y - 22 + bob); g.lineTo(x + lx + sw, y - 2); g.stroke();
+    g.fillStyle = "#3e3b45"; g.fillRect(x + lx + sw - 2, y - 3, 4, 3);
+  });
+  g.fillStyle = coat; g.beginPath(); g.ellipse(x, y - 27 + bob, 17, 9, 0, 0, Math.PI * 2); g.fill();
+  g.beginPath(); g.moveTo(x + 9, y - 33 + bob); g.lineTo(x + 19, y - 47 + bob); g.lineTo(x + 25, y - 43 + bob); g.lineTo(x + 16, y - 25 + bob); g.closePath(); g.fill();
+  g.beginPath(); g.ellipse(x + 26, y - 43 + bob, 8, 4.6, 0.55, 0, Math.PI * 2); g.fill();
+  g.beginPath(); g.moveTo(x + 19, y - 50 + bob); g.lineTo(x + 21, y - 56 + bob); g.lineTo(x + 23, y - 49 + bob); g.fill();
+  g.strokeStyle = mane; g.lineWidth = 3.5; g.beginPath(); g.moveTo(x + 9, y - 35 + bob); g.lineTo(x + 19, y - 50 + bob); g.stroke();
+  g.lineWidth = 3; g.beginPath(); g.moveTo(x - 16, y - 30 + bob); g.quadraticCurveTo(x - 24, y - 24 + Math.sin(t * 4) * 2, x - 21, y - 13); g.stroke();
+  g.fillStyle = "#1a1a1a"; g.beginPath(); g.arc(x + 25, y - 45 + bob, 1, 0, Math.PI * 2); g.fill();
+}
+function pickup(g, a, fill, dried) {
+  hayPile(g, -21, -27, 46, 24, fill, dried);
+  g.fillStyle = "#c4463a"; g.fillRect(-46, -28, 102, 17);
+  g.beginPath(); g.moveTo(4, -28); g.lineTo(9, -46); g.lineTo(30, -46); g.lineTo(42, -28); g.closePath(); g.fill();
+  g.fillStyle = "#b9cfe0"; g.beginPath(); g.moveTo(12, -43); g.lineTo(28, -43); g.lineTo(37, -30); g.lineTo(12, -30); g.closePath(); g.fill();
+  g.fillStyle = "rgba(0,0,0,0.18)"; g.fillRect(-46, -16, 102, 5); g.fillRect(2, -28, 2, 17);
+  g.fillStyle = "#f4e27a"; g.fillRect(51, -25, 5, 4); g.fillStyle = "#e9e4d6"; g.fillRect(-47, -26, 3, 6);
+  wheel(g, -28, -9, 9, a, "#8a8f94", "#d6d2dc"); wheel(g, 36, -9, 9, a, "#8a8f94", "#d6d2dc");
+}
+function lorry(g, a, fill, dried) {
+  g.fillStyle = "#2f3236"; g.fillRect(-64, -24, 136, 8);
+  hayPile(g, -16, -30, 88, 44, fill, dried);
+  g.fillStyle = "#7b6a5e"; g.fillRect(-62, -32, 92, 8); for (let i = 0; i < 5; i++) g.fillRect(-62 + i * 22, -44, 3, 14);
+  g.fillStyle = "#5f8456"; g.beginPath(); g.moveTo(32, -16); g.lineTo(32, -60); g.lineTo(58, -60); g.lineTo(72, -40); g.lineTo(72, -16); g.closePath(); g.fill();
+  g.fillStyle = "#b9cfe0"; g.beginPath(); g.moveTo(44, -56); g.lineTo(57, -56); g.lineTo(67, -41); g.lineTo(44, -41); g.closePath(); g.fill();
+  g.fillStyle = "#f4e27a"; g.fillRect(68, -26, 4, 5);
+  wheel(g, -46, -10, 10, a, "#7b7584", "#d6d2dc"); wheel(g, -24, -10, 10, a, "#7b7584", "#d6d2dc"); wheel(g, 52, -10, 10, a, "#7b7584", "#d6d2dc");
+}
+function trailer(g, x0, x1, a, fill, dried, axles) {
+  g.strokeStyle = "#2f3236"; g.lineWidth = 3; g.beginPath(); g.moveTo(x1, -16); g.lineTo(x1 + 18, -16); g.stroke();
+  hayPile(g, (x0 + x1) / 2, -26, x1 - x0 - 6, 26 + (x1 - x0) * 0.12, fill, dried);
+  g.fillStyle = "#8f8a9b"; g.fillRect(x0, -26, x1 - x0, 12);
+  g.fillStyle = "rgba(0,0,0,0.2)"; g.fillRect(x0, -18, x1 - x0, 4);
+  for (let i = 0; i < axles; i++) wheel(g, x0 + (x1 - x0) * (axles === 1 ? 0.5 : 0.3 + i * 0.4), -9, 9, a, "#7b7584", "#d6d2dc");
+}
+// Draw a vehicle tier at ground position (x, y). Local drawing assumes it faces right.
+function drawVehicle(g, tier, x, y, fill, dried, moving, t, dir) {
+  const a = x / 9 * dir, mv = moving ? 1 : 0;
+  g.save(); g.translate(x, y);
+  const shadowW = [60, 80, 70, 110, 90, 140][tier];
+  g.fillStyle = "rgba(20,30,15,0.25)"; g.beginPath(); g.ellipse(tier === 5 ? -20 : 0, 2, shadowW, 9, 0, 0, Math.PI * 2); g.fill();
+  g.scale(dir, 1);
+  if (tier === 0) {
+    g.strokeStyle = "#6e5c50"; g.lineWidth = 2.5; g.beginPath(); g.moveTo(-8, -24); g.lineTo(26, -28); g.stroke();
+    hayPile(g, -24, -30, 40, 26, fill, dried);
+    g.fillStyle = "#8a7465"; g.fillRect(-44, -32, 40, 16);
+    g.strokeStyle = "#6e5c50"; g.lineWidth = 1; for (let i = 1; i < 3; i++) { g.beginPath(); g.moveTo(-44, -32 + i * 5.3); g.lineTo(-4, -32 + i * 5.3); g.stroke(); }
+    wheel(g, -24, -11, 11, a, "#8a7465", "#4c3f3b");
+    pony(g, 32, 0, t, mv, "#9a7258", "#e2c48a");
+  } else if (tier === 1) {
+    g.strokeStyle = "#6e5c50"; g.lineWidth = 2.5; g.beginPath(); g.moveTo(14, -26); g.lineTo(42, -30); g.stroke();
+    hayPile(g, -20, -34, 72, 32, fill, dried);
+    g.fillStyle = "#2c5597"; g.fillRect(-58, -36, 76, 18);
+    g.fillStyle = "#d9493a"; g.fillRect(-58, -38, 76, 3); g.fillRect(-58, -20, 76, 2);
+    g.fillStyle = "#7b6a5e"; g.fillRect(10, -48, 10, 12); // driver's bench
+    wheel(g, -44, -10, 10, a, "#8a7465", "#4c3f3b"); wheel(g, 4, -10, 10, a, "#8a7465", "#4c3f3b");
+    pony(g, 44, -4, t + 0.3, mv, "#6e5040", "#d6b67a");
+    pony(g, 50, 0, t, mv, "#9a7258", "#e2c48a");
+  } else if (tier === 2) {
+    pickup(g, a, fill, dried);
+  } else if (tier === 3) {
+    g.save(); g.translate(34, 0); pickup(g, a, fill, dried); g.restore();
+    trailer(g, -98, -30, a, fill, dried, 1);
+  } else if (tier === 4) {
+    lorry(g, a, fill, dried);
+  } else {
+    g.save(); g.translate(46, 0); lorry(g, a, fill, dried); g.restore();
+    trailer(g, -150, -36, a, fill, dried, 2);
+  }
+  g.restore();
+}
+function label(g, x, y, text, hi) {
+  g.font = "800 12px Figtree, 'Segoe UI', system-ui, sans-serif"; g.textAlign = "center"; g.textBaseline = "middle";
+  const w = g.measureText(text).width + 18;
+  g.fillStyle = "rgba(53,47,69,0.12)"; roundRect(g, x - w / 2, y - 9, w, 22, 11); g.fill();
+  roundRect(g, x - w / 2, y - 11, w, 22, 11); g.fillStyle = hi ? "#2c5597" : "rgba(251,249,253,0.92)"; g.fill();
+  g.fillStyle = hi ? "#fff" : "#352f45"; g.fillText(text, x, y + 0.5);
+}
+
+/* -------------------------------- FX --------------------------------- */
+// All FX positions are in world units, except coins that fly to the top-bar counter (screen units).
+const FX = {
+  parts: [], straws: [], texts: [], coinsArr: [],
+  harvestBurst(x, y, r, cut, gained, freshness) {
+    for (let i = 0; i < Math.min(cut.length, 45); i++) {
+      const c = cut[(Math.random() * cut.length) | 0];
+      this.parts.push({ x: c[0], y: c[1] - 4, vx: (c[0] - x) * 1.8 + (Math.random() - 0.5) * 40, vy: -60 - Math.random() * 90, life: 0.8 + Math.random() * 0.4, age: 0, rot: Math.random() * 6, vr: (Math.random() - 0.5) * 14, col: Math.random() < 0.5 ? "#9bbd56" : "#c9c27a", kind: "clip" });
+    }
+    const n = Math.max(1, Math.round(2 + freshness * 4));
+    for (let i = 0; i < n; i++) this.straws.push({ sx: x + (Math.random() - 0.5) * r, sy: y + (Math.random() - 0.5) * r * 0.6, follow: true, cx: x + (Math.random() - 0.5) * 80, cy: y - 60 - Math.random() * 40, t: -i * 0.04, dur: 0.45 + Math.random() * 0.2, rot: Math.random() * 3 });
+    this.float(x, y - r - 30, "+" + fmt(gained) + " 🌾", freshness > 0.6 ? "#ffe9a0" : "#f3f0dc");
+    if (this.parts.length > 400) this.parts.splice(0, this.parts.length - 400);
+  },
+  haul(x0, y0, x1, y1, amount) {
+    const n = Math.min(14, 4 + Math.round(amount / 3));
+    for (let i = 0; i < n; i++) this.straws.push({ sx: x0 + (Math.random() - 0.5) * 16, sy: y0, tx: x1 + (Math.random() - 0.5) * 20, ty: y1, cx: (x0 + x1) / 2 + (Math.random() - 0.5) * 40, cy: Math.min(y0, y1) - 50 - Math.random() * 40, t: -i * 0.03, dur: 0.5 + Math.random() * 0.2, rot: Math.random() * 3 });
+  },
+  coins(x, y, n) {
+    const s = toScreen(x, y), el = document.getElementById("res-money").querySelector(".ico").getBoundingClientRect();
+    for (let i = 0; i < n; i++) this.coinsArr.push({ sx: s.x + (Math.random() - 0.5) * 30, sy: s.y, tx: el.left + el.width / 2, ty: el.top + el.height / 2, cx: s.x + (Math.random() - 0.5) * 160, cy: s.y - 120 - Math.random() * 60, t: -i * 0.05, dur: 0.7 + Math.random() * 0.2 });
+  },
+  dust(x, y) { for (let i = 0; i < 3; i++) this.parts.push({ x, y, vx: (Math.random() - 0.5) * 30, vy: -10 - Math.random() * 12, life: 0.5, age: 0, kind: "dust", r: 2 + Math.random() * 2.5 }); },
+  float(x, y, txt, col) { this.texts.push({ x, y, txt, col, age: 0 }); },
+  update(dt) {
+    for (const p of this.parts) { p.age += dt; if (p.kind === "clip") { p.vy += 260 * dt; p.rot += p.vr * dt; } p.x += p.vx * dt; p.y += p.vy * dt; }
+    this.parts = this.parts.filter(p => p.age < p.life);
+    for (const s of this.straws) s.t += dt; this.straws = this.straws.filter(s => s.t < s.dur);
+    for (const c of this.coinsArr) { c.t += dt; if (c.t >= c.dur && !c.done) c.done = true; } this.coinsArr = this.coinsArr.filter(c => !c.done);
+    for (const t of this.texts) t.age += dt; this.texts = this.texts.filter(t => t.age < 1.2);
+    if (Harvester.pulse > 0) Harvester.pulse = Math.max(0, Harvester.pulse - dt * 3);
+  },
+  bez(s, u) { const e = u * u * (3 - 2 * u), i = 1 - e; return [i * i * s.sx + 2 * i * e * s.cx + e * e * s.tx, i * i * s.sy + 2 * i * e * s.cy + e * e * s.ty]; },
+  drawWorld(g) {
+    g.lineCap = "round";
+    for (const p of this.parts) {
+      const a = 1 - p.age / p.life;
+      if (p.kind === "dust") { g.fillStyle = `rgba(200,190,160,${a * 0.5})`; g.beginPath(); g.arc(p.x, p.y, p.r * (1.5 - a * 0.5), 0, Math.PI * 2); g.fill(); continue; }
+      g.save(); g.translate(p.x, p.y); g.rotate(p.rot); g.globalAlpha = a;
+      g.strokeStyle = p.col; g.lineWidth = 1.8; g.beginPath(); g.moveTo(-3, 0); g.lineTo(3, 0); g.stroke(); g.restore();
+    }
+    for (const s of this.straws) {
+      if (s.t < 0) continue;
+      if (s.follow) { s.tx = Player.x - Player.face * 10; s.ty = Player.y - 45; }
+      const u = Math.min(1, s.t / s.dur), [x, y] = this.bez(s, u);
+      g.save(); g.translate(x, y); g.rotate(s.rot + u * 6); g.globalAlpha = 1 - u * 0.3;
+      g.strokeStyle = "#e3c25a"; g.lineWidth = 2.4; g.beginPath(); g.moveTo(-5, 0); g.lineTo(5, 0); g.stroke();
+      g.strokeStyle = "#b8922e"; g.lineWidth = 1.2; g.beginPath(); g.moveTo(-3, 2); g.lineTo(4, -1); g.stroke(); g.restore();
+    }
+    g.textAlign = "center"; g.textBaseline = "middle";
+    for (const t of this.texts) {
+      const a = Math.min(1, 1.6 - t.age / 1.2 * 1.6), y = t.y - t.age * 34;
+      g.globalAlpha = Math.max(0, a); g.font = "400 18px 'Bagel Fat One', 'Arial Rounded MT Bold', 'Trebuchet MS', sans-serif";
+      g.fillStyle = "rgba(53,47,69,0.3)"; g.fillText(t.txt, t.x, y + 2);
+      g.fillStyle = t.col; g.fillText(t.txt, t.x, y);
+    }
+    g.globalAlpha = 1;
+  },
+  drawScreen(g) {
+    for (const c of this.coinsArr) {
+      if (c.t < 0) continue;
+      const u = Math.min(1, c.t / c.dur), [x, y] = this.bez(c, u);
+      g.fillStyle = "#f0b23a"; g.beginPath(); g.ellipse(x, y, 6, 6 * Math.abs(Math.cos(c.t * 12)) + 1, 0, 0, Math.PI * 2); g.fill();
+      g.strokeStyle = "#a07a1c"; g.lineWidth = 1.2; g.stroke();
+    }
+  },
+};
+
+/* ------------------------------ INPUT -------------------------------- */
+const keys = new Set();
+const Input = {
+  joy: null,     // touch joystick {id, sx, sy, x, y}
+  hold: null,    // mouse click-and-hold target {id, x, y}
+  dir() {
+    let x = 0, y = 0;
+    if (UI.isOpen) return { x, y };
+    if (keys.has("ArrowLeft") || keys.has("KeyA")) x -= 1;
+    if (keys.has("ArrowRight") || keys.has("KeyD")) x += 1;
+    if (keys.has("ArrowUp") || keys.has("KeyW")) y -= 1;
+    if (keys.has("ArrowDown") || keys.has("KeyS")) y += 1;
+    if (this.joy) {
+      const dx = this.joy.x - this.joy.sx, dy = this.joy.y - this.joy.sy, d = Math.hypot(dx, dy);
+      if (d > 8) { const m = Math.min(1, d / 50); x += dx / d * m; y += dy / d * m; }
+    } else if (this.hold) {
+      const w = toWorld(this.hold.x, this.hold.y), dx = w.x - Player.x, dy = w.y - Player.y, d = Math.hypot(dx, dy);
+      if (d > 6) { x += dx / d * Math.min(1, d / 30); y += dy / d * Math.min(1, d / 30); }
+    }
+    const d = Math.hypot(x, y); if (d > 1) { x /= d; y /= d; }
+    return { x, y };
+  },
+};
+window.addEventListener("keydown", e => {
+  Sound.init();
+  if (["ArrowLeft", "ArrowRight", "ArrowUp", "ArrowDown", "Space"].includes(e.code)) e.preventDefault();
+  if (e.target.tagName === "INPUT") return;
+  if (UI.isOpen) { if ((e.code === "Escape" || e.code === "KeyE") && !e.repeat) UI.close(); return; }
+  keys.add(e.code);
+  if ((e.code === "KeyE" || e.code === "Space" || e.code === "Enter") && !e.repeat) interact();
+});
+window.addEventListener("keyup", e => keys.delete(e.code));
+window.addEventListener("blur", () => { keys.clear(); Input.joy = null; Input.hold = null; });
+// Click / tap a building or the cart you're standing next to = same as pressing E.
+const HITBOXES = {
+  barn:  () => ({ x0: 700, x1: 900, y0: 440, y1: 600 }),
+  house: () => ({ x0: 930, x1: 1090, y0: 380, y1: 495 }),
+  cart:  () => ({ x0: Cart.x - 110, x1: Cart.x + 90, y0: WORLD.cart.park.y - 80, y1: WORLD.cart.park.y + 12 }),
+};
+function hitPlace(sx, sy) {
+  const w = toWorld(sx, sy);
+  for (const id in HITBOXES) { const b = HITBOXES[id](); if (w.x > b.x0 && w.x < b.x1 && w.y > b.y0 && w.y < b.y1) return id; }
+  return null;
+}
+sceneCanvas.addEventListener("pointerdown", e => {
+  Sound.init();
+  const hit = hitPlace(e.clientX, e.clientY);
+  if (hit && hit === Places.near) { interact(); return; }
+  if (e.pointerType === "touch") { document.body.classList.add("touch"); Input.joy = { id: e.pointerId, sx: e.clientX, sy: e.clientY, x: e.clientX, y: e.clientY }; }
+  else Input.hold = { id: e.pointerId, x: e.clientX, y: e.clientY };
+  sceneCanvas.setPointerCapture(e.pointerId);
+});
+sceneCanvas.addEventListener("pointermove", e => {
+  if (Input.joy && e.pointerId === Input.joy.id) { Input.joy.x = e.clientX; Input.joy.y = e.clientY; }
+  if (Input.hold && e.pointerId === Input.hold.id) { Input.hold.x = e.clientX; Input.hold.y = e.clientY; }
+});
+const endPointer = e => { if (Input.joy && e.pointerId === Input.joy.id) Input.joy = null; if (Input.hold && e.pointerId === Input.hold.id) Input.hold = null; };
+sceneCanvas.addEventListener("pointerup", endPointer);
+sceneCanvas.addEventListener("pointercancel", endPointer);
+document.addEventListener("pointerdown", () => Sound.init(), { passive: true });
+document.getElementById("act").addEventListener("click", e => { e.stopPropagation(); e.currentTarget.blur(); interact(); });
+sceneCanvas.addEventListener("pointermove", e => {
+  if (e.pointerType !== "mouse" || Input.hold) return;
+  const hit = hitPlace(e.clientX, e.clientY);
+  sceneCanvas.style.cursor = hit && hit === Places.near ? "pointer" : "default";
+});
+
+function drawJoystick(g) {
+  const j = Input.joy; if (!j) return;
+  let dx = j.x - j.sx, dy = j.y - j.sy; const d = Math.hypot(dx, dy); if (d > 50) { dx = dx / d * 50; dy = dy / d * 50; }
+  g.fillStyle = "rgba(255,255,255,0.18)"; g.strokeStyle = "rgba(255,255,255,0.6)"; g.lineWidth = 2;
+  g.beginPath(); g.arc(j.sx, j.sy, 52, 0, Math.PI * 2); g.fill(); g.stroke();
+  g.fillStyle = "rgba(255,255,255,0.75)"; g.beginPath(); g.arc(j.sx + dx, j.sy + dy, 22, 0, Math.PI * 2); g.fill();
+}
+
+/* -------------------------------- UI --------------------------------- */
+const TABS = [
+  { id: "farm", name: "Farm", icon: "🏡" },
+  { id: "upgrades", name: "Upgrades", icon: "⬆️", home: true },
+  { id: "equipment", name: "Tools & carrying", icon: "🧰", home: true },
+  { id: "land", name: "Land", icon: "🗺️", home: true },
+  { id: "animals", name: "Animals", icon: "🐑", home: true, locked: true, soon: "Sheep, cows, chickens and goats that eat hay from your barn and give wool, milk and eggs." },
+  { id: "buildings", name: "Buildings", icon: "🛖", home: true, locked: true, soon: "A farmhouse, sheep shelter, cow barn and more, built right into the landscape." },
+  { id: "stats", name: "Statistics", icon: "📊" },
+  { id: "settings", name: "Settings", icon: "⚙️" },
+];
+// Text that refreshes live while a panel is open: <span data-live="key">
+const LIVE = {
+  carryFresh: () => fmt(state.carry.fresh), carryDried: () => fmt(state.carry.dried),
+  carryCap: () => fmt(getStats().basket), carryValue: () => fmt((state.carry.fresh + state.carry.dried * CONFIG.driedBonus) * getStats().sellPrice) + " kr",
+  cartLoad: () => fmt(cartTotal()), cartCap: () => fmt(getStats().cartCap),
+  cartStatus: () => Cart.state === "parked" ? (Cart.leaveIn >= 0 ? "setting off…" : "waiting at the road") : `in Tórshavn · back in ${Math.ceil(Cart.eta())}s`,
+  cartValue: () => fmt((state.cart.fresh + state.cart.dried * CONFIG.driedBonus) * getStats().sellPrice) + " kr",
+  barnFresh: () => fmt(state.barn.fresh), barnDried: () => fmt(state.barn.dried), barnCap: () => fmt(getStats().barnCap),
+  barnValue: () => fmt(state.barn.dried * getStats().sellPrice * CONFIG.driedBonus + state.barn.fresh * getStats().sellPrice) + " kr",
+  dryEta: () => state.barn.fresh > 0.05 ? `all dry in ${fmtTime(Math.ceil(state.barn.fresh / getStats().dryRate))}` : "nothing drying",
+  "stat-hay": () => fmt(state.stats.totalHay), "stat-actions": () => fmt(state.stats.actions), "stat-sold": () => fmt(state.stats.haySold),
+  "stat-money": () => fmt(state.stats.totalMoney) + " kr", "stat-stored": () => fmt(state.stats.hayStored), "stat-time": () => fmtTime(state.stats.playTime),
+  "stat-dist": () => (state.stats.distance / 50 / 1000).toFixed(2) + " km", "stat-ups": () => state.stats.upgradesBought, "stat-loads": () => fmt(state.stats.timesSold),
+};
+const LIVE_BARS = {
+  carry: () => [state.carry.fresh / getStats().basket, state.carry.dried / getStats().basket],
+  barn: () => [state.barn.fresh / getStats().barnCap, state.barn.dried / getStats().barnCap],
+  cart: () => [state.cart.fresh / getStats().cartCap, state.cart.dried / getStats().cartCap],
+};
+const UI = {
+  tab: "farm", confirmReset: false, lastAfford: "", isOpen: false, mode: "menu",
+  init() {
+    const chip = r => `<div class="res" id="res-${r.id}"><div class="ico">${r.icon}</div><div><div class="lbl" id="lbl-${r.id}">${r.name}</div><div class="val" id="val-${r.id}">0</div></div></div>`;
+    document.getElementById("resources").innerHTML = chip(RESOURCES[0]) + `<div class="small">${RESOURCES.slice(1).map(chip).join("")}</div>`;
+    const tabs = document.getElementById("tabs");
+    tabs.innerHTML = TABS.map(t => `<button class="tab${t.locked ? " locked" : ""}" data-tab="${t.id}" title="${t.name}${t.locked ? " (coming soon)" : ""}"><span class="ti">${t.icon}</span>${t.name}</button>`).join("");
+    tabs.addEventListener("click", e => { const b = e.target.closest(".tab"); if (b) { this.tab = b.dataset.tab; this.confirmReset = false; this.render(); b.blur(); } });
+    const content = document.getElementById("content");
+    content.addEventListener("click", e => this.onClick(e));
+    content.addEventListener("input", e => this.onInput(e));
+    document.getElementById("pclose").addEventListener("click", () => this.close());
+    document.getElementById("backdrop").addEventListener("click", () => this.close());
+    document.getElementById("menubtn").addEventListener("click", e => { e.currentTarget.blur(); this.isOpen ? this.close() : this.open("menu"); });
+    const coarse = window.matchMedia && window.matchMedia("(pointer: coarse)").matches;
+    if (coarse) document.body.classList.add("touch");
+  },
+  // mode "home": inside the farmhouse — upgrades and land can be bought here.
+  // mode "menu": the ☰ button — farm info, statistics and settings from anywhere.
+  open(mode) {
+    this.mode = mode; this.isOpen = true; this.confirmReset = false; keys.clear(); Input.hold = null; Input.joy = null;
+    if (mode === "home") this.tab = "upgrades";
+    else if (TABS.find(t => t.id === this.tab).home) this.tab = "farm";
+    document.getElementById("tabs").querySelectorAll(".tab").forEach(b => { b.style.display = mode === "home" || !TABS.find(t => t.id === b.dataset.tab).home ? "" : "none"; });
+    document.getElementById("ptitle").innerHTML = mode === "home"
+      ? `🏠 Heima — your farmhouse<small>Spend your króna on upgrades. Press E or Esc to head back outside.</small>`
+      : `☰ Farm book<small>Upgrades are bought at home — walk to your farmhouse and press E.</small>`;
+    document.body.classList.add("open");
+    if (mode === "home") Sound.tones([392, 523], 0.09, "triangle", 0.05);
+    this.render();
+  },
+  close() { this.isOpen = false; document.body.classList.remove("open"); },
+  bump(id) { const el = document.getElementById("res-" + id); if (!el) return; el.classList.add("bump"); setTimeout(() => el.classList.remove("bump"), 130); },
+  updateResources() {
+    for (const r of RESOURCES) {
+      const v = r.value(), l = r.label(), ve = document.getElementById("val-" + r.id), le = document.getElementById("lbl-" + r.id);
+      if (ve.textContent !== v) ve.textContent = v;
+      if (le.textContent !== l) le.textContent = l;
+      if (r.full) document.getElementById("res-" + r.id).classList.toggle("full", r.full());
+      if (r.icon2) { const ic = document.querySelector(`#res-${r.id} .ico`), i2 = r.icon2(); if (ic.textContent !== i2) ic.textContent = i2; }
+    }
+    // big carried-hay counter (bottom centre)
+    const cnt = document.getElementById("cnt"), cv = fmt(carryTotal()), unit = `/ ${fmt(getStats().basket)} hay`;
+    if (cnt.textContent !== cv) { cnt.textContent = cv; const c = document.getElementById("counter"); c.classList.remove("bump"); void c.offsetWidth; c.classList.add("bump"); }
+    const cu = document.getElementById("cntunit"); if (cu.textContent !== unit) cu.textContent = unit;
+    document.getElementById("counter").classList.toggle("full", carryTotal() >= getStats().basket - 1e-6);
+    const kk = document.querySelector("#act .k"), kt = document.body.classList.contains("touch") ? "TAP" : "E"; if (kk.textContent !== kt) kk.textContent = kt;
+    const p = Places.prompt(), btn = document.getElementById("act"), lab = document.getElementById("actlabel");
+    btn.classList.toggle("show", !!p && !this.isOpen);
+    if (p) { if (lab.textContent !== p.label) lab.textContent = p.label; btn.disabled = !p.ok; }
+  },
+  onHarvest() { if (state.stats.actions === 1) this.render(); },
+  render() {
+    if (!this.isOpen) return;
+    document.querySelectorAll(".tab").forEach(b => b.classList.toggle("active", b.dataset.tab === this.tab));
+    const c = document.getElementById("content"), scroll = c.scrollTop;
+    c.innerHTML = this["render_" + this.tab] ? this["render_" + this.tab]() : this.renderSoon();
+    c.scrollTop = scroll; this.lastAfford = ""; this.refreshLive(true);
+  },
+  renderSoon() {
+    const t = TABS.find(x => x.id === this.tab);
+    return `<h2>${t.name}</h2><div class="soon"><span class="ti">${t.icon}</span><b>Coming in a future milestone</b><br>${t.soon}</div>`;
+  },
+  bar(id, colors) { return `<div class="bar" data-bar="${id}"><i style="background:${colors[0]}"></i><i style="background:${colors[1]}"></i></div>`; },
+  render_farm() {
+    const s = getStats(), eq = currentTool(), next = nextTool();
+    const touch = document.body.classList.contains("touch");
+    return `
+      <h2>Your farm</h2>
+      <div class="hint keys">
+        ${touch ? "👆 <b>Drag</b> anywhere on the farm to walk." : "🚶 Walk with <b>W</b><b>A</b><b>S</b><b>D</b> or the <b>←</b><b>↑</b><b>↓</b><b>→</b> keys (or hold the mouse button where you want to go). On a touchscreen, drag to walk."}<br>
+        🌾 Stand in the meadow — the ring at your feet fills and cuts grass into your basket (or whatever you carry hay in).<br>
+        🐴 At the <b style="border:none;background:none;padding:0">cart</b>, press ${touch ? "the button (or tap the cart)" : "<b>E</b> (or click it)"} to load your hay. When it's full it drives to Tórshavn and comes back with the money — press again to send a part load.<br>
+        🛖 At the barn, press ${touch ? "the button (or tap the barn)" : "<b>E</b>"} to store hay. Stored hay dries and sells for <b style="border:none;background:none;padding:0">50% more</b>.<br>
+        🏠 Walk to your <b style="border:none;background:none;padding:0">farmhouse</b> and go inside to buy upgrades.
+      </div>
+      <h3>Carrying</h3>
+      <div class="card">
+        <div class="row"><div class="name">${s.carrier.icon} ${s.carrier.name}${s.tool.carry ? ` + ${s.tool.name}` : ""}</div><div class="lvl"><span data-live="carryCap"></span> max</div></div>
+        <div class="desc" style="margin-bottom:0"><span data-live="carryFresh"></span> fresh · <span data-live="carryDried"></span> dried · worth <b data-live="carryValue"></b></div>
+        ${this.bar("carry", ["#9bbd56", "#d8b65a"])}
+      </div>
+      <h3>Barn</h3>
+      <div class="card">
+        <div class="row"><div class="name">🛖 Stored hay</div><div class="lvl"><span data-live="barnCap"></span> max</div></div>
+        <div class="desc" style="margin-bottom:0"><span data-live="barnFresh"></span> drying · <span data-live="barnDried"></span> dried · worth <b data-live="barnValue"></b><br><span data-live="dryEta"></span> · ${s.dryRate.toFixed(2)} hay/s</div>
+        ${this.bar("barn", ["#9bbd56", "#d8b65a"])}
+      </div>
+      <h3>Transport</h3>
+      <div class="card">
+        <div class="row"><div class="name">${s.vehicle.icon} ${s.vehicle.name}</div><div class="lvl"><span data-live="cartCap"></span> max</div></div>
+        <div class="desc" style="margin-bottom:0"><span data-live="cartLoad"></span> hay loaded · worth <b data-live="cartValue"></b><br><span data-live="cartStatus"></span> · ${s.tripTime.toFixed(1)} s round trip</div>
+        ${this.bar("cart", ["#9bbd56", "#d8b65a"])}
+      </div>
+      <h3>Equipment</h3>
+      <div class="card equip"><div class="big">${eq.icon}</div>
+        <div><div class="name">${eq.name}</div><div class="desc" style="margin:2px 0 0">${next ? `Next tool: ${next.icon} ${next.name} — ${fmt(next.cost)} kr at the farmhouse.` : "You own the biggest machine there is!"}</div></div></div>
+      <h3>Farmer</h3>
+      <div class="statgrid">
+        <div class="stat"><div class="k">Harvest speed</div><div class="v">${s.cycleTime.toFixed(2)} s</div></div>
+        <div class="stat"><div class="k">Hay per action</div><div class="v">${s.yield}</div></div>
+        <div class="stat"><div class="k">Carrying</div><div class="v">${fmt(s.basket)} hay</div></div>
+        <div class="stat"><div class="k">Reach</div><div class="v">${s.radius}</div></div>
+        <div class="stat"><div class="k">Run speed</div><div class="v">${(s.runSpeed / 50).toFixed(1)} m/s</div></div>
+        <div class="stat"><div class="k">Grass regrowth</div><div class="v">${fmtTime(s.regrowTime)}</div></div>
+        <div class="stat"><div class="k">Hay price</div><div class="v">${s.sellPrice.toFixed(2)} kr</div></div>
+      </div>`;
+  },
+  render_equipment() {
+    const cur = currentTool(), nxt = nextTool(), i = toolIdx();
+    const stats = t => `Reach <b>${t.radius}</b> · speed <b>×${(1 / t.cycle).toFixed(2)}</b> · hay <b>×${t.yield}</b>${t.carry ? ` · +${fmt(t.carry)} capacity` : ""}${t.run > 1 ? ` · run ×${t.run}` : ""}`;
+    let html = `<h2>Tools</h2>
+      <div class="hint">Better tools are the only way to widen the harvest ring. Each one also cuts faster and brings in more hay per circle.</div>
+      <div class="cardgrid">
+        <div class="card"><div class="row"><div class="name">${cur.icon} ${cur.name}</div><div class="lvl">in use</div></div><div class="desc">${cur.desc}</div><div class="effect">${stats(cur)}</div></div>
+        ${nxt ? `<div class="card"><div class="row"><div class="name">${nxt.icon} ${nxt.name}</div><div class="lvl">next</div></div><div class="desc">${nxt.desc}</div>
+          <div class="row"><div class="effect">${stats(nxt)}</div><button class="buy" data-act="buytool" data-need="tool">${fmt(nxt.cost)} kr</button></div></div>`
+        : `<div class="card"><div class="name">🏆 Nothing left to buy</div><div class="desc">You own the mightiest machine on the islands.</div></div>`}
+      </div>`;
+    const cc = currentCarrier(), nc = nextCarrier(), ci = carrierIdx();
+    html += `<h3>Carrying hay</h3><div class="hint">How much hay you can carry to the barn and cart. Riding machines add their own tank on top.</div>
+      <div class="cardgrid">
+        <div class="card"><div class="row"><div class="name">${cc.icon} ${cc.name}</div><div class="lvl">in use</div></div><div class="desc">${cc.desc}</div><div class="effect">Holds <b>${cc.cap}</b> hay</div></div>
+        ${nc ? `<div class="card"><div class="row"><div class="name">${nc.icon} ${nc.name}</div><div class="lvl">next</div></div><div class="desc">${nc.desc}</div>
+          <div class="row"><div class="effect">Holds <b>${nc.cap}</b> hay</div><button class="buy" data-act="buycarrier" data-need="carrier">${fmt(nc.cost)} kr</button></div></div>`
+        : `<div class="card"><div class="name">🏆 Best carrier owned</div><div class="desc">More ways to haul hay will come later.</div></div>`}
+      </div><div class="card" style="padding:6px 12px;margin-top:10px">` + CARRIERS.map((c, k) => {
+        const st = k < ci ? "✓ owned" : k === ci ? "● in use" : k === ci + 1 ? fmt(c.cost) + " kr · next" : "🔒 " + fmt(c.cost) + " kr";
+        return `<div class="row" style="padding:6px 0;border-bottom:1px solid var(--line)${k > ci + 1 ? ";opacity:.55" : ""}"><div class="name" style="font-weight:${k === ci ? 700 : 500}">${c.icon} ${c.name} <span class="lvl">${c.cap} hay</span></div><div class="lvl">${st}</div></div>`;
+      }).join("") + `</div><h2 style="margin-top:22px">All tools</h2>`;
+    TOOL_TIERS.forEach((tn, ti) => {
+      html += `<h3>Tier ${ti + 1} · ${tn}</h3><div class="card" style="padding:6px 12px">` + TOOLS.filter(t => t.tier === ti).map(t => {
+        const k = TOOL_INDEX[t.id], st = k < i ? "✓ owned" : k === i ? "● in use" : k === i + 1 ? fmt(t.cost) + " kr · next" : "🔒 " + fmt(t.cost) + " kr";
+        return `<div class="row" style="padding:6px 0;border-bottom:1px solid var(--line)${k > i + 1 ? ";opacity:.55" : ""}"><div class="name" style="font-weight:${k === i ? 700 : 500}">${t.icon} ${t.name}</div><div class="lvl">${st}</div></div>`;
+      }).join("") + `</div>`;
+    });
+    return html;
+  },
+  render_land() {
+    const s = getStats(), [c, r] = FIELD_STAGES[lvl("field")];
+    return `<h2>Land</h2>
+      <div class="card"><div class="row"><div class="name">🌾 Bøur — the home meadow</div><div class="lvl">${c} × ${r}</div></div>
+        <div class="desc" style="margin-bottom:0">${fmt(c * r)} patches of grass · regrows in ${fmtTime(s.regrowTime)}</div></div>
+      <h3>Upgrades</h3><div class="cardgrid">` + UPGRADES.filter(u => u.category === "Land").map(u => this.upgradeCard(u)).join("") + `</div>` +
+      `<div class="hint">A second field, a hillside meadow and a sheep pasture will arrive in a later update.</div>`;
+  },
+  render_upgrades() {
+    const cats = [...new Set(UPGRADES.map(u => u.category))];
+    return `<h2>Upgrades</h2>` + cats.map(cat => `<h3>${cat}</h3><div class="cardgrid">` + UPGRADES.filter(u => u.category === cat).map(u => this.upgradeCard(u)).join("") + `</div>`).join("") +
+      `<div class="hint">Equipment, machinery, animals and automation arrive in later milestones.</div>`;
+  },
+  upgradeCard(u) {
+    const L = lvl(u.id), max = L >= u.maxLevel;
+    if (!isUnlocked(u)) return `<div class="card locked"><div class="name">🔒 ${u.name}</div><div class="desc">${u.desc}</div><div class="req">Requires: ${u.requires.text}</div></div>`;
+    const cur = u.show(u.value(L)), nxt = max ? "" : u.show(u.value(L + 1));
+    return `<div class="card">
+      <div class="row"><div class="name">${u.name}</div><div class="lvl">Lv ${L} / ${u.maxLevel}</div></div>
+      <div class="desc">${u.desc}</div>
+      <div class="row"><div class="effect">${max ? `<b>${cur}</b> · maxed` : `${cur} → <b>${nxt}</b>`}</div>
+      ${max ? `<button class="buy" disabled>Maxed</button>` : `<button class="buy" data-act="buy" data-id="${u.id}" data-need="up">${fmt(upgradeCost(u))} kr</button>`}</div>
+    </div>`;
+  },
+  render_stats() {
+    const rows = [["Hay harvested", "stat-hay"], ["Harvest actions", "stat-actions"], ["Hay stored", "stat-stored"], ["Hay sold", "stat-sold"],
+      ["Money earned", "stat-money"], ["Distance walked", "stat-dist"], ["Loads delivered", "stat-loads"], ["Upgrades bought", "stat-ups"], ["Time playing", "stat-time"]];
+    const total = UPGRADES.reduce((a, u) => a + u.maxLevel, 0), have = UPGRADES.reduce((a, u) => a + lvl(u.id), 0);
+    return `<h2>Statistics</h2><div class="statgrid">${rows.map(([k, id]) => `<div class="stat"><div class="k">${k}</div><div class="v" data-live="${id}"></div></div>`).join("")}</div>
+      <h3>Progress</h3><div class="card"><div class="row"><div class="name">Upgrade levels</div><div class="lvl">${have} / ${total}</div></div>
+      <div class="bar"><i style="width:${(have / total * 100).toFixed(1)}%;background:var(--turf)"></i></div></div>`;
+  },
+  render_settings() {
+    const s = state.settings;
+    const slider = (id, label, mute) => `<div class="slider"><label>${label}</label>
+      ${mute ? `<input type="checkbox" data-set="${id}On" ${s[id + "On"] ? "checked" : ""} title="Mute / unmute">` : ""}
+      <input type="range" min="0" max="100" value="${Math.round(s[id] * 100)}" data-set="${id}"><span class="pct">${Math.round(s[id] * 100)}%</span></div>`;
+    return `<h2>Settings</h2>
+      <h3>Sound</h3><div class="card">${slider("master", "Master")}${slider("sfx", "Effects", true)}${slider("ambience", "Wind & birds", true)}
+        <div class="slider" style="opacity:.5"><label>Music</label><span style="font-size:12px">Coming in the polish milestone</span></div></div>
+      <h3>Save game</h3><div class="card">
+        <div class="desc" style="margin-top:0">Your farm saves automatically every ${CONFIG.autosaveSeconds} seconds and when you close the tab.</div>
+        <div class="btnrow"><button class="btn" data-act="save">Save now</button><button class="btn secondary" data-act="load">Load last save</button><button class="btn danger" data-act="reset">Reset…</button></div>
+        ${this.confirmReset ? `<div class="confirm"><b>Start over?</b> This permanently deletes your hay, money and upgrades.<div class="btnrow" style="margin-top:8px"><button class="btn danger" data-act="reset-yes">Yes, reset</button><button class="btn secondary" data-act="reset-no">Cancel</button></div></div>` : ""}
+      </div>`;
+  },
+  onClick(e) {
+    const b = e.target.closest("button[data-act]"); if (!b || b.disabled) return;
+    b.blur(); // keep keyboard focus off buttons so Space/E don't re-trigger them
+    const act = b.dataset.act;
+    if (act === "buy") return buyUpgrade(b.dataset.id);
+    if (act === "buytool") return buyTool();
+    if (act === "buycarrier") return buyCarrier();
+    if (act === "save") { Save.save(); toast("Game saved"); }
+    if (act === "load") { if (Save.load()) { Sound.applySettings(); updateCamera(true); toast("Loaded last save"); this.render(); } else toast("No save found"); }
+    if (act === "reset") { this.confirmReset = true; this.render(); }
+    if (act === "reset-no") { this.confirmReset = false; this.render(); }
+    if (act === "reset-yes") { Save.reset(); updateCamera(true); this.confirmReset = false; this.tab = "farm"; Save.save(true); toast("A fresh start on the meadow"); this.render(); }
+  },
+  onInput(e) {
+    const k = e.target.dataset.set; if (!k) return;
+    state.settings[k] = e.target.type === "checkbox" ? e.target.checked : e.target.value / 100;
+    const pct = e.target.parentElement.querySelector(".pct"); if (pct && e.target.type === "range") pct.textContent = e.target.value + "%";
+    Sound.applySettings();
+  },
+  refreshLive(force) {
+    const c = document.getElementById("content");
+    c.querySelectorAll("[data-live]").forEach(el => { const f = LIVE[el.dataset.live]; if (f) { const v = String(f()); if (el.textContent !== v) el.textContent = v; } });
+    c.querySelectorAll("[data-bar]").forEach(el => { const v = LIVE_BARS[el.dataset.bar](); el.children[0].style.width = (Math.min(1, v[0]) * 100) + "%"; el.children[1].style.width = (Math.min(1, v[1]) * 100) + "%"; });
+    const key = String(state.money);
+    if (!force && key === this.lastAfford) return; this.lastAfford = key;
+    c.querySelectorAll("button[data-need=up]").forEach(b => { b.disabled = state.money < upgradeCost(UPGRADE_BY_ID[b.dataset.id]); });
+    c.querySelectorAll("button[data-need=tool]").forEach(b => { const n = nextTool(); b.disabled = !n || state.money < n.cost; });
+    c.querySelectorAll("button[data-need=carrier]").forEach(b => { const n = nextCarrier(); b.disabled = !n || state.money < n.cost; });
+  },
+};
+
+function buyUpgrade(id) {
+  const u = UPGRADE_BY_ID[id]; if (!u || !isUnlocked(u) || lvl(id) >= u.maxLevel) return;
+  if (!(UI.isOpen && UI.mode === "home") && !window.__testBuyAnywhere) { toast("🏠 Upgrades are bought inside your farmhouse"); return; }
+  const cost = upgradeCost(u);
+  if (state.money < cost) { Sound.bump(); return; }
+  state.money -= cost; state.upgrades[id]++; state.stats.upgradesBought++;
+  Sound.upgrade(); UI.bump("money");
+  if (id === "field") { onFieldChanged(true); toast("🌱 The stone wall moves out — new grass is sprouting"); }
+  else if (id === "vehicle") toast(`${getStats().vehicle.icon} Your new ${getStats().vehicle.name} is waiting by the road`);
+  else toast(`${u.name} → level ${state.upgrades[id]}`);
+  Save.save(true); UI.render();
+}
+function buyTool() {
+  const n = nextTool(); if (!n) return;
+  if (!(UI.isOpen && UI.mode === "home") && !window.__testBuyAnywhere) { toast("🏠 Tools are bought inside your farmhouse"); return; }
+  if (state.money < n.cost) { Sound.bump(); return; }
+  state.money -= n.cost; state.equipment = n.id; state.stats.upgradesBought++;
+  Sound.upgrade(); UI.bump("money"); toast(`${n.icon} New tool: ${n.name}!`);
+  Save.save(true); UI.render();
+}
+function buyCarrier() {
+  const n = nextCarrier(); if (!n) return;
+  if (!(UI.isOpen && UI.mode === "home") && !window.__testBuyAnywhere) { toast("🏠 Carriers are bought inside your farmhouse"); return; }
+  if (state.money < n.cost) { Sound.bump(); return; }
+  state.money -= n.cost; state.carrier = n.id; state.stats.upgradesBought++;
+  Sound.upgrade(); UI.bump("money"); UI.bump("carry"); toast(`${n.icon} ${n.name} — carry ${n.cap} hay!`);
+  Save.save(true); UI.render();
+}
+// Resize the meadow to the current expansion level. grow=true keeps cut/grown state and sprouts the new strip.
+function onFieldChanged(grow) {
+  applyFieldSize();
+  Field.build(grow, grow ? 0.25 : 1);
+  if (bgCache) buildBackground();
+}
+let toastTimer = null;
+function toast(msg) { const t = document.getElementById("toast"); t.textContent = msg; t.classList.add("show"); clearTimeout(toastTimer); toastTimer = setTimeout(() => t.classList.remove("show"), 2200); }
+function flashSaved() { const d = document.getElementById("savedot"); d.classList.add("show"); setTimeout(() => d.classList.remove("show"), 1500); }
+
+/* ------------------------------ RESIZE ------------------------------- */
+function onResize() { computeLayout(); buildBackground(); buildClouds(); }
+window.addEventListener("resize", () => { clearTimeout(onResize._t); onResize._t = setTimeout(onResize, 120); });
+
+/* ------------------------------- LOOP -------------------------------- */
+let last = performance.now(), saveTimer = 0, uiTimer = 0, time = 0, unlockCheck = "";
+function frame(now) {
+  const dt = Math.min(0.1, (now - last) / 1000); last = now; time += dt;
+  const s = getStats();
+
+  // --- update
+  Player.update(dt, Input.dir(), s.runSpeed);
+  Places.update();
+  Cart.update(dt);
+  Field.update(dt, s.regrowTime);
+  Harvester.update(dt);
+  { const d = Math.min(state.barn.fresh, s.dryRate * dt); state.barn.fresh -= d; state.barn.dried += d; }
+  FX.update(dt);
+  for (const c of clouds) { c.x += c.v * dt; if (c.x > BG.x1) c.x = BG.x0 - c.w; }
+  birdTimer -= dt;
+  if (birdTimer <= 0) { birdTimer = 8 + Math.random() * 14; const dir = Math.random() < 0.5 ? 1 : -1; birds.push({ x: dir > 0 ? BG.x0 : BG.x1, y: -120 + Math.random() * 300, v: (35 + Math.random() * 25) * dir, ph: Math.random() * 6, s: 0.8 + Math.random() * 0.5 }); }
+  for (const b of birds) { b.x += b.v * dt; b.ph += dt * 7; }
+  for (let i = birds.length - 1; i >= 0; i--) if (birds[i].x < BG.x0 - 20 || birds[i].x > BG.x1 + 20) birds.splice(i, 1);
+  if (document.visibilityState === "visible") state.stats.playTime += dt;
+  updateCamera(false);
+
+  // --- draw (world space)
+  ctx.setTransform(DPR, 0, 0, DPR, 0, 0);
+  ctx.fillStyle = "#7f9db0"; ctx.fillRect(0, 0, W, H);
+  ctx.setTransform(DPR * cam.k, 0, 0, DPR * cam.k, DPR * cam.ox, DPR * cam.oy);
+  ctx.drawImage(bgCache, BG.x0, BG.y0, BG.x1 - BG.x0, BG.y1 - BG.y0);
+  for (const c of clouds) ctx.drawImage(c.img, c.x, c.y, c.w, c.h);
+  ctx.strokeStyle = "rgba(60,64,70,0.75)"; ctx.lineWidth = 1.6; ctx.lineCap = "round";
+  for (const b of birds) { // gulls: white wings with dark tips, as in Hare Season
+    const f = Math.sin(b.ph) * 4 * b.s, w = 9 * b.s;
+    for (const sd of [-1, 1]) {
+      ctx.fillStyle = sd < 0 ? "#f4f2f6" : "#e3dfea"; ctx.beginPath(); ctx.moveTo(b.x, b.y); ctx.lineTo(b.x + sd * w * 0.75, b.y - f - 1.5 * b.s); ctx.lineTo(b.x + sd * w * 0.7, b.y - f + 1.2 * b.s); ctx.closePath(); ctx.fill();
+      ctx.fillStyle = "#3a3540"; ctx.beginPath(); ctx.moveTo(b.x + sd * w * 0.72, b.y - f - 1.4 * b.s); ctx.lineTo(b.x + sd * w, b.y - f); ctx.lineTo(b.x + sd * w * 0.7, b.y - f + 1.1 * b.s); ctx.closePath(); ctx.fill();
+    }
+    ctx.fillStyle = "#f4f2f6"; ctx.beginPath(); ctx.ellipse(b.x, b.y, 2.2 * b.s, 1.4 * b.s, 0, 0, Math.PI * 2); ctx.fill();
+  }
+  const mistA = 0.10 + 0.08 * Math.sin(time * 0.05), hz = WORLD.horizon;
+  const mist = ctx.createLinearGradient(0, hz - 90, 0, hz + 30);
+  mist.addColorStop(0, "rgba(235,240,240,0)"); mist.addColorStop(0.6, `rgba(235,240,240,${mistA})`); mist.addColorStop(1, "rgba(235,240,240,0)");
+  ctx.fillStyle = mist; ctx.fillRect(BG.x0, hz - 90, BG.x1 - BG.x0, 120);
+
+  Field.draw(ctx, time);
+  Harvester.draw(ctx, time);
+  // y-sorted world objects
+  const objs = [{ y: WORLD.barn.y, d: drawBarn }, { y: WORLD.cart.park.y, d: drawCart }, { y: WORLD.house.y, d: drawHouse }, { y: Player.y, d: (g, t) => Player.draw(g, t) }];
+  objs.sort((a, b) => a.y - b.y).forEach(o => o.d(ctx, time));
+  FX.drawWorld(ctx);
+  if (state.stats.actions === 0 && !Field.contains(Player.x, Player.y)) {
+    const a = 0.75 + 0.25 * Math.sin(time * 2.5);
+    const msg = document.body.classList.contains("touch") ? "← Drag to walk into the meadow" : "← Walk into the meadow (WASD / arrow keys)";
+    let tx = Player.x; const ty = Player.y - 92;
+    ctx.font = "800 15px Figtree, 'Segoe UI', system-ui, sans-serif"; ctx.textAlign = "center"; ctx.textBaseline = "middle";
+    const tw = ctx.measureText(msg).width + 28;
+    { const vl = (0 - cam.ox) / cam.k + tw / 2 + 12, vr = (W - cam.ox) / cam.k - tw / 2 - 12; tx = Math.max(vl, Math.min(vr, tx)); } // keep the pill on screen
+    ctx.globalAlpha = 0.85 + 0.15 * a;
+    roundRect(ctx, tx - tw / 2, ty - 14, tw, 34, 14); ctx.fillStyle = "rgba(53,47,69,0.12)"; ctx.fill();
+    roundRect(ctx, tx - tw / 2, ty - 17, tw, 34, 14); ctx.fillStyle = "rgba(251,249,253,0.94)"; ctx.fill();
+    ctx.fillStyle = "#352f45"; ctx.fillText(msg, tx, ty + 0.5); ctx.globalAlpha = 1;
+  }
+
+  // --- screen-space fx
+  fctx.setTransform(DPR, 0, 0, DPR, 0, 0); fctx.clearRect(0, 0, W, H);
+  FX.drawScreen(fctx); drawJoystick(fctx);
+
+  // --- ui & save
+  UI.updateResources();
+  uiTimer += dt;
+  if (uiTimer > 0.15) {
+    uiTimer = 0; UI.refreshLive();
+    const u = UPGRADES.map(isUnlocked).join(""); // re-render when an upgrade unlocks
+    if (u !== unlockCheck) { if (unlockCheck && UI.tab === "upgrades") UI.render(); unlockCheck = u; }
+  }
+  saveTimer += dt; if (saveTimer > CONFIG.autosaveSeconds) { saveTimer = 0; Save.save(); }
+  requestAnimationFrame(frame);
+}
+
+/* ------------------------------- BOOT -------------------------------- */
+Save.load();
+onFieldChanged(false);
+UI.init();
+computeLayout(); buildBackground(); buildClouds();
+window.addEventListener("pagehide", () => Save.save(true));
+document.addEventListener("visibilitychange", () => { if (document.visibilityState === "hidden") Save.save(true); });
+requestAnimationFrame(t => { last = t; frame(t); });
+
+// Exposed for testing from the browser console.
+window.__farm = { get state() { return state; }, getStats, Field, Player, Places, Harvester, Cart, UI, TOOLS, buyTool, CARRIERS, buyCarrier, cam, WORLD, UPGRADES, buyUpgrade, barnAction, interact, Save };
+</script>
+<style>/* where the shared menu bar sits in this game: beside the farm's own Farm button on desktop */:root{--spael-left:calc(104px + env(safe-area-inset-left,0px))}</style>
+<script>/* the shared Effects switch turns the farm's sound effects on and off */
+addEventListener('spael:sfx',e=>{try{state.settings.sfxOn=!!e.detail;Sound.applySettings();}catch(_){}});</script>
+<!-- SPAEL-BAR START · shared menu bar: back to the front page, music and sound effects.
+     Edit this block in shared/spael-bar.html, then run:  python3 tools/sync-bar.py
+     That copies it into every game, so all games stay the same. -->
+<style>
+/* A game can move the bar by setting these on :root in its own CSS (outside this block):
+   --spael-left / --spael-bottom (desktop, bottom-left)   --spael-m-top / --spael-m-left / --spael-m-right (phones) */
+#spaelBar{position:fixed;z-index:60;left:var(--spael-left,calc(14px + env(safe-area-inset-left,0px)));bottom:var(--spael-bottom,calc(14px + env(safe-area-inset-bottom,0px)));display:flex;gap:4px;align-items:center;padding:4px;border-radius:999px;background:rgba(251,249,253,.86);-webkit-backdrop-filter:blur(10px);backdrop-filter:blur(10px);box-shadow:0 2px 12px rgba(53,47,69,.16);font:800 13px Figtree,"Segoe UI",system-ui,sans-serif;color:#352f45;-webkit-user-select:none;user-select:none}
+#spaelBar a,#spaelBar button{all:unset;box-sizing:border-box;display:inline-flex;align-items:center;justify-content:center;gap:6px;height:36px;min-width:36px;padding:0 10px;border-radius:999px;cursor:pointer;color:inherit;font:inherit;line-height:1;white-space:nowrap}
+#spaelBar a{padding:0 13px 0 10px;background:#2c5597;color:#fff}
+#spaelBar a:hover{filter:brightness(1.1)}
+#spaelBar button:hover{background:rgba(53,47,69,.08)}
+#spaelBar a:focus-visible,#spaelBar button:focus-visible{outline:3px solid #2c5597;outline-offset:2px}
+#spaelBar svg{width:20px;height:20px;fill:none;stroke:currentColor;stroke-width:2.2;stroke-linecap:round;stroke-linejoin:round;flex:none}
+#spaelBar .off{color:rgba(53,47,69,.42)}
+#spaelBar .slash{display:none}
+#spaelBar .off .slash{display:inline}
+#spaelBar .lbl{display:none}
+@media (min-width:900px){#spaelBar button .lbl{display:inline;font-size:12px;font-weight:700}}
+#spaelMore{display:none!important}
+@media (max-width:760px){
+ #spaelBar{bottom:auto;top:var(--spael-m-top,calc(12px + env(safe-area-inset-top,0px)));left:var(--spael-m-left,auto);right:var(--spael-m-right,calc(12px + env(safe-area-inset-right,0px)));flex-direction:column;align-items:stretch;padding:3px;border-radius:22px}
+ #spaelMore{display:inline-flex!important}
+ #spaelBar:not(.open)>:not(#spaelMore){display:none}
+ #spaelBar .ic-x{display:none}#spaelBar.open .ic-x{display:inline}#spaelBar.open .ic-dots{display:none}
+}
+</style>
+<nav id="spaelBar" aria-label="Game menu">
+  <button id="spaelMore" type="button" aria-expanded="false" aria-controls="spaelBar"><svg viewBox="0 0 24 24"><g class="ic-dots"><path d="M4 7h16M4 12h16M4 17h16"/></g><g class="ic-x"><path d="M6 6l12 12M18 6L6 18"/></g></svg></button>
+  <a id="spaelHome" href="../index.html"><svg viewBox="0 0 24 24"><path d="M15 5l-7 7 7 7"/></svg><span id="spaelHomeT">Menu</span></a>
+  <button id="spaelMusic" type="button" aria-pressed="true"><svg viewBox="0 0 24 24"><path d="M9 18V5l11-2v13"/><circle cx="6.5" cy="18" r="2.5"/><circle cx="17.5" cy="16" r="2.5"/><path class="slash" d="M3 3l18 18"/></svg><span class="lbl" id="spaelMusicT">Music</span></button>
+  <button id="spaelSfx" type="button" aria-pressed="true"><svg viewBox="0 0 24 24"><path d="M4 9v6h4l5 4V5L8 9z"/><path d="M16.5 8.5a5 5 0 010 7M19 6a8.5 8.5 0 010 12"/><path class="slash" d="M3 3l18 18"/></svg><span class="lbl" id="spaelSfxT">Effects</span></button>
+</nav>
+<script>
+/* Shared menu bar. Settings are shared by every game on the site:
+   spael-music / spael-sfx = 'on' | 'off'. The game listens for the "spael:sfx" event to mute its own effects. */
+(function(){
+"use strict";
+const TXT={en:{home:'Menu',homeA:'Back to all games',music:'Music',sfx:'Effects',on:'on',off:'off',more:'Menu, music and sound'},
+           fo:{home:'Forsíða',homeA:'Aftur til øll spølini',music:'Tónleikur',sfx:'Ljóð',on:'tendrað',off:'sløkt',more:'Forsíða, tónleikur og ljóð'}};
+const get=(k,d)=>{try{const v=localStorage.getItem(k);return v===null?d:v==='on';}catch(e){return d;}};
+const put=(k,v)=>{try{localStorage.setItem(k,v?'on':'off');}catch(e){}};
+let music=get('spael-music',true),sfx=get('spael-sfx',true);
+const $=id=>document.getElementById(id);
+const L=()=>((document.documentElement.lang||'en').toLowerCase().startsWith('fo')?TXT.fo:TXT.en);
+function paint(){const t=L();$('spaelMore').setAttribute('aria-label',t.more);$('spaelMore').title=t.more;$('spaelHomeT').textContent=t.home;$('spaelHome').setAttribute('aria-label',t.homeA);$('spaelHome').title=t.homeA;
+  $('spaelMusicT').textContent=t.music;$('spaelSfxT').textContent=t.sfx;
+  [['spaelMusic',music,t.music],['spaelSfx',sfx,t.sfx]].forEach(([id,on,name])=>{const b=$(id);b.classList.toggle('off',!on);b.setAttribute('aria-pressed',String(on));const lab=name+': '+(on?t.on:t.off);b.setAttribute('aria-label',lab);b.title=lab;});}
+function tellGame(){window.dispatchEvent(new CustomEvent('spael:sfx',{detail:sfx}));}
+/* keep clicks on the bar from reaching the game underneath */
+['pointerdown','mousedown','touchstart','click'].forEach(ev=>$('spaelBar').addEventListener(ev,e=>e.stopPropagation()));
+$('spaelBar').addEventListener('keydown',e=>e.stopPropagation());
+
+/* ---------- music: a soft, looping folk tune made in the browser ---------- */
+let ac=null,out=null,timer=null,next=0,step=0,last=7,playing=false;
+const BPM=80,E8=60/BPM/2;                       // one eighth note
+const SCALE=[50,52,53,55,57,60,62,64,65,67,69,72,74]; // D dorian-ish, MIDI
+const CHORDS=[[50,57,62,65],[48,55,60,64],[53,60,65,69],[48,55,60,64],[50,57,62,65],[45,52,57,60],[46,53,58,62],[48,55,60,64]]; // Dm C F C Dm Am Bb C
+const hz=m=>440*Math.pow(2,(m-69)/12);
+function audio(){if(ac)return true;try{ac=new (window.AudioContext||window.webkitAudioContext)();}catch(e){return false;}
+  out=ac.createGain();out.gain.value=0;out.connect(ac.destination);
+  const d=ac.createDelay(1);d.delayTime.value=E8*3;const fb=ac.createGain();fb.gain.value=0.32;const wet=ac.createGain();wet.gain.value=0.28;
+  d.connect(fb);fb.connect(d);d.connect(wet);wet.connect(out);out.echo=d;return true;}
+function voice(type,m,t,dur,vol,att,dest,cut){const o=ac.createOscillator(),g=ac.createGain();o.type=type;o.frequency.value=hz(m);
+  let node=o;if(cut){const f=ac.createBiquadFilter();f.type='lowpass';f.frequency.value=cut;o.connect(f);node=f;}
+  node.connect(g);g.connect(dest||out);g.gain.setValueAtTime(0.0001,t);g.gain.linearRampToValueAtTime(vol,t+att);g.gain.exponentialRampToValueAtTime(0.0001,t+dur);o.start(t);o.stop(t+dur+0.05);}
+function pluck(m,t,vol){voice('triangle',m,t,1.1,vol,0.006);voice('sine',m+12,t,0.5,vol*0.35,0.004);const g=ac.createGain();g.gain.value=1;
+  const o=ac.createOscillator();o.type='triangle';o.frequency.value=hz(m);const eg=ac.createGain();eg.gain.setValueAtTime(0.0001,t);eg.gain.linearRampToValueAtTime(vol*0.5,t+0.006);eg.gain.exponentialRampToValueAtTime(0.0001,t+0.8);o.connect(eg);eg.connect(out.echo);o.start(t);o.stop(t+0.85);}
+function schedule(){while(next<ac.currentTime+0.3){const bar=Math.floor(step/8)%CHORDS.length,b8=step%8,ch=CHORDS[bar],phrase=Math.floor(step/64)%4;
+    if(b8===0){ch.slice(1).forEach(m=>voice('triangle',m,next,E8*8.6,0.035,0.9,null,900));voice('sine',ch[0]-12,next,E8*8.4,0.09,0.25);}
+    if(b8===4)voice('sine',ch[0]-12,next,E8*4.2,0.05,0.1);
+    const quiet=phrase===3;                       // every fourth phrase rests, so the loop breathes
+    const chance=b8%2===0?0.78:0.28;
+    if(!quiet&&Math.random()<chance){let i=last+[-2,-1,-1,0,1,1,2][(Math.random()*7)|0];i=Math.max(2,Math.min(SCALE.length-1,i));
+      if(b8===0){const tones=ch.map(c=>c%12);let best=i,bd=99;for(let k=Math.max(0,i-2);k<=Math.min(SCALE.length-1,i+2);k++)if(tones.includes(SCALE[k]%12)&&Math.abs(k-i)<bd){bd=Math.abs(k-i);best=k;}i=best;}
+      last=i;pluck(SCALE[i]+12,next,b8===0?0.085:0.06);}
+    next+=E8;step++;}}
+function startMusic(){if(!music||playing||!audio())return;if(ac.state==='suspended')ac.resume();playing=true;next=ac.currentTime+0.1;
+  out.gain.cancelScheduledValues(ac.currentTime);out.gain.setValueAtTime(out.gain.value,ac.currentTime);out.gain.linearRampToValueAtTime(0.5,ac.currentTime+2.5);
+  schedule();timer=setInterval(schedule,100);}
+function stopMusic(){if(!playing)return;playing=false;clearInterval(timer);const t=ac.currentTime;out.gain.cancelScheduledValues(t);out.gain.setValueAtTime(out.gain.value,t);out.gain.linearRampToValueAtTime(0,t+0.4);}
+/* browsers only allow sound after the first tap or key press */
+const kick=()=>{startMusic();};
+['pointerdown','keydown','touchend'].forEach(ev=>window.addEventListener(ev,kick,{passive:true}));
+document.addEventListener('visibilitychange',()=>{if(!ac)return;if(document.hidden){clearInterval(timer);ac.suspend();}else if(playing){ac.resume();next=ac.currentTime+0.1;timer=setInterval(schedule,100);}});
+
+/* phones: the bar folds into one round button */
+const bar=$('spaelBar');
+function fold(open){bar.classList.toggle('open',open);$('spaelMore').setAttribute('aria-expanded',String(open));}
+$('spaelMore').addEventListener('click',()=>fold(!bar.classList.contains('open')));
+document.addEventListener('pointerdown',e=>{if(bar.classList.contains('open')&&!bar.contains(e.target))fold(false);},true);
+$('spaelMusic').addEventListener('click',()=>{music=!music;put('spael-music',music);paint();if(music)startMusic();else stopMusic();});
+$('spaelSfx').addEventListener('click',()=>{sfx=!sfx;put('spael-sfx',sfx);paint();tellGame();});
+new MutationObserver(paint).observe(document.documentElement,{attributes:true,attributeFilter:['lang']});
+paint();tellGame();
+})();
+</script>
+<!-- SPAEL-BAR END -->
+</body>
+</html>
