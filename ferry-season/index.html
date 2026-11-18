@@ -1,0 +1,1132 @@
+<!doctype html>
+<html lang="en">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width,initial-scale=1,viewport-fit=cover">
+<title>Ferry Season – Strandferðsla</title>
+<link rel="preconnect" href="https://fonts.googleapis.com">
+<link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+<link rel="stylesheet" href="https://fonts.googleapis.com/css2?family=Bagel+Fat+One&family=Figtree:wght@500;600;700;800&display=swap">
+<style>
+/* Layout: full-bleed low-poly 2D map of the real Faroes, HUD floats on top, vessel dock bottom-centre. Single committed look: pastel Faroese November. */
+:root{
+  --ink:#352f45;--ink-soft:#6c6580;
+  --paper:rgba(251,249,253,.82);--paper-solid:#f7f4fa;--line:rgba(53,47,69,.12);
+  --accent:#d9493a;--accent-ink:#fff;--blue:#2c5597;--gold:#f0b23a;--mist:#dcd5e6;--white:#fff;
+  --display:"Bagel Fat One","Arial Rounded MT Bold","Trebuchet MS",system-ui,sans-serif;
+  --ui:"Figtree","Segoe UI",system-ui,sans-serif;
+  color-scheme:light;
+}
+*{box-sizing:border-box}
+html,body{height:100%;margin:0;overflow:hidden;background:var(--mist);color:var(--ink);font-family:var(--ui)}
+body{-webkit-user-select:none;user-select:none;-webkit-tap-highlight-color:transparent}
+[hidden]{display:none!important}
+button{font-family:var(--ui)}
+button:focus-visible{outline:3px solid var(--blue);outline-offset:2px}
+#map{position:fixed;inset:0;width:100%;height:100%;display:block;touch-action:none;outline:none}
+#hud{position:fixed;inset:0;pointer-events:none}
+
+.topleft{position:absolute;top:calc(14px + env(safe-area-inset-top,0px));left:calc(14px + env(safe-area-inset-left,0px));display:flex;flex-direction:column;gap:6px;align-items:flex-start}
+.money{display:flex;align-items:center;gap:8px;background:var(--paper);backdrop-filter:blur(8px);-webkit-backdrop-filter:blur(8px);padding:7px 14px 7px 8px;border-radius:999px;font-weight:800;font-size:20px;font-variant-numeric:tabular-nums;box-shadow:0 2px 10px rgba(53,47,69,.12);transition:transform .12s}
+.money .coin{width:24px;height:24px;border-radius:50%;background:radial-gradient(circle at 35% 35%,#ffe7a3,var(--gold) 60%,#c98a1c);box-shadow:inset 0 -2px 0 rgba(0,0,0,.15)}
+.money small{font-size:13px;color:var(--ink-soft);font-weight:700}
+.money.over b{color:var(--accent)}
+.money.bump{transform:scale(1.08)}
+.rate{font-size:12px;font-weight:700;color:var(--ink);background:var(--paper);backdrop-filter:blur(8px);-webkit-backdrop-filter:blur(8px);padding:3px 10px;border-radius:999px;font-variant-numeric:tabular-nums;box-shadow:0 2px 10px rgba(53,47,69,.08)}
+.rate b{font-weight:800}
+.rate .late{color:var(--accent)}
+.areaBtn{pointer-events:auto;display:flex;align-items:baseline;gap:8px;border:0;cursor:pointer;background:var(--paper);backdrop-filter:blur(8px);-webkit-backdrop-filter:blur(8px);padding:6px 6px 6px 12px;border-radius:999px;font:800 14px var(--ui);color:var(--ink);box-shadow:0 2px 10px rgba(53,47,69,.12)}
+.areaBtn span{font-size:12px;font-weight:700;color:var(--ink-soft)}
+.areaBtn .go{background:var(--blue);color:var(--white);padding:3px 9px;border-radius:99px;font-size:11px;letter-spacing:.06em}
+
+.topright{position:absolute;top:calc(14px + env(safe-area-inset-top,0px));right:calc(14px + env(safe-area-inset-right,0px));display:flex;gap:6px;align-items:center}
+.lang{pointer-events:auto;display:inline-flex;padding:3px;border-radius:999px;background:var(--paper);backdrop-filter:blur(8px);-webkit-backdrop-filter:blur(8px);box-shadow:0 2px 10px rgba(53,47,69,.12)}
+.lang button{border:0;background:transparent;border-radius:999px;padding:6px 10px;font:800 12px var(--ui);letter-spacing:.08em;color:var(--ink-soft);cursor:pointer}
+.lang button[aria-pressed="true"]{background:var(--blue);color:var(--white)}
+.iconBtn{pointer-events:auto;width:40px;height:40px;border:0;border-radius:50%;background:var(--paper);backdrop-filter:blur(8px);-webkit-backdrop-filter:blur(8px);box-shadow:0 2px 10px rgba(53,47,69,.12);display:grid;place-items:center;color:var(--ink);cursor:pointer;padding:0}
+.iconBtn svg{width:20px;height:20px;fill:none;stroke:currentColor;stroke-width:2;stroke-linecap:round;stroke-linejoin:round}
+.iconBtn:hover{filter:brightness(1.04)}
+
+.counter{position:absolute;left:50%;bottom:calc(86px + env(safe-area-inset-bottom,0px));transform:translateX(-50%);font-family:var(--display);color:var(--white);font-size:clamp(34px,5.5vw,62px);line-height:1;white-space:nowrap;text-shadow:0 3px 0 rgba(53,47,69,.18),0 6px 24px rgba(53,47,69,.25);display:flex;gap:.22em;align-items:baseline;font-variant-numeric:tabular-nums}
+.counter span{font-size:.48em}
+.counter.bump b{display:inline-block;animation:bump .18s ease-out}
+@keyframes bump{50%{transform:scale(1.12)}}
+
+#floaters{position:absolute;inset:0;overflow:hidden}
+.fl{position:absolute;transform:translate(-50%,-50%);font-family:var(--display);font-size:20px;color:#ffe08a;text-shadow:0 2px 0 rgba(53,47,69,.3);white-space:nowrap;animation:floatUp 1s ease-out forwards}
+.fl.gold{color:var(--gold);font-size:26px}
+.fl.bad{color:#ffd2cc;font-size:18px}
+.fl.white{color:#fff;font-size:24px;text-shadow:0 0 14px #9fc3ff,0 2px 0 rgba(53,47,69,.35)}
+@keyframes floatUp{0%{opacity:0;transform:translate(-50%,-30%) scale(.6)}15%{opacity:1;transform:translate(-50%,-60%) scale(1.1)}100%{opacity:0;transform:translate(-50%,-190%) scale(1)}}
+
+.hint{position:absolute;left:50%;bottom:calc(150px + env(safe-area-inset-bottom,0px));transform:translateX(-50%);background:var(--paper);backdrop-filter:blur(8px);-webkit-backdrop-filter:blur(8px);padding:10px 18px;border-radius:14px;font-weight:700;font-size:15px;text-align:center;box-shadow:0 4px 20px rgba(53,47,69,.15);transition:opacity .6s;width:max-content;max-width:min(88vw,440px)}
+.hint small{display:block;font-weight:600;color:var(--ink-soft);font-size:12px;margin-top:3px}
+.hint.gone{opacity:0}
+
+#toasts{position:absolute;left:50%;top:calc(14px + env(safe-area-inset-top,0px));transform:translateX(-50%);display:flex;flex-direction:column;gap:6px;align-items:center;width:min(90vw,440px)}
+.toast{background:var(--paper);backdrop-filter:blur(8px);-webkit-backdrop-filter:blur(8px);padding:9px 16px;border-radius:14px;font-weight:800;font-size:14px;box-shadow:0 4px 20px rgba(53,47,69,.15);text-align:center;animation:tin .3s ease both}
+.toast small{display:block;font-weight:600;font-size:12px;color:var(--ink-soft)}
+.toast.warn{box-shadow:inset 0 0 0 2px rgba(217,73,58,.35),0 4px 20px rgba(53,47,69,.15)}
+.toast.out{animation:tout .4s ease forwards}
+@keyframes tin{from{opacity:0;transform:translateY(-10px)}}
+@keyframes tout{to{opacity:0;transform:translateY(-10px)}}
+
+/* dock */
+#dock{position:fixed;left:50%;bottom:calc(14px + env(safe-area-inset-bottom,0px));transform:translateX(-50%);display:flex;align-items:center;gap:6px;padding:6px;border-radius:999px;background:var(--paper);backdrop-filter:blur(12px);-webkit-backdrop-filter:blur(12px);box-shadow:0 8px 30px rgba(53,47,69,.18);white-space:nowrap}
+#toks{display:flex;gap:2px}
+.tok{position:relative;border:0;background:transparent;border-radius:999px;height:46px;padding:0 12px 0 8px;display:flex;align-items:center;gap:6px;font:800 13px var(--ui);color:var(--ink);cursor:pointer;transition:background .15s}
+.tok:hover{background:rgba(53,47,69,.06)}
+.tok svg{width:26px;height:26px;fill:none;stroke:currentColor;stroke-width:2;stroke-linecap:round;stroke-linejoin:round}
+.tok em{font-style:normal;font-size:11px;font-weight:800;min-width:20px;height:20px;border-radius:99px;background:rgba(44,85,151,.1);color:var(--blue);display:grid;place-items:center;padding:0 6px;font-variant-numeric:tabular-nums}
+.tok.sel{background:var(--blue);color:var(--white)}
+.tok.sel em{background:rgba(255,255,255,.22);color:var(--white)}
+.tok.empty em{background:rgba(53,47,69,.1);color:var(--ink-soft)}
+.goBtn{border:0;border-radius:999px;height:46px;padding:0 18px;font:400 18px var(--display);background:var(--accent);color:var(--accent-ink);cursor:pointer;box-shadow:0 2px 0 rgba(0,0,0,.15);display:flex;align-items:center;gap:6px;transition:transform .08s,filter .15s}
+.goBtn:hover{filter:brightness(1.07)}
+.goBtn:active{transform:translateY(1px)}
+.goBtn svg{width:18px;height:18px;fill:currentColor}
+.goBtn.ready{animation:ready 1s ease-in-out infinite alternate}
+.goBtn.run{background:rgba(53,47,69,.08);color:var(--ink);box-shadow:none;font:800 14px var(--ui);padding:0 14px}
+@keyframes ready{to{transform:scale(1.06)}}
+.spdBtn{border:0;border-radius:999px;height:46px;min-width:50px;background:rgba(53,47,69,.08);font:800 14px var(--ui);color:var(--ink);cursor:pointer;font-variant-numeric:tabular-nums}
+.spdBtn.fast{background:rgba(240,178,58,.3)}
+
+/* pop-up cards */
+.pop{position:fixed;z-index:5;width:max-content;min-width:200px;max-width:min(300px,88vw);background:var(--paper-solid);border-radius:16px;box-shadow:0 10px 34px rgba(53,47,69,.28);padding:12px 14px;font-size:13px;font-weight:600;animation:popIn .22s cubic-bezier(.2,1.5,.4,1) both}
+@keyframes popIn{from{opacity:0;transform:scale(.85)}}
+.pop h3{margin:0;font:400 21px var(--display);line-height:1.1}
+.pop .sub{font-size:11px;font-weight:800;color:var(--ink-soft);text-transform:uppercase;letter-spacing:.1em;margin-top:2px}
+.pop p{margin:8px 0 0;line-height:1.4}
+.pop .pill{display:inline-block;font-size:11px;font-weight:800;color:var(--blue);background:rgba(44,85,151,.1);padding:2px 8px;border-radius:99px;margin-top:6px}
+.pop ul{list-style:none;margin:8px 0 0;padding:0;display:flex;flex-direction:column;gap:4px}
+.pop li{display:flex;align-items:center;gap:6px}
+.pop .dot{width:10px;height:10px;border-radius:3px;flex:none}
+.pop button.rm{margin-top:10px;width:100%;border:0;border-radius:10px;padding:9px;font:800 13px var(--ui);background:var(--accent);color:var(--accent-ink);cursor:pointer;box-shadow:0 2px 0 rgba(0,0,0,.15)}
+
+/* modals (Sheep Season sheets) */
+#fade{position:fixed;inset:0;background:var(--mist);opacity:0;pointer-events:none;transition:opacity .35s}
+#fade.on{opacity:1}
+.modal{position:fixed;inset:0;z-index:10;display:grid;place-items:center;background:rgba(53,47,69,.35);padding:16px;padding-left:max(16px,env(safe-area-inset-left,0px));padding-right:max(16px,env(safe-area-inset-right,0px))}
+.modal .sheet{width:min(560px,100%);max-height:calc(100% - 16px);overflow:auto;background:var(--paper-solid);border-radius:20px;box-shadow:0 20px 60px rgba(53,47,69,.35);animation:popIn .3s cubic-bezier(.2,1.4,.4,1) both}
+.modal header{display:flex;align-items:baseline;gap:10px;padding:18px 20px 12px;border-bottom:1px solid var(--line);position:sticky;top:0;background:var(--paper-solid);z-index:1}
+.modal h2{margin:0;font-family:var(--display);font-weight:400;font-size:28px;line-height:1.05}
+.modal .sub{font-size:12px;font-weight:700;color:var(--ink-soft);text-transform:uppercase;letter-spacing:.1em}
+.modal .x{margin-left:auto;border:0;background:transparent;font-size:28px;line-height:1;cursor:pointer;color:var(--ink);padding:0 4px}
+#levels{display:flex;flex-direction:column;padding:8px 10px}
+.area{display:grid;grid-template-columns:40px minmax(0,1fr) auto;gap:12px;align-items:center;padding:12px 10px;border-radius:14px}
+.area+.area{border-top:1px solid var(--line)}
+.area .n{width:40px;height:40px;border-radius:12px;display:grid;place-items:center;font-family:var(--display);font-size:20px;background:var(--white);color:var(--blue);box-shadow:inset 0 0 0 1px var(--line)}
+.area.here{background:rgba(44,85,151,.08)}
+.area.here .n{background:var(--blue);color:var(--white)}
+.area.locked{opacity:.55}
+.area .t{min-width:0}
+.area .t b{font-size:16px;font-weight:800}
+.area .t small{display:block;font-size:12px;color:var(--ink-soft);font-weight:700}
+.area .t p{margin:3px 0 0;font-size:12.5px;line-height:1.35;font-weight:600}
+.area .chips{display:flex;flex-wrap:wrap;gap:4px;margin-top:5px;align-items:center}
+.area .mul{display:inline-block;font-size:11px;font-weight:800;color:var(--blue);background:rgba(44,85,151,.1);padding:2px 7px;border-radius:99px}
+.mini-stars{font-size:14px;letter-spacing:1px;color:rgba(53,47,69,.2)}
+.mini-stars i{font-style:normal}
+.mini-stars i.on{color:var(--gold)}
+.area button{border:0;border-radius:10px;padding:9px 12px;min-width:86px;font:800 13px var(--ui);background:var(--accent);color:var(--accent-ink);cursor:pointer;box-shadow:0 2px 0 rgba(0,0,0,.15)}
+.area button.go2{background:var(--blue)}
+.area button:disabled{background:rgba(53,47,69,.12);color:var(--ink-soft);cursor:default;box-shadow:none}
+.goal{margin:4px 20px 18px;padding:12px 14px;border-radius:14px;background:rgba(240,178,58,.18);font-size:13px;font-weight:700;line-height:1.45}
+.brief{padding:14px 20px 20px}
+.brief .teach{padding:12px 14px;border-radius:14px;background:rgba(240,178,58,.18);font-size:14px;font-weight:700;line-height:1.45}
+.brief dl{display:grid;grid-template-columns:auto 1fr;gap:8px 14px;margin:14px 0 6px;font-size:14px}
+.brief dt{font-size:11px;font-weight:800;color:var(--ink-soft);text-transform:uppercase;letter-spacing:.1em;padding-top:3px}
+.brief dd{margin:0;font-weight:700;font-variant-numeric:tabular-nums}
+.brief .fact{font-size:12.5px;color:var(--ink-soft);font-weight:600;line-height:1.4;margin:10px 0 16px}
+.bigBtn{border:0;border-radius:12px;padding:12px 22px;font:400 20px var(--display);background:var(--accent);color:var(--accent-ink);cursor:pointer;box-shadow:0 2px 0 rgba(0,0,0,.15)}
+.bigBtn.blue{background:var(--blue)}
+.bigBtn.soft{background:rgba(53,47,69,.08);color:var(--ink);box-shadow:none;font:800 15px var(--ui)}
+.win{text-align:center;padding:28px 24px 24px;position:relative;overflow:hidden}
+.win h2{font-size:38px}
+.win p{font-size:15px;line-height:1.5;margin:10px auto 6px;max-width:40ch;font-weight:600}
+.trophy{width:72px;height:72px;margin:0 auto 8px;border-radius:50%;background:radial-gradient(circle at 35% 35%,#ffffff,#e9eef7 55%,#b9c7de);box-shadow:0 0 0 6px rgba(255,255,255,.7),0 8px 24px rgba(44,85,151,.3);display:grid;place-items:center}
+.trophy svg{width:36px;height:36px;fill:none;stroke:var(--blue);stroke-width:2;stroke-linecap:round;stroke-linejoin:round}
+.stars{display:flex;justify-content:center;gap:10px;margin:10px 0 6px}
+.star{width:46px;height:46px;background:rgba(53,47,69,.14);clip-path:polygon(50% 2%,62% 36%,98% 37%,69% 59%,80% 95%,50% 74%,20% 95%,31% 59%,2% 37%,38% 36%)}
+.star.on{background:linear-gradient(180deg,#ffe7a3,var(--gold) 60%,#d8962a);animation:starIn .5s cubic-bezier(.2,1.6,.4,1) both}
+@keyframes starIn{from{transform:scale(.2) rotate(-20deg);opacity:0}}
+.checks{list-style:none;padding:0;margin:8px auto 18px;max-width:340px;text-align:left;display:flex;flex-direction:column;gap:6px;font-size:14px;font-weight:700}
+.checks li{display:flex;gap:8px;align-items:baseline}
+.checks li b{width:20px;flex:none;text-align:center}
+.checks li.no{color:var(--ink-soft)}
+.btnrow{display:flex;gap:8px;justify-content:center;flex-wrap:wrap}
+.confetti{position:absolute;left:50%;top:64px;width:10px;height:10px;pointer-events:none;clip-path:polygon(50% 0,100% 100%,0 100%);animation:conf 1.1s cubic-bezier(.2,.7,.4,1) forwards}
+@keyframes conf{to{transform:translate(var(--dx),var(--dy)) rotate(var(--r));opacity:0}}
+
+/* make room for the site menu bar: dock moves right on desktop, top-right buttons step left on phones */
+@media (min-width:761px){#dock{left:auto;right:calc(14px + env(safe-area-inset-right,0px));transform:none}}
+@media (max-width:760px){
+  .topright{right:calc(64px + env(safe-area-inset-right,0px))}
+  .area{grid-template-columns:34px minmax(0,1fr)}
+  .area button{grid-column:2;justify-self:start}
+  .money{font-size:17px}
+  #toasts{top:calc(126px + env(safe-area-inset-top,0px))}
+}
+@media (max-width:520px){
+  .tok .tl{display:none}
+  .tok{padding:0 8px 0 6px}
+  .goBtn{padding:0 14px;font-size:16px}
+  .counter{bottom:calc(80px + env(safe-area-inset-bottom,0px))}
+  .hint{bottom:calc(136px + env(safe-area-inset-bottom,0px));font-size:14px}
+}
+@media (prefers-reduced-motion:reduce){
+  .fl,.goBtn.ready,.star.on,.confetti,.pop{animation-duration:.01s!important}
+}
+</style>
+</head>
+<body>
+<canvas id="map" tabindex="0" aria-label="Map of the Faroe Islands. Drag from one harbour or helipad to another to draw a route."></canvas>
+<div id="hud">
+  <div class="topleft">
+    <div class="money" id="moneyPill"><span class="coin"></span><b id="budget">0</b><small id="budgetLbl">kr left</small></div>
+    <div class="rate" id="clock">07:00</div>
+    <button id="areaBtn" class="areaBtn" type="button"><b id="lvName">Nólsoy</b><span id="lvDate">3 November</span><span class="go" data-t="map">Map</span></button>
+  </div>
+  <div class="topright">
+    <div class="lang" role="group" aria-label="Language"><button type="button" data-lang="en" aria-pressed="true">EN</button><button type="button" data-lang="fo" aria-pressed="false">FO</button></div>
+    <button id="restartBtn" class="iconBtn" type="button" aria-label="Restart level"><svg viewBox="0 0 24 24"><path d="M4 12a8 8 0 1 0 2.4-5.7"/><path d="M4 4v4.5h4.5"/></svg></button>
+  </div>
+  <div id="toasts"></div>
+  <div class="counter" id="counter"><b id="count">0</b><span id="countUnit">/ 0 delivered</span></div>
+  <div id="hint" class="hint" hidden></div>
+  <div id="floaters"></div>
+</div>
+<div id="dock"><div id="toks"></div><button id="goBtn" class="goBtn" type="button"></button><button id="spdBtn" class="spdBtn" type="button" aria-label="Speed">×1</button></div>
+<div id="pop" class="pop" hidden></div>
+<div id="fade"></div>
+
+<div id="briefWrap" class="modal" hidden><div class="sheet" role="dialog" aria-labelledby="briefTitle"><header><h2 id="briefTitle"></h2><span class="sub" id="briefSub"></span></header><div class="brief" id="brief"></div></div></div>
+<div id="levelsWrap" class="modal" hidden><div class="sheet" role="dialog" aria-labelledby="levelsTitle"><header><h2 id="levelsTitle">Strandferðsla</h2><span class="sub" data-t="span">3 Nov – 12 Mar</span><button class="x" id="levelsClose" aria-label="Close">×</button></header><div id="levels"></div><div class="goal" id="levelsGoal"></div></div></div>
+<div id="winWrap" class="modal" hidden><div class="sheet win" role="dialog" aria-labelledby="winTitle"><div class="trophy"><svg viewBox="0 0 24 24"><path d="M3 15l2 4h14l2-4z"/><path d="M6 15v-4h9l3 4"/><path d="M9 11V8h4v3"/></svg></div><h2 id="winTitle"></h2><div class="stars" id="winStars"></div><ul class="checks" id="winChecks"></ul><div class="btnrow" id="winBtns"></div></div></div>
+
+<script>
+(function(){
+"use strict";
+const $=s=>document.querySelector(s);
+const clamp=(v,a,b)=>Math.max(a,Math.min(b,v)), lerp=(a,b,t)=>a+(b-a)*t, rand=(a,b)=>a+Math.random()*(b-a);
+function hash2(x,y){const s=Math.sin(x*127.1+y*311.7)*43758.5453;return s-Math.floor(s);}
+function vnoise(x,y){const xi=Math.floor(x),yi=Math.floor(y),xf=x-xi,yf=y-yi,u=xf*xf*(3-2*xf),v=yf*yf*(3-2*yf);const a=hash2(xi,yi),b=hash2(xi+1,yi),c=hash2(xi,yi+1),d=hash2(xi+1,yi+1);return a+(b-a)*u+(c-a)*v+(a-b-c+d)*u*v;}
+const reduceMotion=matchMedia('(prefers-reduced-motion: reduce)').matches;
+
+/* ======================= GEOGRAPHY ======================= */
+// Real coordinates (lon, lat), projected to kilometres. Outlines are simplified on purpose.
+const proj=(lon,lat)=>({x:(lon+7.80)*52.3,y:(62.42-lat)*111.2});
+const ISLAND_LL={
+"Streymoy":[[-7.155,62.305],[-7.10,62.285],[-7.06,62.255],[-7.035,62.215],[-7.02,62.19],[-6.99,62.16],[-6.95,62.13],[-6.925,62.115],[-6.88,62.095],[-6.83,62.07],[-6.79,62.045],[-6.765,62.015],[-6.745,61.99],[-6.76,61.965],[-6.79,61.945],[-6.83,61.96],[-6.855,61.98],[-6.90,62.005],[-6.96,62.04],[-7.02,62.085],[-7.07,62.11],[-7.13,62.14],[-7.18,62.16],[-7.21,62.20],[-7.24,62.245],[-7.22,62.28]],
+"Eysturoy":[[-6.95,62.335],[-6.88,62.32],[-6.83,62.285],[-6.81,62.245],[-6.75,62.235],[-6.71,62.215],[-6.69,62.185],[-6.66,62.15],[-6.645,62.11],[-6.67,62.07],[-6.72,62.08],[-6.76,62.11],[-6.79,62.165],[-6.805,62.13],[-6.82,62.10],[-6.86,62.10],[-6.90,62.12],[-6.94,62.145],[-6.98,62.178],[-7.00,62.20],[-7.02,62.235],[-7.045,62.27],[-7.10,62.30],[-7.05,62.33]],
+"Vágar":[[-7.44,62.105],[-7.40,62.125],[-7.33,62.135],[-7.25,62.14],[-7.17,62.13],[-7.115,62.115],[-7.10,62.095],[-7.13,62.07],[-7.17,62.045],[-7.22,62.035],[-7.27,62.04],[-7.32,62.045],[-7.36,62.055],[-7.33,62.064],[-7.305,62.07],[-7.34,62.076],[-7.38,62.08],[-7.43,62.09]],
+"Mykines":[[-7.72,62.11],[-7.68,62.12],[-7.62,62.112],[-7.60,62.10],[-7.64,62.093],[-7.69,62.095]],
+"Nólsoy":[[-6.685,62.02],[-6.665,62.025],[-6.645,62.005],[-6.63,61.975],[-6.65,61.97],[-6.67,61.99],[-6.68,62.005]],
+"Hestur":[[-6.905,61.985],[-6.88,61.98],[-6.87,61.95],[-6.885,61.935],[-6.91,61.95]],
+"Koltur":[[-6.985,62.0],[-6.96,62.0],[-6.955,61.975],[-6.975,61.97],[-6.99,61.985]],
+"Sandoy":[[-6.93,61.885],[-6.89,61.905],[-6.84,61.905],[-6.78,61.885],[-6.72,61.86],[-6.66,61.835],[-6.62,61.815],[-6.66,61.80],[-6.71,61.805],[-6.76,61.80],[-6.80,61.825],[-6.84,61.815],[-6.88,61.82],[-6.93,61.85]],
+"Skúvoy":[[-6.86,61.785],[-6.82,61.79],[-6.80,61.77],[-6.81,61.75],[-6.85,61.755],[-6.875,61.77]],
+"Stóra Dímun":[[-6.765,61.70],[-6.74,61.698],[-6.735,61.682],[-6.755,61.678]],
+"Lítla Dímun":[[-6.72,61.64],[-6.705,61.638],[-6.70,61.628],[-6.715,61.626]],
+"Suðuroy":[[-6.95,61.645],[-6.89,61.645],[-6.85,61.62],[-6.90,61.605],[-6.84,61.595],[-6.80,61.575],[-6.775,61.555],[-6.74,61.53],[-6.76,61.49],[-6.78,61.475],[-6.74,61.45],[-6.70,61.42],[-6.67,61.395],[-6.70,61.39],[-6.76,61.40],[-6.83,61.43],[-6.89,61.47],[-6.93,61.52],[-6.96,61.57],[-6.97,61.61]],
+"Kalsoy":[[-6.81,62.385],[-6.785,62.39],[-6.765,62.33],[-6.735,62.27],[-6.72,62.225],[-6.74,62.22],[-6.765,62.26],[-6.79,62.32]],
+"Kunoy":[[-6.70,62.385],[-6.66,62.39],[-6.645,62.33],[-6.64,62.27],[-6.655,62.235],[-6.675,62.25],[-6.69,62.31]],
+"Borðoy":[[-6.62,62.37],[-6.58,62.37],[-6.555,62.33],[-6.535,62.29],[-6.53,62.25],[-6.52,62.21],[-6.55,62.19],[-6.585,62.215],[-6.61,62.235],[-6.625,62.27],[-6.63,62.32]],
+"Viðoy":[[-6.55,62.40],[-6.50,62.395],[-6.47,62.35],[-6.465,62.30],[-6.49,62.27],[-6.51,62.285],[-6.52,62.33],[-6.535,62.37]],
+"Svínoy":[[-6.37,62.29],[-6.33,62.30],[-6.30,62.28],[-6.32,62.26],[-6.36,62.265]],
+"Fugloy":[[-6.34,62.335],[-6.29,62.35],[-6.24,62.345],[-6.235,62.32],[-6.28,62.32],[-6.33,62.32]]
+};
+const LAKES_LL=[[[-7.255,62.068],[-7.238,62.07],[-7.225,62.05],[-7.232,62.038],[-7.247,62.048]]];
+const ISL=Object.entries(ISLAND_LL).map(([name,pts],i)=>{const P=pts.map(([lo,la])=>proj(lo,la));let x0=1e9,y0=1e9,x1=-1e9,y1=-1e9,cx=0,cy=0;for(const p of P){x0=Math.min(x0,p.x);y0=Math.min(y0,p.y);x1=Math.max(x1,p.x);y1=Math.max(y1,p.y);cx+=p.x;cy+=p.y;}
+  return {name,P,x0,y0,x1,y1,cx:cx/P.length,cy:cy/P.length,seed:i*17.3,halfW:Math.max(0.6,Math.min(x1-x0,y1-y0)*0.32)};});
+const LAKES=LAKES_LL.map(l=>l.map(([lo,la])=>proj(lo,la)));
+function pip(P,x,y){let c=false;for(let i=0,j=P.length-1;i<P.length;j=i++){const a=P[i],b=P[j];if((a.y>y)!==(b.y>y)&&x<(b.x-a.x)*(y-a.y)/(b.y-a.y)+a.x)c=!c;}return c;}
+function landAt(x,y){for(const I of ISL){if(x<I.x0||x>I.x1||y<I.y0||y>I.y1)continue;if(pip(I.P,x,y))return I;}return null;}
+function segDist(px,py,a,b){const dx=b.x-a.x,dy=b.y-a.y,l2=dx*dx+dy*dy||1;let t=((px-a.x)*dx+(py-a.y)*dy)/l2;t=clamp(t,0,1);return Math.hypot(px-a.x-dx*t,py-a.y-dy*t);}
+function edgeDist(P,x,y){let m=1e9;for(let i=0,j=P.length-1;i<P.length;j=i++)m=Math.min(m,segDist(x,y,P[j],P[i]));return m;}
+function coastDist(x,y,lim){let m=lim;for(const I of ISL){if(x<I.x0-lim||x>I.x1+lim||y<I.y0-lim||y>I.y1+lim)continue;m=Math.min(m,edgeDist(I.P,x,y));}return m;}
+
+const NODES={
+ TH:{n:'Tórshavn',lon:-6.766,lat:62.010,H:1,P:1},
+ NO:{n:'Nólsoy',lon:-6.675,lat:62.008,H:1},
+ GA:{n:'Gamlarætt',lon:-6.845,lat:61.973,H:1},
+ HE:{n:'Hestur',lon:-6.878,lat:61.958,H:1,lab:'down'},
+ KO:{n:'Koltur',lon:-6.970,lat:61.986,P:1},
+ SA:{n:'Sandur',lon:-6.805,lat:61.828,H:1},
+ SK:{n:'Skúvoy',lon:-6.806,lat:61.768,H:1,P:1},
+ SD:{n:'Stóra Dímun',lon:-6.750,lat:61.690,P:1},
+ LD:{n:'Lítla Dímun',lon:-6.710,lat:61.633,H:1},
+ TV:{n:'Tvøroyri',lon:-6.776,lat:61.556,H:1,P:1},
+ HV:{n:'Hvalba',lon:-6.893,lat:61.605,H:1},
+ VA:{n:'Vágur',lon:-6.782,lat:61.474,H:1},
+ SO:{n:'Sørvágur',lon:-7.305,lat:62.069,H:1,lab:'down'},
+ VG:{n:'Vágar airport',fo:'Vága floghavn',lon:-7.272,lat:62.066,P:1,lab:'up'},
+ MY:{n:'Mykines',lon:-7.643,lat:62.099,H:1,P:1},
+ KL:{n:'Klaksvík',lon:-6.586,lat:62.217,H:1,P:1},
+ SY:{n:'Syðradalur',lon:-6.723,lat:62.238,H:1},
+ HS:{n:'Hvannasund',lon:-6.511,lat:62.288,H:1,lab:'up'},
+ SV:{n:'Svínoy',lon:-6.352,lat:62.268,H:1,P:1},
+ KI:{n:'Kirkja',lon:-6.315,lat:62.322,H:1,P:1,lab:'up'},
+ HA:{n:'Hattarvík',lon:-6.257,lat:62.326,H:1}
+};
+for(const k in NODES){const p=proj(NODES[k].lon,NODES[k].lat);NODES[k].x=p.x;NODES[k].y=p.y;NODES[k].id=k;}
+const ll=(lon,lat)=>proj(lon,lat);
+
+/* ======================= VESSELS & CARGO ======================= */
+const KIND={
+ ferry:{cap:8,spd:0.42,carries:'pcsm',sea:true,base:40,perKm:6,col:'#2c5597',names:['Teistin','Smyril','Sam','Ritan']},
+ boat:{cap:6,spd:0.52,carries:'pm',sea:true,base:25,perKm:3.5,col:'#d9493a',names:['Ternan','Sildberin','Jósup','Spógvin']},
+ heli:{cap:4,spd:1.3,carries:'pm',sea:false,base:70,perKm:5,col:'#352f45',names:['Tyrlan','Tyrla 2','Tyrla 3']}
+};
+const KINDS=['ferry','boat','heli'];
+const SIZE={p:1,m:1,c:2,s:2};
+const DEST_COLS=['#f0b23a','#5f9a4a','#8d5f86','#2f8f8a','#ef8a5a','#6b4fa0','#b07a2a','#4a90c8','#d0607a','#7d8a3a'];
+const routeCost=(kind,len)=>Math.round(KIND[kind].base+KIND[kind].perKm*len);
+
+/* ======================= LEVELS ======================= */
+// demand: [type, from, to, count, releaseMinute]; par: the reference solution used to set budget and target time.
+const LEVELS=[
+ {name:'Nólsoy',date:'3 November',dateFo:'3. november',nodes:['TH','NO'],fleet:{boat:1},
+  demand:[['p','TH','NO',6],['p','NO','TH',4]],par:[['boat',['TH','NO']]],
+  teach:'Drag from one harbour to another to draw a route. Your boat shuttles along it by itself.',
+  teachFo:'Drag frá einari havn til aðra fyri at tekna eina leið. Báturin siglir aftur og fram sjálvur.',
+  tag:'Your first route',tagFo:'Fyrsta leiðin',
+  fact:'Nólsoy shelters Tórshavn’s harbour from the open sea. Ferry route 90 crosses in about half an hour.',
+  factFo:'Nólsoy skýlir Havnini móti opna havinum. Leið 90 siglir yvir á umleið hálvan tíma.'},
+ {name:'Hestur',date:'6 November',dateFo:'6. november',nodes:['TH','GA','HE','KO'],fleet:{boat:1,heli:1},
+  demand:[['p','GA','HE',5],['p','HE','GA',3],['p','TH','KO',3],['p','KO','TH',2]],par:[['boat',['GA','HE']],['heli',['TH','KO']]],
+  teach:'Helicopters fly straight over land, but only between helipads (H). Pick one in the dock below, then draw.',
+  teachFo:'Tyrlan flýgur beint yvir land, men bert millum tyrlupallar (H). Vel hana niðri og tekna so.',
+  tag:'New: helicopters',tagFo:'Nýtt: tyrlur',
+  fact:'Ferry route 61 links Gamlarætt and Hestur. There are no rats on Koltur, and islanders ask visitors to help keep it that way.',
+  factFo:'Leið 61 bindur Gomlurætt og Hest saman. Eingin rotta er í Koltri, og fólk biðja gestir hjálpa at halda tað soleiðis.'},
+ {name:'Skúvoy',date:'10 November',dateFo:'10. november',nodes:['SA','SK'],fleet:{ferry:1,boat:1},
+  demand:[['c','SA','SK',4],['s','SK','SA',6],['p','SA','SK',4],['p','SK','SA',2]],par:[['ferry',['SA','SK']],['boat',['SA','SK']]],
+  teach:'Crates and sheep only fit on the car ferry. Boats and helicopters take passengers and mail.',
+  teachFo:'Kassar og seyðir sleppa bert við bilferjuni. Bátar og tyrlur taka ferðafólk og post.',
+  tag:'New: crates and sheep',tagFo:'Nýtt: kassar og seyðir',
+  fact:'Skúvoy is named after the great skua, skúgvur. The little ferry Sildberin sails from Sandur in about 35 minutes.',
+  factFo:'Skúvoy hevur navn eftir skúgvinum. Lítla ferjan Sildberin siglir úr Sandi á umleið 35 minuttum.'},
+ {name:'Mykines',date:'13 November',dateFo:'13. november',nodes:['SO','VG','MY'],fleet:{boat:1,heli:1},
+  demand:[['p','SO','MY',4],['p','MY','SO',4],['m','VG','MY',3],['p','VG','MY',2],['m','MY','VG',1]],par:[['boat',['SO','MY']],['heli',['VG','MY']]],
+  fogs:[{lon:-7.47,lat:62.035,rx:5,ry:3.2,vx:0,vy:-0.035,t0:25,t1:190}],
+  teach:'Mail fits on anything. Fog grounds helicopters and slows boats down, so keep an eye on the sky.',
+  teachFo:'Postur sleppur við øllum. Mjørki forðar tyrluni og seinkar bátunum, so hav eyga við veðrinum.',
+  tag:'New: mail and fog',tagFo:'Nýtt: postur og mjørki',
+  fact:'Mykines is known for its puffins and is one of the islands with no rats. Ferry route 36 sails there from Sørvágur.',
+  factFo:'Mykines er kend fyri lunda og er ein av oyggjunum uttan rottur. Leið 36 siglir hagar úr Sørvági.'},
+ {name:'Svínoy & Fugloy',nameFo:'Svínoy og Fugloy',date:'17 November',dateFo:'17. november',nodes:['KL','HS','SV','KI','HA'],fleet:{ferry:1,heli:1},
+  demand:[['c','HS','SV',2],['c','HS','KI',2],['p','HS','HA',3],['p','SV','HS',2],['p','KI','SV',1],['m','KL','HA',2],['p','KL','SV',2]],
+  par:[['ferry',['HS','SV','KI','HA']],['heli',['KL','SV','KI']]],
+  teach:'Drag through several harbours to make a route with many stops. Cargo can change vessels where two routes meet.',
+  teachFo:'Drag gjøgnum fleiri havnir fyri at gera eina leið við fleiri steðgum. Farmur kann skifta far, har leiðir møtast.',
+  tag:'New: multi-stop routes',tagFo:'Nýtt: leiðir við fleiri steðgum',
+  fact:'Ritan sails route 58: Hvannasund to Svínoy takes 30 minutes, then 15 more to Kirkja and 10 to Hattarvík.',
+  factFo:'Ritan siglir leið 58: 30 minuttir úr Hvannasundi til Svínoyar, so 15 til Kirkju og 10 aftrat til Hattarvíkar.'},
+ {name:'Kalsoy',date:'21 November',dateFo:'21. november',nodes:['KL','SY'],fleet:{ferry:1,boat:1},
+  demand:[['c','KL','SY',4],['s','SY','KL',5],['p','KL','SY',4],['p','SY','KL',4],['m','KL','SY',2],['p','KL','SY',3,150]],
+  par:[['ferry',['KL','SY']],['boat',['KL','SY']]],
+  storms:[{lon:-6.66,lat:62.215,rx:3.6,ry:2.6,warn:35,t0:60,t1:115}],
+  teach:'Storms are forecast before they hit. Vessels wait in harbour rather than sail into one. Afternoon passengers arrive at 09:30.',
+  teachFo:'Stormur verður boðaður frammanundan. Førini bíða í havn heldur enn at sigla inn í hann. Seinnapartsfólk koma kl. 09:30.',
+  tag:'New: storms',tagFo:'Nýtt: stormur',
+  fact:'Ferry route 56 crosses from Klaksvík to Syðradalur in about 20 minutes. Kallur lighthouse stands at Kalsoy’s northern tip.',
+  factFo:'Leið 56 siglir úr Klaksvík til Syðradals á umleið 20 minuttum. Vitin við Kall stendur norðast á Kalsoynni.'},
+ {name:'Suðuroy',date:'25 November',dateFo:'25. november',nodes:['TH','TV','HV','VA'],fleet:{ferry:1,boat:1,heli:1},
+  demand:[['c','TH','TV',3],['c','TH','VA',2],['p','TH','TV',4],['p','TV','TH',4],['p','HV','TH',2],['m','TH','HV',2],['m','TH','TV',2]],
+  par:[['ferry',['TH','TV','VA']],['boat',['HV','TV']],['heli',['TH','TV']]],
+  storms:[{lon:-6.80,lat:61.76,rx:8,ry:5.5,warn:80,t0:110,t1:175}],
+  teach:'The open crossing to Suðuroy is long, and a storm is coming through the middle of the day. Plan around it.',
+  teachFo:'Leiðin yvir til Suðuroyar er long, og ein stormur kemur um miðjan dagin. Ætla teg eftir honum.',
+  tag:'The long crossing',tagFo:'Langa leiðin',
+  fact:'Smyril, Faroese for merlin, is the largest ferry in the fleet. Tórshavn to Krambatangi takes about two hours.',
+  factFo:'Smyril er størsta ferjan í flotanum. Ferðin úr Havn til Krambatanga tekur umleið tveir tímar.'},
+ {name:'Dímun',date:'29 November',dateFo:'29. november',nodes:['SA','SK','SD','LD','TV'],fleet:{ferry:1,boat:1,heli:1},
+  demand:[['s','LD','SA',6],['p','SA','SK',2],['m','TV','SD',2],['p','SD','SK',1],['p','SK','SA',2],['c','SA','SK',2]],
+  par:[['ferry',['SK','SA','LD']],['boat',['SA','SK']],['heli',['TV','SD','SK']]],
+  breaks:[{at:50,kind:'ferry',dur:45}],
+  teach:'Sometimes a sailing is cancelled for repairs. Have a plan B. Stóra Dímun can only be reached by helicopter.',
+  teachFo:'Onkuntíð verður ein ferð avlýst vegna umvæling. Hav eina aðra ætlan. Stóra Dímun røkkur bert tyrlan.',
+  tag:'New: cancelled sailings',tagFo:'Nýtt: avlýstar ferðir',
+  fact:'The helicopter is Stóra Dímun’s regular link to the other islands. Lítla Dímun is uninhabited, but its sheep are gathered every autumn.',
+  factFo:'Tyrlan er vanliga sambandið hjá Stóru Dímun. Lítla Dímun er óbygd, men seyðurin har verður savnaður hvørt heyst.'},
+ {name:'Tórshavn',date:'4 December',dateFo:'4. desember',nodes:['TH','NO','GA','HE','SA','SK','SD'],fleet:{ferry:1,boat:2,heli:1},
+  demand:[['p','TH','NO',4],['p','NO','TH',3],['c','TH','NO',2],['p','GA','HE',3],['p','HE','GA',2],['c','TH','SK',2],['p','TH','SA',2],['p','SK','TH',2],['m','TH','SD',2],['p','SD','TH',1],['m','TH','SK',1],['p','TH','NO',3,180]],
+  par:[['ferry',['NO','TH','SA','SK']],['boat',['GA','HE']],['boat',['TH','NO']],['heli',['TH','SD','SK']]],
+  fogs:[{lon:-6.70,lat:62.03,rx:3.5,ry:2.4,vx:-0.02,vy:0,t0:10,t1:110}],
+  storms:[{lon:-6.84,lat:61.90,rx:5,ry:3,warn:110,t0:130,t1:180}],
+  breaks:[{at:80,kind:'boat',dur:30}],
+  teach:'Everything at once: fog in the morning, a storm after lunch and a boat that needs repairs. Good luck, skipari!',
+  teachFo:'Alt í senn: mjørki á morgni, stormur eftir døgurða og ein bátur, ið skal umvølast. Góða eydnu, skipari!',
+  tag:'Everything at once',tagFo:'Alt í senn',
+  fact:'Strandfaraskip Landsins, known as Strandferðslan, was founded in 1917 when the government took over the ferry Smiril.',
+  factFo:'Strandfaraskip Landsins, ella Strandferðslan, varð stovnað í 1917, tá ið landið yvirtók ferjuna Smiril.'},
+ {name:'Jólapostur',date:'20 December',dateFo:'20. desember',nodes:['TH','NO','MY','KL','SV','KI','SK','SD','TV'],fleet:{ferry:1,boat:1,heli:2},snow:true,
+  demand:[['m','TH','MY',2],['m','TH','KL',1],['m','TH','SV',2],['m','TH','KI',2],['m','TH','SK',1],['m','TH','SD',2],['m','TH','TV',2],['m','TH','NO',2],['c','TH','NO',2],['c','TH','TV',3],['p','TH','KL',2],['p','KL','TH',2],['p','TV','TH',2],['p','MY','TH',1]],
+  par:[['ferry',['NO','TH','TV']],['heli',['MY','TH','KL','SV','KI']],['heli',['TH','SK','SD','TV']]],
+  fogs:[{lon:-6.42,lat:62.25,rx:5,ry:4,vx:0,vy:0.02,t0:40,t1:180}],
+  storms:[{lon:-6.80,lat:61.73,rx:7,ry:5,warn:100,t0:120,t1:170}],
+  teach:'The Christmas mail has to reach every island. Helicopters are your friends today.',
+  teachFo:'Jólapostur skal út á hvørja oyggj. Tyrlurnar eru tínir bestu vinir í dag.',
+  tag:'Christmas mail run',tagFo:'Jólapostur',
+  fact:'The government subsidises the helicopter service to give people on the outer islands a regular link to the rest of the country.',
+  factFo:'Landið veitir stuðul til tyrlusambandið, so fólk á útoyggjunum hava fast samband við restina av landinum.',win:'Gleðilig jól!',winFo:'Gleðilig jól!'},
+ {name:'Nýggjár',date:'1 January',dateFo:'1. januar',nodes:['TH','NO','GA','HE','KO'],fleet:{boat:2,heli:1},
+  demand:[['p','NO','TH',5],['p','TH','NO',3],['p','HE','GA',4],['p','GA','HE',2],['p','KO','TH',2],['p','TH','KO',1],['m','TH','NO',2],['p','NO','TH',4,120],['p','HE','GA',3,150]],
+  par:[['boat',['TH','NO']],['boat',['GA','HE']],['heli',['TH','KO']]],
+  fogs:[{lon:-6.72,lat:62.0,rx:2.8,ry:2,vx:0.01,vy:0,t0:15,t1:130}],
+  teach:'Some people only turn up later in the day. Faint cargo at a harbour is still on its way, so leave room for it.',
+  teachFo:'Summi koma ikki fyrr enn seinni á degnum. Bleikur farmur við eina havn er enn á veg, so goym pláss til hann.',
+  tag:'Second waves',tagFo:'Seinni bylgjur',
+  fact:'Nólsoyar Páll, the national hero who fought the Danish trade monopoly, was born on Nólsoy in 1766.',
+  factFo:'Nólsoyar Páll, tjóðarhetjan, ið stríddist ímóti einahandlinum, varð føddur í Nólsoy í 1766.'},
+ {name:'Vágar',date:'9 January',dateFo:'9. januar',nodes:['SO','VG','MY','TH','KO'],fleet:{boat:1,heli:2},
+  demand:[['p','VG','TH',4],['p','TH','VG',3],['m','VG','MY',3],['p','SO','MY',3],['p','MY','SO',2],['m','TH','KO',2],['p','VG','KO',1]],
+  par:[['heli',['VG','TH','KO']],['heli',['VG','MY']],['boat',['SO','MY']]],
+  fogs:[{lon:-7.47,lat:62.10,rx:4.5,ry:3,vx:0,vy:0,t0:30,t1:150},{lon:-7.05,lat:62.06,rx:4,ry:3,vx:0.02,vy:0,t0:110,t1:230}],
+  teach:'Two helicopters today, and two fog banks. Keep one helicopter flying while the other waits.',
+  teachFo:'Tvær tyrlur í dag, og tveir mjørkaflókar. Lat eina tyrlu flúgva, meðan hin bíðar.',
+  tag:'Two fog banks',tagFo:'Tveir mjørkaflókar',
+  fact:'Vágar Airport was built by British Royal Engineers during the Second World War and reopened as a civilian airport in 1963.',
+  factFo:'Vága floghavn varð bygd av bretskum hermonnum undir seinna heimskríggi og latin upp aftur sum borgarlig floghavn í 1963.'},
+ {name:'Norðoyggjar',date:'17 January',dateFo:'17. januar',nodes:['KL','SY','HS','SV','KI','HA'],fleet:{ferry:2,heli:1},
+  demand:[['c','KL','SY',3],['s','SY','KL',4],['p','KL','SY',2],['c','HS','SV',2],['c','HS','HA',2],['p','SV','KL',2],['m','KL','KI',2],['p','HA','HS',2],['p','KI','KL',1]],
+  par:[['ferry',['KL','SY']],['ferry',['HS','SV','KI','HA']],['heli',['KL','SV','KI']]],
+  storms:[{lon:-6.66,lat:62.215,rx:3.6,ry:2.6,warn:40,t0:60,t1:100},{lon:-6.42,lat:62.29,rx:4,ry:3,warn:130,t0:150,t1:200}],
+  teach:'All of Norðoyggjar at once, with two storms. Two car ferries share the work.',
+  teachFo:'Allar Norðoyggjar í senn, við tveimum stormum. Tvær bilferjur deila arbeiðið.',
+  tag:'Two storms',tagFo:'Tveir stormar',
+  fact:'Klaksvík, the second-largest town in the Faroes, sits between two inlets that lie back to back.',
+  factFo:'Klaksvík, næststørsti býurin í Føroyum, liggur millum tvær víkar, ið venda bakið hvør í aðra.'},
+ {name:'Akraberg',date:'28 January',dateFo:'28. januar',nodes:['TH','SA','SK','SD','LD','TV','HV','VA'],fleet:{ferry:2,boat:1,heli:1},
+  demand:[['c','TH','TV',3],['c','TH','VA',2],['p','TV','TH',3],['s','LD','TV',4],['s','LD','SA',2],['p','HV','TV',2],['m','TH','SD',2],['p','SK','SA',2],['p','SA','TH',2],['m','TH','HV',2]],
+  par:[['ferry',['TH','TV','VA']],['ferry',['SA','SK','LD','TV']],['boat',['HV','TV']],['heli',['TH','SD','TV']]],
+  storms:[{lon:-6.80,lat:61.74,rx:6,ry:4,warn:170,t0:200,t1:260}],
+  breaks:[{at:90,kind:'ferry',dur:50}],
+  teach:'Every corner of the south. One ferry breaks down mid-morning, and a storm closes the crossing later.',
+  teachFo:'Øll Suðuroy og oyggjarnar uttanum. Ein ferja bilar um formiddagin, og ein stormur stongir leiðina seinni.',
+  tag:'The whole south',tagFo:'Alt suðuri',
+  fact:'Akraberg lighthouse, built in 1909, stands at the southern tip of Suðuroy, the southernmost island.',
+  factFo:'Vitin á Akrabergi varð bygdur í 1909 og stendur sunnast á Suðuroynni, sunnastu oynni.'},
+ {name:'Stormavika',date:'10 February',dateFo:'10. februar',nodes:['TH','NO','SO','MY','KL','SV','SA','TV'],fleet:{ferry:1,boat:2,heli:2},
+  demand:[['p','MY','TH',2],['m','TH','MY',2],['p','SO','MY',2],['p','KL','TH',3],['m','TH','SV',2],['c','TH','NO',2],['c','TH','SA',2],['c','TH','TV',2],['p','TV','TH',3],['p','NO','TH',3],['p','SV','KL',1]],
+  par:[['heli',['MY','TH','KL','SV']],['heli',['TH','TV']],['ferry',['NO','TH','SA','TV']],['boat',['SO','MY']],['boat',['TH','NO']]],
+  storms:[{lon:-7.48,lat:62.08,rx:4,ry:3,warn:30,t0:50,t1:110},{lon:-6.80,lat:61.75,rx:7,ry:5,warn:110,t0:140,t1:220},{lon:-6.45,lat:62.25,rx:5,ry:4,warn:200,t0:230,t1:300}],
+  teach:'Three storms sweep across the islands one after another. Route around them, or wait them out.',
+  teachFo:'Tríggir stormar fara yvir oyggjarnar hvør eftir øðrum. Sigl uttan um teir ella bíða.',
+  tag:'Three storms',tagFo:'Tríggir stormar',
+  fact:'Hvalba in northern Suðuroy has the only coal mine in the Faroe Islands.',
+  factFo:'Í Hvalba norðast í Suðuroy er einasta kolanámið í Føroyum.'},
+ {name:'Grækarismessa',date:'12 March',dateFo:'12. mars',nodes:['TH','NO','MY','SO','KL','SY','SV','SK','SD','TV'],fleet:{ferry:2,boat:2,heli:2},
+  demand:[['c','TH','NO',2],['p','NO','TH',3],['p','SO','MY',3],['m','TH','MY',2],['c','KL','SY',3],['s','SY','KL',3],['m','TH','SV',2],['p','SV','KL',2],['m','TH','SD',2],['p','SK','TH',2],['c','TH','TV',3],['p','TV','TH',3],['p','TH','KL',2],['p','NO','TH',3,200],['p','TV','TH',2,240]],
+  par:[['ferry',['NO','TH','TV']],['ferry',['KL','SY']],['boat',['SO','MY']],['boat',['TH','NO']],['heli',['MY','TH','KL','SV']],['heli',['TH','SK','SD']]],
+  fogs:[{lon:-6.45,lat:62.27,rx:5,ry:4,vx:0,vy:0.015,t0:60,t1:200}],
+  storms:[{lon:-6.80,lat:61.75,rx:7,ry:5,warn:130,t0:150,t1:210}],
+  breaks:[{at:120,kind:'boat',dur:40}],
+  teach:'The tjaldur is back. One last big day across every island, with fog, a storm and a breakdown.',
+  teachFo:'Tjaldrið er komið aftur. Ein seinasti stórur dagur um allar oyggjarnar, við mjørka, stormi og bilaðum fari.',
+  tag:'Grand finale',tagFo:'Stóri endin',win:'Season complete!',winFo:'Árstíðin er liðug!',
+  fact:'On 12 March, Grækarismessa, the Faroese celebrate the return of the oystercatcher, tjaldur, the national bird.',
+  factFo:'Á Grækarismessu, 12. mars, halda føroyingar fagnað fyri, at tjaldrið, tjóðarfuglurin, er komið aftur.'}
+];
+for(const L of LEVELS){
+  L.fogs=(L.fogs||[]).map(f=>Object.assign({},f,ll(f.lon,f.lat)));
+  L.storms=(L.storms||[]).map(s=>Object.assign({},s,ll(s.lon,s.lat)));
+  L.breaks=L.breaks||[];
+  L.col={};L.nodes.forEach((n,i)=>L.col[n]=DEST_COLS[i%DEST_COLS.length]);
+  L.total=L.demand.reduce((a,d)=>a+d[3],0);
+}
+
+/* ======================= TEXT ======================= */
+const TX={
+ en:{map:'Map',left:'kr left',over:'kr over',target:'target',delivered:'delivered',go:'Set sail!',pause:'Pause',resume:'Resume',
+  ferry:'Car ferry',boat:'Boat',heli:'Helicopter',span:'3 Nov – 12 Mar',
+  overLand:'Ferries can’t sail over land',overLandS:'Draw around the island',noHarbour:'No harbour here',noPad:'No helipad here',noneLeft:k=>`No ${k.toLowerCase()} left`,noneLeftS:'Tap a route to remove it and free a vessel',tooShort:'Drag on to another harbour',tooShortPad:'Drag on to another helipad',
+  fog:'Fog rolling in',fogS:'Helicopters can’t fly in it, and boats slow down',storm:t=>`Storm warning for ${t}`,stormS:'Vessels will wait in harbour rather than sail into it',stormNow:'The storm has arrived',stormEnd:'The storm has passed',
+  brk:(n,m)=>`Sailing cancelled: ${n} needs repairs`,brkS:m=>`Back in service in ${m} minutes`,fixed:n=>`${n} is back in service`,
+  aboard:'Aboard',status:'Status',sailing:'Sailing',docked:'In harbour',idle:'Waiting for cargo',holdStorm:'Waiting out the storm',holdFog:'Grounded by fog',broken:'Under repair',
+  remove:r=>`Remove route · +${r} kr`,waiting:'Waiting here',nothing:'Nobody waiting',harbour:'Harbour',helipad:'Helipad',later:t=>`more at ${t}`,
+  p:'passengers',c:'crates',s:'sheep',m:'mail',
+  deliver:'Deliver',fleet:'Fleet',budget:'Budget',targetL:'Target',watch:'Watch for',none:'Calm seas',fogW:'fog',stormW:'storm',brkW:'cancelled sailing',
+  plan:'Plan routes',play:'Play',replay:'Replay',next:'Next',locked:'Locked',here:'Playing',levels:'Levels',
+  winT:'All delivered!',winFinal:'Gleðilig jól!',chk1:'Everything delivered',chk2:(s,b)=>`Under budget (${s} of ${b} kr)`,chk3:(f,t)=>`Done by ${t} (finished ${f})`,
+  goal:n=>`Every route earns up to three stars: deliver everything, stay under budget, and finish by the target time. ${n} of ${LEVELS.length*3} stars so far.`,
+  hint1:'Drag from Tórshavn to Nólsoy',hint1s:'Your boat will shuttle back and forth along the route',hint2:'Press Set sail! to start the day',hint2s:'Building is free until you set sail. Removing a route after that refunds half.',
+  heliHint:'Pick the helicopter, then drag between two H pads',
+  takk:'Takk!',baa:'Baa!',post:'Post!',crate:'Komið!',free:'free',fullRefund:'Free to change until you set sail',
+  removed:r=>`Route removed · +${r} kr`,stranded:(n,w,f,t)=>`${n} ${w} at ${f} can’t reach ${t}`,strandedFerry:'Crates and sheep only travel by car ferry. Tap a route to remove it, then redraw.',strandedAny:'No route connects them yet. Tap a route to remove it, then redraw.',noRoute:'No route can carry this yet',needRoute:'Draw a route first',overLandShort:'Over land!',lastLeg:n=>`The last leg crossed land, so the route ends at ${n}`},
+ fo:{map:'Kort',left:'kr eftir',over:'kr ov nógv',target:'mál',delivered:'flutt',go:'Avstað!',pause:'Steðga',resume:'Halt fram',
+  ferry:'Bilferja',boat:'Bátur',heli:'Tyrla',span:'3. nov – 12. mar',
+  overLand:'Ferjur kunnu ikki sigla yvir land',overLandS:'Tekna uttan um oynna',noHarbour:'Eingin havn her',noPad:'Eingin tyrlupallur her',noneLeft:k=>`Eingin ${k.toLowerCase()} eftir`,noneLeftS:'Trýst á eina leið fyri at strika hana',tooShort:'Drag víðari til eina aðra havn',tooShortPad:'Drag víðari til ein annan tyrlupall',
+  fog:'Mjørki kemur',fogS:'Tyrlan kann ikki flúgva í honum, og bátarnir sigla seinni',storm:t=>`Stormávaring kl. ${t}`,stormS:'Førini bíða í havn heldur enn at sigla inn í stormin',stormNow:'Stormurin er komin',stormEnd:'Stormurin er farin um',
+  brk:(n,m)=>`Ferð avlýst: ${n} skal umvølast`,brkS:m=>`Aftur í gongd um ${m} minuttir`,fixed:n=>`${n} er aftur í gongd`,
+  aboard:'Umborð',status:'Støða',sailing:'Á veg',docked:'Í havn',idle:'Bíðar eftir farmi',holdStorm:'Bíðar eftir at stormurin fer um',holdFog:'Kann ikki flúgva í mjørka',broken:'Verður umvæld',
+  remove:r=>`Strika leið · +${r} kr`,waiting:'Bíða her',nothing:'Eingin bíðar',harbour:'Havn',helipad:'Tyrlupallur',later:t=>`fleiri kl. ${t}`,
+  p:'ferðafólk',c:'kassar',s:'seyðir',m:'postur',
+  deliver:'Flyt',fleet:'Flotin',budget:'Peningar',targetL:'Mál',watch:'Varska',none:'Stilli',fogW:'mjørki',stormW:'stormur',brkW:'avlýst ferð',
+  plan:'Ætla leiðir',play:'Spæl',replay:'Royn aftur',next:'Næsta',locked:'Læst',here:'Í gongd',levels:'Leiðir',
+  winT:'Alt er komið fram!',winFinal:'Gleðilig jól!',chk1:'Alt er komið fram',chk2:(s,b)=>`Innan fyri peningarnar (${s} av ${b} kr)`,chk3:(f,t)=>`Liðugt áðrenn ${t} (tú: ${f})`,
+  goal:n=>`Hvør leið gevur upp í tríggjar stjørnur: flyt alt, hald teg innan fyri peningarnar og ver liðugur áðrenn málið. ${n} av ${LEVELS.length*3} stjørnum higartil.`,
+  hint1:'Drag frá Havn til Nólsoyar',hint1s:'Báturin siglir aftur og fram eftir leiðini',hint2:'Trýst á Avstað! fyri at byrja dagin',hint2s:'Tað er ókeypis at byggja, til tú leggur frá. Eftir tað fært tú helvtina aftur.',
+  heliHint:'Vel tyrluna og drag so millum tveir H-pallar',
+  takk:'Takk!',baa:'Mææ!',post:'Postur!',crate:'Komið!',free:'ókeypis',fullRefund:'Ókeypis at broyta, til tú leggur frá',
+  removed:r=>`Leið strikað · +${r} kr`,stranded:(n,w,f,t)=>`${n} ${w} frá ${f} sleppa ikki til ${t}`,strandedFerry:'Kassar og seyðir sleppa bert við bilferju. Trýst á eina leið fyri at strika hana og tekna so aftur.',strandedAny:'Eingin leið bindur tey saman enn. Trýst á eina leið fyri at strika hana og tekna so aftur.',noRoute:'Eingin leið kann flyta hetta enn',needRoute:'Tekna eina leið fyrst',overLandShort:'Yvir land!',lastLeg:n=>`Seinasta strekkið fór yvir land, so leiðin endar í ${n}`}
+};
+let LANG=(/^fo\b/i.test(navigator.language||'')?'fo':'en');
+const tr=k=>(TX[LANG]||TX.en)[k];
+const nodeName=id=>(LANG==='fo'&&NODES[id].fo)||NODES[id].n;
+const lvName=L=>(LANG==='fo'&&L.nameFo)||L.name;
+const fmtClock=t=>{const m=Math.floor(7*60+t);return String(Math.floor(m/60)%24).padStart(2,'0')+':'+String(m%60).padStart(2,'0')+(m>=1440?' (+1)':'');};
+
+/* ======================= POLYLINES ======================= */
+function polyLen(P){let s=0;for(let i=1;i<P.length;i++)s+=Math.hypot(P[i].x-P[i-1].x,P[i].y-P[i-1].y);return s;}
+function pointAt(P,d){for(let i=1;i<P.length;i++){const a=P[i-1],b=P[i],l=Math.hypot(b.x-a.x,b.y-a.y);if(d<=l||i===P.length-1){const t=l?clamp(d/l,0,1):0;return {x:a.x+(b.x-a.x)*t,y:a.y+(b.y-a.y)*t,ang:Math.atan2(b.y-a.y,b.x-a.x)};}d-=l;}return {x:P[0].x,y:P[0].y,ang:0};}
+function samples(P,step){const out=[];const L=polyLen(P);for(let d=0;d<=L;d+=step)out.push(pointAt(P,d));out.push(P[P.length-1]);return out;}
+function rdp(P,eps){if(P.length<3)return P.slice();let m=0,idx=0;const a=P[0],b=P[P.length-1];for(let i=1;i<P.length-1;i++){const d=segDist(P[i].x,P[i].y,a,b);if(d>m){m=d;idx=i;}}
+  if(m>eps){const l=rdp(P.slice(0,idx+1),eps),r=rdp(P.slice(idx),eps);return l.slice(0,-1).concat(r);}return [a,b];}
+function overLand(P,a,b,ex){const EX=ex||0.85;for(const s of samples(P,0.2)){if(Math.hypot(s.x-a.x,s.y-a.y)<EX||Math.hypot(s.x-b.x,s.y-b.y)<EX)continue;if(landAt(s.x,s.y))return true;}return false;}
+function makeRoute(kind,stops,segs,id){
+  const segsR=segs.map(s=>s.slice().reverse());const lens=segs.map(polyLen);const len=lens.reduce((a,b)=>a+b,0);
+  return {id,kind,stops,segs,segsR,lens,len,cost:routeCost(kind,len)};
+}
+
+/* ======================= SIMULATION ======================= */
+// Pure, deterministic; the game runs one and the par solver runs another to set targets.
+function Sim(L,opt){
+  opt=opt||{};const ev=opt.ev||{};
+  const S={t:0,items:[],vessels:[],routes:[],done:false,finish:null,delivered:0};
+  const cache=new Map();
+  let iid=0,vid=0;
+  for(const [type,from,to,n,at] of L.demand)for(let i=0;i<n;i++)S.items.push({id:iid++,type,from,to,at:at||0,node:from,state:(at||0)>0?'pending':'wait',v:null,alight:null});
+  const fogs=L.fogs.map(f=>Object.assign({},f,{began:false})),storms=L.storms.map(s=>Object.assign({},s,{warned:false,began:false,ended:false})),breaks=L.breaks.map(b=>Object.assign({},b,{fired:false}));
+  S.fogs=fogs;S.storms=storms;
+  const fogI=(f,t)=>t<f.t0||t>f.t1?0:Math.min(1,(t-f.t0)/25,(f.t1-t)/25);
+  const fogC=(f,t)=>({x:f.x+f.vx*Math.max(0,t-f.t0),y:f.y+f.vy*Math.max(0,t-f.t0)});
+  S.fogI=fogI;S.fogC=fogC;
+  function inFog(x,y){for(const f of fogs){const I=fogI(f,S.t);if(I<0.35)continue;const c=fogC(f,S.t);if(((x-c.x)/f.rx)**2+((y-c.y)/f.ry)**2<1)return true;}return false;}
+  const stormOn=s=>S.t>=s.t0&&S.t<s.t1;
+  function inStorm(x,y){for(const s of storms){if(!stormOn(s))continue;if(((x-s.x)/s.rx)**2+((y-s.y)/s.ry)**2<1)return true;}return false;}
+  function dist(dest,type){const key=dest+type;let D=cache.get(key);if(D)return D;
+    const adj={};for(const r of S.routes){if(!KIND[r.kind].carries.includes(type))continue;for(const a of r.stops){adj[a]=adj[a]||new Set();for(const b of r.stops)if(a!==b)adj[a].add(b);}}
+    D=new Map([[dest,0]]);const q=[dest];while(q.length){const a=q.shift();for(const b of (adj[a]||[]))if(!D.has(b)){D.set(b,D.get(a)+1);q.push(b);}}
+    cache.set(key,D);return D;}
+  function boardTarget(it,r,node){if(!KIND[r.kind].carries.includes(it.type))return null;const D=dist(it.to,it.type);let best=D.has(node)?D.get(node):Infinity,bs=null;
+    for(const s of r.stops){if(s===node)continue;const d=D.has(s)?D.get(s):Infinity;if(d<best||(d===best&&bs!==null&&s===it.to)){best=d;bs=s;}}return bs;}
+  const loadSize=v=>v.load.reduce((a,i)=>a+SIZE[i.type],0);
+  function unloadAt(v,node){let n=0;for(const it of v.load.slice()){if(it.to===node){it.state='done';it.node=node;it.v=null;v.load.splice(v.load.indexOf(it),1);S.delivered++;n++;ev.deliver&&ev.deliver(it,node,v);}
+      else if(it.alight===node){it.state='wait';it.node=node;it.v=null;it.alight=null;v.load.splice(v.load.indexOf(it),1);n++;}}return n;}
+  function loadAt(v,node){const K=KIND[v.kind];let used=loadSize(v),n=0;
+    for(const it of S.items){if(it.state!=='wait'||it.node!==node)continue;if(used+SIZE[it.type]>K.cap)continue;const tg=boardTarget(it,v.r,node);if(tg==null)continue;
+      it.state='aboard';it.v=v;it.alight=tg===it.to?null:tg;v.load.push(it);used+=SIZE[it.type];n++;}return n;}
+  function workStops(r){const out=[];r.stops.forEach((s,k)=>{for(const it of S.items)if(it.state==='wait'&&it.node===s&&boardTarget(it,r,s)!=null){out.push(k);break;}});return out;}
+  function leg(r,a,b){return b>a?r.segs[a]:r.segsR[b];}
+  function blocked(v,P){const K=KIND[v.kind];const sm=samples(P,0.5);
+    if(storms.some(stormOn)&&sm.some(p=>inStorm(p.x,p.y)))return 'storm';
+    if(!K.sea&&(inFog(v.x,v.y)||sm.some(p=>inFog(p.x,p.y))))return 'fog';return null;}
+  S.addRoute=function(r){S.routes.push(r);cache.clear();const K=KIND[r.kind];const used=S.vessels.filter(v=>v.kind===r.kind).length;const n0=NODES[r.stops[0]];
+    const v={id:vid++,r,kind:r.kind,name:K.names[used%K.names.length],x:n0.x,y:n0.y,ang:-Math.PI/2,k:0,dir:1,state:'dock',timer:1.5,load:[],hold:null,brokenT:0,breakPending:0,from:0,to:0,leg:null,legLen:0,d:0};
+    if(r.segs[0]){const p=pointAt(r.segs[0],0.3);v.ang=p.ang;}
+    S.vessels.push(v);r.v=v;return v;};
+  S.removeRoute=function(r){const i=S.routes.indexOf(r);if(i<0)return;S.routes.splice(i,1);cache.clear();const v=r.v;
+    if(v){const at=v.state==='sail'?r.stops[v.d<v.legLen/2?v.from:v.to]:r.stops[v.k];for(const it of v.load){it.state='wait';it.node=at;it.v=null;it.alight=null;}v.load.length=0;S.vessels.splice(S.vessels.indexOf(v),1);}
+    for(const w of S.vessels)for(const it of w.load)if(it.alight&&!w.r.stops.includes(it.alight))it.alight=null;};
+  S.inFog=inFog;S.inStorm=inStorm;S.stormOn=stormOn;S.loadSize=loadSize;
+  // cargo that no current route (or chain of routes) can carry to its destination
+  S.stranded=it=>it.state==='wait'&&!dist(it.to,it.type).has(it.node);
+  function updateVessel(v,h){
+    const r=v.r,K=KIND[v.kind];
+    if(v.state==='broken'){v.brokenT-=h;if(v.brokenT<=0){v.state='dock';v.timer=1;ev.fixed&&ev.fixed(v);}return;}
+    if(v.state!=='sail'){
+      if(v.breakPending>0){v.state='broken';v.brokenT=v.breakPending;v.breakPending=0;v.hold=null;return;}
+      const node=r.stops[v.k];const n=loadAt(v,node);if(n)v.timer=Math.max(v.timer,0)+0.4*n;
+      if(v.state==='dock'){v.timer-=h;if(v.timer>0)return;v.state='idle';}
+      if(!v.load.length){const w=workStops(r);if(!w.length){v.state='idle';v.hold=null;return;}
+        let best=w[0];for(const k of w)if(Math.abs(k-v.k)<Math.abs(best-v.k))best=k;if(best>v.k)v.dir=1;else if(best<v.k)v.dir=-1;}
+      let nk=v.k+v.dir;if(nk<0||nk>=r.stops.length){v.dir*=-1;nk=v.k+v.dir;}
+      const P=leg(r,v.k,nk);const why=blocked(v,P);if(why){v.state='hold';v.hold=why;return;}
+      v.state='sail';v.hold=null;v.from=v.k;v.to=nk;v.leg=P;v.legLen=polyLen(P);v.d=0;ev.depart&&ev.depart(v);
+    }
+    if(v.state==='sail'){
+      let sp=K.spd*(K.sea?(opt.seaMul||1):1);
+      if(inFog(v.x,v.y))sp*=K.sea?0.6:0.35;if(inStorm(v.x,v.y))sp*=0.5;
+      v.d+=sp*h;
+      if(v.d>=v.legLen){v.k=v.to;const n=NODES[r.stops[v.k]];v.x=n.x;v.y=n.y;v.state='dock';const u=unloadAt(v,r.stops[v.k]);v.timer=2+0.5*u;ev.arrive&&ev.arrive(v);}
+      else{const p=pointAt(v.leg,v.d);v.x=p.x;v.y=p.y;v.ang=p.ang;}
+    }
+  }
+  function tick(h){
+    S.t+=h;
+    for(const it of S.items)if(it.state==='pending'&&S.t>=it.at){it.state='wait';ev.release&&ev.release(it);}
+    for(const b of breaks)if(!b.fired&&S.t>=b.at){b.fired=true;let best=null;for(const v of S.vessels){if(b.kind&&v.kind!==b.kind)continue;if(!best||loadSize(v)>loadSize(best))best=v;}
+      if(best){best.breakPending=b.dur;ev.toast&&ev.toast('brk',{name:best.name,dur:b.dur});}}
+    for(const s of storms){if(!s.warned&&S.t>=s.warn){s.warned=true;ev.toast&&ev.toast('storm',s);}if(!s.began&&S.t>=s.t0){s.began=true;ev.toast&&ev.toast('stormNow',s);}if(!s.ended&&S.t>=s.t1){s.ended=true;ev.toast&&ev.toast('stormEnd',s);}}
+    for(const f of fogs)if(!f.began&&S.t>=f.t0){f.began=true;ev.toast&&ev.toast('fog',f);}
+    for(const v of S.vessels.slice())updateVessel(v,h);
+    if(!S.done&&S.delivered>=S.items.length){S.done=true;S.finish=S.t;ev.done&&ev.done();}
+  }
+  S.step=function(dt){while(dt>1e-6){const h=Math.min(0.5,dt);dt-=h;tick(h);if(S.done&&opt.stopWhenDone)break;}};
+  return S;
+}
+// Par: run the reference solution with straight lines and slower ships, to set a fair budget and target time.
+function solvePar(L){
+  const sim=Sim(L,{seaMul:0.8,stopWhenDone:true});let cost=0;
+  L.par.forEach(([kind,stops],i)=>{const segs=[];for(let k=1;k<stops.length;k++)segs.push([{x:NODES[stops[k-1]].x,y:NODES[stops[k-1]].y},{x:NODES[stops[k]].x,y:NODES[stops[k]].y}]);
+    const r=makeRoute(kind,stops,segs,'par'+i);cost+=routeCost(kind,r.len*(KIND[kind].sea?1.3:1));sim.addRoute(r);});
+  sim.step(24*60);
+  L.budget=Math.ceil(cost*1.15/10)*10;
+  L.target=sim.done?Math.ceil((sim.finish*1.2+15)/5)*5:24*60;
+  L.parFinish=sim.finish;
+}
+LEVELS.forEach(solvePar);
+
+/* ======================= SAVE ======================= */
+const KEY='strandferdsla-v1';
+const SAVE={stars:{},best:{},sound:true,lang:null,last:0};
+try{const d=JSON.parse(localStorage.getItem(KEY)||'null');if(d){Object.assign(SAVE.stars,d.stars||{});Object.assign(SAVE.best,d.best||{});SAVE.sound=d.sound!==false;SAVE.last=d.last|0;if(d.lang==='fo'||d.lang==='en')LANG=d.lang;}}catch(e){}
+function save(){SAVE.lang=LANG;try{localStorage.setItem(KEY,JSON.stringify(SAVE));localStorage.setItem('spael-lang',LANG);}catch(e){}}
+// the EN/FO choice is shared by every game on the site
+try{const v=localStorage.getItem('spael-lang');if(v==='fo'||v==='en')LANG=v;}catch(e){}
+try{if(localStorage.getItem('spael-sfx')==='off')SAVE.sound=false;}catch(e){}
+const unlocked=i=>i===0||(SAVE.stars[i-1]|0)>=1;
+const totalStars=()=>Object.values(SAVE.stars).reduce((a,b)=>a+(b|0),0);
+
+/* ======================= AUDIO ======================= */
+let actx=null,master=null,noiseBuf=null,lastCoin=0,lastHorn=0,lastChop=0;
+function initAudio(){if(actx){if(actx.state==='suspended')actx.resume();return;}try{actx=new (window.AudioContext||window.webkitAudioContext)();master=actx.createGain();master.gain.value=SAVE.sound?0.55:0;master.connect(actx.destination);
+  noiseBuf=actx.createBuffer(1,actx.sampleRate*2,actx.sampleRate);const d=noiseBuf.getChannelData(0);for(let i=0;i<d.length;i++)d[i]=Math.random()*2-1;
+  const s=actx.createBufferSource();s.buffer=noiseBuf;s.loop=true;const f=actx.createBiquadFilter();f.type='lowpass';f.frequency.value=380;const g=actx.createGain();g.gain.value=0.05;const lfo=actx.createOscillator();lfo.frequency.value=0.08;const lg=actx.createGain();lg.gain.value=0.035;lfo.connect(lg);lg.connect(g.gain);s.connect(f);f.connect(g);g.connect(master);s.start();lfo.start();
+  gullLoop();}catch(e){actx=null;}}
+function tone(type,f0,f1,t0,dur,vol){const o=actx.createOscillator();o.type=type;o.frequency.setValueAtTime(f0,t0);o.frequency.exponentialRampToValueAtTime(f1,t0+dur);const g=actx.createGain();g.gain.setValueAtTime(0.0001,t0);g.gain.linearRampToValueAtTime(vol,t0+0.015);g.gain.exponentialRampToValueAtTime(0.001,t0+dur);o.connect(g);g.connect(master);o.start(t0);o.stop(t0+dur+0.03);}
+function noise(t0,dur,f0,f1,vol,q){const s=actx.createBufferSource();s.buffer=noiseBuf;const f=actx.createBiquadFilter();f.type='bandpass';f.Q.value=q||1;f.frequency.setValueAtTime(f0,t0);f.frequency.exponentialRampToValueAtTime(f1,t0+dur);const g=actx.createGain();g.gain.setValueAtTime(0.0001,t0);g.gain.exponentialRampToValueAtTime(vol,t0+0.02);g.gain.exponentialRampToValueAtTime(0.0001,t0+dur);s.connect(f);f.connect(g);g.connect(master);s.start(t0,Math.random());s.stop(t0+dur+0.05);}
+const sfx={
+ coin(){if(!actx)return;const n=performance.now();if(n-lastCoin<70)return;lastCoin=n;const t=actx.currentTime;[1320,1760].forEach((f,i)=>tone('sine',f,f,t+i*0.06,0.15,0.11));},
+ build(){if(!actx)return;const t=actx.currentTime;[660,880,1100].forEach((f,i)=>tone('triangle',f,f,t+i*0.05,0.12,0.14));},
+ stop(){if(!actx)return;tone('triangle',740,980,actx.currentTime,0.08,0.08);},
+ bad(){if(!actx)return;const t=actx.currentTime;tone('triangle',330,220,t,0.22,0.12);},
+ remove(){if(!actx)return;const t=actx.currentTime;[880,660,440].forEach((f,i)=>tone('triangle',f,f,t+i*0.05,0.1,0.1));},
+ horn(){if(!actx)return;const n=performance.now();if(n-lastHorn<1400)return;lastHorn=n;const t=actx.currentTime;const o=actx.createOscillator(),o2=actx.createOscillator(),lp=actx.createBiquadFilter(),g=actx.createGain();o.type='sawtooth';o2.type='sawtooth';o.frequency.value=138;o2.frequency.value=104;lp.type='lowpass';lp.frequency.value=520;g.gain.setValueAtTime(0.0001,t);g.gain.exponentialRampToValueAtTime(0.07,t+0.06);g.gain.setValueAtTime(0.07,t+0.42);g.gain.exponentialRampToValueAtTime(0.0001,t+0.7);o.connect(lp);o2.connect(lp);lp.connect(g);g.connect(master);o.start(t);o2.start(t);o.stop(t+0.75);o2.stop(t+0.75);},
+ chop(){if(!actx)return;const n=performance.now();if(n-lastChop<1400)return;lastChop=n;const t=actx.currentTime;for(let i=0;i<7;i++)noise(t+i*0.075,0.06,420,160,0.12*(1-i/8),2);},
+ storm(){if(!actx)return;const t=actx.currentTime;noise(t,1.6,180,60,0.22,0.7);},
+ go(){if(!actx)return;const t=actx.currentTime;[523,659,784,1046].forEach((f,i)=>tone('square',f,f,t+i*0.07,0.2,0.05));},
+ win(){if(!actx)return;const t=actx.currentTime;[523,659,784,1046,1318].forEach((f,i)=>tone('triangle',f,f,t+i*0.09,0.32,0.11));[784,988,1175].forEach((f,i)=>tone('sine',f,f*1.002,t+0.55,0.9,0.05));},
+ star(i){if(!actx)return;const t=actx.currentTime;tone('sine',1046*Math.pow(1.26,i),1046*Math.pow(1.26,i),t,0.25,0.12);}
+};
+function gullLoop(){setTimeout(()=>{if(actx&&SAVE.sound){const t=actx.currentTime;tone('triangle',1350,820,t,0.22,0.03);tone('triangle',1280,760,t+0.27,0.24,0.025);}gullLoop();},9000+Math.random()*14000);}
+
+/* ======================= RENDER SETUP ======================= */
+const canvas=$('#map'),ctx=canvas.getContext('2d');
+let W=innerWidth,H=innerHeight,DPR=1;
+const VIEW={k:10,ox:0,oy:0};
+const toS=(x,y)=>({x:VIEW.ox+x*VIEW.k,y:VIEW.oy+y*VIEW.k});
+const toW=(sx,sy)=>({x:(sx-VIEW.ox)/VIEW.k,y:(sy-VIEW.oy)/VIEW.k});
+const cache=document.createElement('canvas');
+const PAL={sea:'#93b7c9',shallow:'#a1b9b3',deep:'#86aac0',grass:'#a9b77f',moss:'#94a770',ochre:'#d1b77d',dry:'#c3a56e',heath:'#9e8a80',rock:'#8f8a9b',rock2:'#a49eaf',snow:'#f3f1f7',shore:'#bcb19c',turf:'#8ea56a'};
+const _rgb={};function rgbOf(h){if(_rgb[h])return _rgb[h];const n=parseInt(h.slice(1),16);return (_rgb[h]=[n>>16&255,n>>8&255,n&255]);}
+const mix=(a,b,t)=>[a[0]+(b[0]-a[0])*t,a[1]+(b[1]-a[1])*t,a[2]+(b[2]-a[2])*t];
+const rgbStr=(c,k=1)=>`rgb(${clamp(c[0]*k,0,255)|0},${clamp(c[1]*k,0,255)|0},${clamp(c[2]*k,0,255)|0})`;
+const LIGHT=(()=>{const l=[-0.45,0.6,0.66],m=Math.hypot(...l);return l.map(v=>v/m);})();
+function triLight(a,b,c,amp){const ux=b.x-a.x,uy=-(b.y-a.y),uz=b.h-a.h,vx=c.x-a.x,vy=-(c.y-a.y),vz=c.h-a.h;let nx=uy*vz-uz*vy,ny=uz*vx-ux*vz,nz=ux*vy-uy*vx;if(nz<0){nx=-nx;ny=-ny;nz=-nz;}const m=Math.hypot(nx,ny,nz)||1;return 1-amp*0.5+amp*((nx*LIGHT[0]+ny*LIGHT[1]+nz*LIGHT[2])/m);}
+function fillTri(g,a,b,c,col){g.beginPath();g.moveTo(a.x,a.y);g.lineTo(b.x,b.y);g.lineTo(c.x,c.y);g.closePath();g.fillStyle=col;g.fill();g.strokeStyle=col;g.lineWidth=0.7;g.stroke();}
+function mesh(g,x0,y0,x1,y1,sp,vert,color,amp){
+  const cols=Math.ceil((x1-x0)/sp)+1,rows=Math.ceil((y1-y0)/sp)+1;const V=[];
+  for(let c=0;c<=cols;c++){V[c]=[];for(let r=0;r<=rows;r++){const jx=(c>0&&c<cols)?(hash2(c*1.3+x0,r*2.1)-0.5)*sp*0.55:0,jy=(r>0&&r<rows)?(hash2(c*3.7,r*1.9+y0)-0.5)*sp*0.55:0;V[c][r]=vert(x0+c*sp+jx,y0+r*sp+jy);}}
+  for(let c=0;c<cols;c++)for(let r=0;r<rows;r++){const a=V[c][r],b=V[c+1][r],d=V[c][r+1],e=V[c+1][r+1];const tris=hash2(c*1.7,r*2.3)>0.5?[[a,b,e],[a,e,d]]:[[a,b,d],[b,e,d]];
+    for(const [p,q,s] of tris)fillTri(g,p,q,s,rgbStr(color(p,q,s),triLight(p,q,s,amp)));}
+}
+function islandPath(I){const p=new Path2D();I.P.forEach((q,i)=>{const s=toS(q.x,q.y);i?p.lineTo(s.x,s.y):p.moveTo(s.x,s.y);});p.closePath();return p;}
+function terrainH(I,x,y){if(!pip(I.P,x,y))return {h:0,d:0};const d=edgeDist(I.P,x,y);const h=Math.pow(clamp(d/I.halfW,0,1),0.75)*(0.55+0.6*vnoise(x*0.55+I.seed,y*0.55));return {h,d};}
+
+let G=null; // game state
+function buildStatic(){
+  cache.width=Math.round(W*DPR);cache.height=Math.round(H*DPR);const g=cache.getContext('2d');g.setTransform(DPR,0,0,DPR,0,0);
+  const L=G.L,k=VIEW.k;
+  // sea, faceted, shallower near the coast
+  const sea=rgbOf(PAL.sea),sh=rgbOf(PAL.shallow),dp=rgbOf(PAL.deep);
+  mesh(g,-30,-30,W+30,H+30,52,(x,y)=>{const w=toW(x,y);return {x,y,h:hash2(x*0.13,y*0.17)*14,w};},(p,q,s)=>{const cx=(p.w.x+q.w.x+s.w.x)/3,cy=(p.w.y+q.w.y+s.w.y)/3;const d=coastDist(cx,cy,1.6);let c=mix(sea,dp,vnoise(cx*0.12,cy*0.12)*0.55);if(d<1.6)c=mix(c,sh,(1-d/1.6)*0.75);return c;},0.12);
+  // islands
+  const vis=ISL.filter(I=>{const a=toS(I.x0,I.y0),b=toS(I.x1,I.y1);return b.x>-20&&a.x<W+20&&b.y>-20&&a.y<H+20;});
+  for(const I of vis){const path=islandPath(I);
+    g.save();g.translate(2,3.5);g.fillStyle='rgba(53,47,69,.2)';g.fill(path);g.restore();
+    g.lineJoin='round';g.strokeStyle='rgba(255,255,255,.35)';g.lineWidth=Math.max(5,k*0.3);g.stroke(path);
+    g.strokeStyle=PAL.shore;g.lineWidth=3;g.stroke(path);
+    const a=toS(I.x0,I.y0),b=toS(I.x1,I.y1);
+    g.save();g.clip(path);
+    const sp=clamp(k*0.9,14,24);
+    mesh(g,Math.max(-10,a.x-sp),Math.max(-10,a.y-sp),Math.min(W+10,b.x+sp),Math.min(H+10,b.y+sp),sp,(x,y)=>{const w=toW(x,y);const T=terrainH(I,w.x,w.y);return {x,y,h:T.h*44,w,th:T.h,d:T.d};},(p,q,s)=>{
+      const cx=(p.w.x+q.w.x+s.w.x)/3,cy=(p.w.y+q.w.y+s.w.y)/3,hc=(p.th+q.th+s.th)/3;const dc=pip(I.P,cx,cy)?edgeDist(I.P,cx,cy):0;const j=hash2(cx*7.1,cy*5.3);
+      if(dc<0.2)return rgbOf(PAL.shore);
+      if(L.snow&&hc>0.5)return rgbOf(PAL.snow);
+      if(hc>0.8)return rgbOf(j>0.5?PAL.rock:PAL.rock2);
+      if(hc>0.66)return rgbOf(vnoise(cx*0.9,cy*0.9)>0.5?PAL.heath:PAL.rock2);
+      const n=vnoise(cx*0.7+3+I.seed,cy*0.7),n2=vnoise(cx*1.9,cy*1.9+7);let c=rgbOf(n<0.35?PAL.moss:n<0.55?PAL.grass:n<0.75?PAL.ochre:PAL.dry);if(n2>0.78)c=mix(c,rgbOf(PAL.heath),0.5);
+      if(L.snow&&hc>0.35)c=mix(c,rgbOf(PAL.snow),0.55);return c;},0.4);
+    g.restore();
+  }
+  // lakes
+  for(const Lk of LAKES){const p=new Path2D();Lk.forEach((q,i)=>{const s=toS(q.x,q.y);i?p.lineTo(s.x,s.y):p.moveTo(s.x,s.y);});p.closePath();g.fillStyle='#9fbfcd';g.fill(p);g.strokeStyle=PAL.shore;g.lineWidth=1.5;g.stroke(p);}
+  // sheep specks and village houses
+  const R=mulberry(7);
+  for(const I of vis){const area=(I.x1-I.x0)*(I.y1-I.y0);const n=Math.min(40,Math.round(area*0.25*clamp(k/10,0.4,2)));
+    for(let i=0;i<n;i++){const x=lerp(I.x0,I.x1,R()),y=lerp(I.y0,I.y1,R());if(!pip(I.P,x,y)||edgeDist(I.P,x,y)<0.3)continue;const s=toS(x,y);if(s.x<0||s.y<0||s.x>W||s.y>H)continue;
+      g.fillStyle='rgba(53,47,69,.18)';g.beginPath();g.ellipse(s.x+0.6,s.y+1.4,2.4,1.1,0,0,7);g.fill();g.fillStyle='#f6f2ea';g.beginPath();g.ellipse(s.x,s.y,2.2,1.6,0,0,7);g.fill();g.fillStyle='#3d3842';g.fillRect(s.x+1.6,s.y-0.8,1.2,1.4);}}
+  for(const id of L.nodes){const N=NODES[id];const st=Math.max(0.35,13/k);let dir=null;
+    for(let i=0;i<12;i++){const a=i/12*Math.PI*2-Math.PI/2;const x=N.x+Math.cos(a)*st*1.6,y=N.y+Math.sin(a)*st*1.6;if(landAt(x,y)){dir=a;break;}}
+    if(dir==null)continue;const walls=['#3e3b45','#b8473d','#f1ede6'];
+    [[-0.5,1.5],[0.45,1.9],[0,2.5]].forEach(([da,m],i)=>{const x=N.x+Math.cos(dir+da)*st*m,y=N.y+Math.sin(dir+da)*st*m;if(!landAt(x,y))return;const s=toS(x,y);tinyHouse(g,s.x,s.y,clamp(k/16,0.7,1.25),walls[(i+id.charCodeAt(0))%3]);});}
+  // island names
+  g.textAlign='center';g.textBaseline='middle';g.font=`800 ${clamp(k*0.9,10,13)}px Figtree, system-ui, sans-serif`;
+  for(const I of vis){const s=toS(I.cx,I.cy);if(s.x<20||s.x>W-20||s.y<20||s.y>H-20)continue;if(I.x1-I.x0<1.6&&k<12)continue;if(L.nodes.some(id=>{const q=toS(NODES[id].x,NODES[id].y);return Math.abs(q.x-s.x)<70&&Math.abs(q.y-s.y)<36;}))continue;
+    const txt=I.name.toUpperCase().split('').join(' ');if(g.measureText(txt).width>(I.x1-I.x0)*k*1.25&&(I.x1-I.x0)<(I.y1-I.y0)*0.45)continue;g.lineWidth=3;g.strokeStyle='rgba(247,244,250,.55)';g.strokeText(txt,s.x,s.y);g.fillStyle='rgba(53,47,69,.55)';g.fillText(txt,s.x,s.y);}
+  // sea glints
+  G.glints=[];const R2=mulberry(11);for(let i=0;i<60;i++){const x=R2()*W,y=R2()*H,w=toW(x,y);if(!landAt(w.x,w.y)&&coastDist(w.x,w.y,0.5)>=0.5)G.glints.push({x,y,ph:R2()*7,l:4+R2()*8});}
+}
+function mulberry(a){return function(){a|=0;a=a+0x6D2B79F5|0;let t=Math.imul(a^a>>>15,1|a);t=t+Math.imul(t^t>>>7,61|t)^t;return((t^t>>>14)>>>0)/4294967296;};}
+function tinyHouse(g,x,y,s,wall){const w=9*s,h=5*s,d=4*s;const L=x-w/2,R=x+w/2,top=y-h;
+  const poly=(pts,c)=>{g.beginPath();g.moveTo(pts[0][0],pts[0][1]);for(let i=1;i<pts.length;i++)g.lineTo(pts[i][0],pts[i][1]);g.closePath();g.fillStyle=c;g.fill();};
+  g.fillStyle='rgba(53,47,69,.22)';g.fillRect(L+1,y-1,w+d,2.5);
+  poly([[L,y],[R,y],[R,top],[L,top]],rgbStr(rgbOf(wall)));poly([[R,y],[R+d,y-d*0.5],[R+d,top-d*0.5],[R,top]],rgbStr(rgbOf(wall),0.78));
+  const ry=top-h*0.9;poly([[L-1,top+0.5],[R+1,top+0.5],[R+d*0.5+1,ry],[L+d*0.5-1,ry]],rgbStr(rgbOf(PAL.turf),1.05));poly([[R+1,top+0.5],[R+d+1,top-d*0.5+0.5],[R+d*0.5+1,ry]],rgbStr(rgbOf(PAL.turf),0.82));
+  g.fillStyle=wall==='#f1ede6'?'#6f7f99':'#f4f1ea';g.fillRect(L+1.5*s,y-h*0.7,1.6*s,1.8*s);g.fillRect(R-3*s,y-h*0.7,1.6*s,1.8*s);}
+
+function fitView(){
+  const L=G.L;let x0=1e9,y0=1e9,x1=-1e9,y1=-1e9;for(const id of L.nodes){const n=NODES[id];x0=Math.min(x0,n.x);y0=Math.min(y0,n.y);x1=Math.max(x1,n.x);y1=Math.max(y1,n.y);}
+  const pad=3.4;x0-=pad;x1+=pad;y0-=pad;y1+=pad;const minS=11;if(x1-x0<minS){const c=(x0+x1)/2;x0=c-minS/2;x1=c+minS/2;}if(y1-y0<minS){const c=(y0+y1)/2;y0=c-minS/2;y1=c+minS/2;}
+  const small=W<760;const tl=document.querySelector('.topleft').getBoundingClientRect();
+  const top=small?tl.bottom+8:Math.max(60,tl.bottom*0.4),bottom=(W<520?132:142);const left=small?10:(W>1100?60:20),right=small?10:20;
+  const aw=W-left-right,ah=H-top-bottom;const k=Math.min(aw/(x1-x0),ah/(y1-y0),80);
+  VIEW.k=k;VIEW.ox=left+(aw-(x1-x0)*k)/2-x0*k;VIEW.oy=top+(ah-(y1-y0)*k)/2-y0*k;
+  // keep labels and cargo chips from colliding with neighbouring harbours
+  const ids=L.nodes,S=ids.map(id=>toS(NODES[id].x,NODES[id].y));G.labUp={};G.chipLeft={};
+  ids.forEach(id=>G.labUp[id]=NODES[id].lab==='up');
+  for(let i=0;i<ids.length;i++)for(let j=0;j<i;j++)if(Math.abs(S[i].x-S[j].x)<84&&Math.abs(S[i].y-S[j].y)<26&&G.labUp[ids[i]]===G.labUp[ids[j]])G.labUp[ids[i]]=!G.labUp[ids[i]];
+  ids.forEach((id,i)=>{G.chipLeft[id]=ids.some((o,j)=>j!==i&&S[j].x-S[i].x>0&&S[j].x-S[i].x<95&&Math.abs(S[j].y-S[i].y)<32);});
+}
+function resize(){W=innerWidth;H=innerHeight;DPR=Math.min(devicePixelRatio||1,2);canvas.width=Math.round(W*DPR);canvas.height=Math.round(H*DPR);if(G){fitView();buildStatic();}}
+addEventListener('resize',()=>{clearTimeout(resize._t);resize._t=setTimeout(()=>{cancelDraw();closePop();resize();},120);});
+
+/* ======================= GAME STATE ======================= */
+function loadLevel(i,showBrief){
+  closePop();const L=LEVELS[i];
+  G={idx:i,L,sim:null,routes:[],phase:'plan',paused:false,speed:1,spent:0,draw:null,ptr:null,ripples:[],wakes:[],glints:[],nid:0,hint:0,pop:null,shownT:null,boom:[]};
+  G.sim=Sim(L,{ev:simEvents()});
+  SAVE.last=i;save();
+  G.sel=KINDS.find(k=>(L.fleet[k]|0)>0);
+  $('#briefWrap').hidden=true;$('#winWrap').hidden=true;$('#toasts').innerHTML='';floatersEl.innerHTML='';
+  fitView();buildStatic();applyStatic();renderDock();applyHUD();
+  if(i===0&&!SAVE.stars[0])G.hint=1;
+  updateHint();
+  if(showBrief!==false)openBrief();
+}
+function simEvents(){return {
+  deliver(it,node){const n=NODES[node],s=toS(n.x,n.y);floatScreen(s.x,s.y-18,it.type==='p'?tr('takk'):it.type==='s'?tr('baa'):it.type==='m'?tr('post'):tr('crate'),it.type==='m'?'white':'');G.ripples.push({x:n.x,y:n.y,t:0,c:'#ffffff'});sfx.coin();
+    const c=$('#counter');c.classList.remove('bump');void c.offsetWidth;c.classList.add('bump');},
+  depart(v){if(v.kind==='heli')sfx.chop();else if(v.kind==='ferry')sfx.horn();},
+  toast(k,d){if(k==='brk')toast(tr('brk')(d.name,d.dur),tr('brkS')(d.dur),true);
+    else if(k==='storm'){toast(tr('storm')(fmtClock(d.t0)),tr('stormS'),true);}
+    else if(k==='stormNow'){toast(tr('stormNow'),'',true);sfx.storm();}
+    else if(k==='stormEnd')toast(tr('stormEnd'));
+    else if(k==='fog')toast(tr('fog'),tr('fogS'),true);},
+  fixed(v){toast(tr('fixed')(v.name));},
+  done(){G.phase='done';G.doneAt=performance.now();setTimeout(showWin,1100);renderDock();}
+};}
+const avail=k=>(G.L.fleet[k]|0)-G.routes.filter(r=>r.kind===k).length;
+function addRoute(kind,stops,segs){
+  const r=makeRoute(kind,stops,segs,'r'+(G.nid++));r.builtIn=G.phase;r.born=performance.now();
+  G.routes.push(r);G.sim.addRoute(r);G.spent+=r.cost;bumpMoney();sfx.build();
+  const mid=pointAt(r.segs[Math.floor(r.segs.length/2)],r.lens[Math.floor(r.segs.length/2)]/2),s=toS(mid.x,mid.y);floatScreen(s.x,s.y-10,'−'+r.cost+' kr','bad');
+  if(G.hint===1){G.hint=2;updateHint();}
+  if(avail(G.sel)<=0){const nk=KINDS.find(k=>avail(k)>0);if(nk)G.sel=nk;}
+  renderDock();applyHUD();return r;
+}
+function refundOf(r){return G.phase==='plan'?r.cost:Math.floor(r.cost/2);}
+function removeRoute(r){const ref=refundOf(r);G.sim.removeRoute(r);G.routes.splice(G.routes.indexOf(r),1);G.spent-=ref;sfx.remove();toast(tr('removed')(ref));bumpMoney();
+  if(avail(G.sel)<=0||!G.L.fleet[G.sel])G.sel=r.kind;renderDock();applyHUD();}
+function startRun(){if(G.phase==='plan'){if(!G.routes.length){toast(tr('needRoute'),'',true);sfx.bad();return;}G.phase='run';G.paused=false;sfx.go();if(G.hint===2){G.hint=0;}updateHint();}
+  else if(G.phase==='run')G.paused=!G.paused;renderDock();}
+
+/* ======================= INPUT: DRAWING ROUTES ======================= */
+const SNAP=26;
+function nodeAt(sx,sy,r){let best=null,bd=r||SNAP;for(const id of G.L.nodes){const n=NODES[id],s=toS(n.x,n.y);const d=Math.hypot(s.x-sx,s.y-sy);if(d<bd){bd=d;best=id;}}return best;}
+const compat=(kind,id)=>KIND[kind].sea?!!NODES[id].H:!!NODES[id].P;
+function startDraw(id){
+  const kind=G.sel;if(!kind)return false;
+  if(avail(kind)<=0){toast(tr('noneLeft')(tr(kind)),tr('noneLeftS'),true);sfx.bad();return false;}
+  if(!compat(kind,id)){toast(KIND[kind].sea?tr('noHarbour'):tr('noPad'),'',true);sfx.bad();return false;}
+  const n=NODES[id];G.draw={kind,stops:[id],segs:[],raw:[],bad:false,partBad:false,cur:{x:n.x,y:n.y}};sfx.stop();closePop();return true;
+}
+// Build the leg from the last stop to harbour `id`. Sea legs try the drawn path as-is, then with the wobble inside the snap circle trimmed.
+function legTo(d,id){const a=NODES[d.stops[d.stops.length-1]],b=NODES[id];
+  if(!KIND[d.kind].sea)return [{x:a.x,y:a.y},{x:b.x,y:b.y}];
+  const ex=Math.max(0.85,9/VIEW.k),r=SNAP/VIEW.k;const raw=d.raw.slice();
+  const tries=[raw];let t=raw.slice();while(t.length&&Math.hypot(t[t.length-1].x-b.x,t[t.length-1].y-b.y)<r)t.pop();if(t.length!==raw.length)tries.push(t);
+  for(const R of tries){const seg=rdp([{x:a.x,y:a.y},...R,{x:b.x,y:b.y}],0.18);if(!overLand(seg,a,b,ex))return seg;}
+  return null;}
+function addStop(id,d,seg){const b=NODES[id];d.segs.push(seg);d.stops.push(id);d.raw=[];d.partBad=false;d.blocked=null;sfx.stop();G.ripples.push({x:b.x,y:b.y,t:0,c:KIND[d.kind].col});}
+function extendDraw(sx,sy){const d=G.draw;if(!d)return;const w=toW(sx,sy);d.cur=w;
+  if(KIND[d.kind].sea){const last=d.raw.length?d.raw[d.raw.length-1]:NODES[d.stops[d.stops.length-1]];if(Math.hypot(w.x-last.x,w.y-last.y)>0.12)d.raw.push({x:w.x,y:w.y});
+    const a=NODES[d.stops[d.stops.length-1]],ex=Math.max(0.85,9/VIEW.k);d.partBad=false;for(const p of d.raw){if(Math.hypot(p.x-a.x,p.y-a.y)<ex)continue;const q=toS(p.x,p.y);if(landAt(p.x,p.y)&&!nodeAt(q.x,q.y,SNAP*0.9)){d.partBad=true;break;}}}
+  if(d.partBad&&!d.wasBad){sfx.bad();try{navigator.vibrate&&navigator.vibrate(40);}catch(_){}}d.wasBad=d.partBad;
+  // only attach a harbour you pass close to, and only if the leg to it stays on water
+  const id=nodeAt(sx,sy,SNAP*0.6);d.blocked=null;
+  if(id&&!d.stops.includes(id)&&compat(d.kind,id)){const seg=legTo(d,id);if(seg)addStop(id,d,seg);else d.blocked=id;}}
+function finishDraw(sx,sy){const d=G.draw;if(!d)return;G.draw=null;
+  const id=nodeAt(sx,sy,SNAP);let dropped=false;
+  if(id&&!d.stops.includes(id)&&compat(d.kind,id)){const seg=legTo(d,id);if(seg)addStop(id,d,seg);else dropped=true;}
+  if(d.stops.length<2){if(dropped){toast(tr('overLand'),tr('overLandS'),true);sfx.bad();}else if(G.ptr&&G.ptr.far)toast(KIND[d.kind].sea?tr('tooShort'):tr('tooShortPad'));return;}
+  if(dropped)toast(tr('lastLeg')(nodeName(d.stops[d.stops.length-1])),tr('overLandS'),true);
+  addRoute(d.kind,d.stops,d.segs);}
+function cancelDraw(){G&&(G.draw=null);}
+function routeAt(sx,sy){let best=null,bd=14;for(const r of G.routes){const v=r.v;if(v){const s=toS(v.x,v.y);const d=Math.hypot(s.x-sx,s.y-sy);if(d<18&&d<bd){bd=d;best=r;}}
+    for(const seg of r.segs)for(let i=1;i<seg.length;i++){const a=toS(seg[i-1].x,seg[i-1].y),b=toS(seg[i].x,seg[i].y);const d=segDist(sx,sy,a,b);if(d<bd){bd=d;best=r;}}}return best;}
+canvas.addEventListener('pointerdown',e=>{
+  initAudio();if(!G||G.phase==='done')return;if(e.button===2)return;
+  if(G.pop){closePop();}
+  G.ptr={id:e.pointerId,sx:e.clientX,sy:e.clientY,moved:false,far:false,node:nodeAt(e.clientX,e.clientY),t:performance.now()};
+  try{canvas.setPointerCapture(e.pointerId);}catch(_){}
+});
+canvas.addEventListener('pointermove',e=>{const p=G&&G.ptr;if(!p||p.id!==e.pointerId){if(G&&!G.ptr)G.hover={x:e.clientX,y:e.clientY};return;}
+  const dd=Math.hypot(e.clientX-p.sx,e.clientY-p.sy);if(dd>8)p.moved=true;if(dd>40)p.far=true;
+  if(p.moved&&p.node&&!G.draw&&!p.failed){if(!startDraw(p.node))p.failed=true;}
+  if(G.draw)extendDraw(e.clientX,e.clientY);});
+function endPtr(e){const p=G&&G.ptr;if(!p||p.id!==e.pointerId)return;
+  if(G.draw)finishDraw(e.clientX,e.clientY);
+  else if(!p.moved){const id=nodeAt(e.clientX,e.clientY,22);const r=id?null:routeAt(e.clientX,e.clientY);if(r)openRouteCard(r,e.clientX,e.clientY);else if(id)openNodeCard(id,e.clientX,e.clientY);}
+  G.ptr=null;}
+canvas.addEventListener('pointerup',endPtr);canvas.addEventListener('pointercancel',e=>{if(G){G.draw=null;G.ptr=null;}});
+canvas.addEventListener('contextmenu',e=>e.preventDefault());
+addEventListener('keydown',e=>{if(e.key==='Escape'){closePop();if(!$('#levelsWrap').hidden)closeLevels();}
+  if(e.code==='Space'&&e.target.tagName!=='BUTTON'&&G&&!anyModal()){e.preventDefault();startRun();}});
+const anyModal=()=>!$('#briefWrap').hidden||!$('#levelsWrap').hidden||!$('#winWrap').hidden;
+
+/* ======================= DRAW FRAME ======================= */
+function drawGlyph(g,type,x,y,s,col){g.save();g.translate(x,y);g.fillStyle=col;const r=s*0.28;g.beginPath();g.roundRect?g.roundRect(-s/2,-s/2,s,s,r):g.rect(-s/2,-s/2,s,s);g.fill();
+  g.fillStyle='#fff';g.strokeStyle='#fff';g.lineWidth=Math.max(1,s*0.1);const u=s/12;
+  if(type==='p'){g.beginPath();g.arc(0,-2.2*u,1.9*u,0,7);g.fill();g.beginPath();g.arc(0,4.6*u,3.6*u,Math.PI,0);g.fill();}
+  else if(type==='c'){g.strokeRect(-3.2*u,-3.2*u,6.4*u,6.4*u);g.beginPath();g.moveTo(-3.2*u,-3.2*u);g.lineTo(3.2*u,3.2*u);g.stroke();}
+  else if(type==='s'){g.beginPath();g.arc(-1.6*u,0.6*u,2.4*u,0,7);g.arc(1.2*u,-0.6*u,2.5*u,0,7);g.arc(1.6*u,1.6*u,2.2*u,0,7);g.fill();g.fillStyle='#3d3842';g.fillRect(3.2*u,-1.2*u,2*u,2.4*u);}
+  else{g.strokeRect(-3.6*u,-2.6*u,7.2*u,5.2*u);g.beginPath();g.moveTo(-3.6*u,-2.6*u);g.lineTo(0,0.6*u);g.lineTo(3.6*u,-2.6*u);g.stroke();}
+  g.restore();}
+function ellipseFacet(g,cx,cy,rx,ry,n,seed){g.beginPath();for(let i=0;i<n;i++){const a=i/n*Math.PI*2;const j=0.86+hash2(seed,i)*0.22;g.lineTo(cx+Math.cos(a)*rx*j,cy+Math.sin(a)*ry*j);}g.closePath();}
+function drawRoutePath(g,r,alpha,grow){const K=KIND[r.kind];
+  for(const pass of [0,1]){g.lineCap='round';g.lineJoin='round';
+    g.strokeStyle=pass?K.col:'rgba(255,255,255,.75)';g.globalAlpha=pass?alpha:alpha*0.9;g.lineWidth=pass?(r.kind==='heli'?3:5):(r.kind==='heli'?7:9);g.setLineDash(pass&&r.kind==='heli'?[7,7]:[]);
+    g.beginPath();let rem=grow*r.len;
+    for(let si=0;si<r.segs.length;si++){const seg=r.segs[si];for(let i=0;i<seg.length;i++){if(i===0&&si>0)continue;const s=toS(seg[i].x,seg[i].y);if(i===0)g.moveTo(s.x,s.y);else{const l=Math.hypot(seg[i].x-seg[i-1].x,seg[i].y-seg[i-1].y);if(rem<l){const t=rem/l;const q=toS(lerp(seg[i-1].x,seg[i].x,t),lerp(seg[i-1].y,seg[i].y,t));g.lineTo(q.x,q.y);rem=-1;break;}rem-=l;g.lineTo(s.x,s.y);}}if(rem<0)break;}
+    g.stroke();}
+  g.setLineDash([]);g.globalAlpha=1;}
+function drawShip(g,v,t){const s=toS(v.x,v.y),K=KIND[v.kind];const sc=clamp(VIEW.k/14,0.85,1.5);
+  g.save();g.translate(s.x,s.y);
+  if(v.kind==='heli'){const fly=v.state==='sail'?1:0;
+    g.save();g.translate(4+6*fly,6+8*fly);g.fillStyle='rgba(53,47,69,.2)';g.beginPath();g.ellipse(0,0,8*sc,5*sc,v.ang,0,7);g.fill();g.restore();
+    g.rotate(v.ang);g.scale(sc,sc);
+    g.strokeStyle='#352f45';g.lineWidth=2;g.beginPath();g.moveTo(-3,0);g.lineTo(-13,0);g.stroke();g.fillStyle='#d9493a';g.fillRect(-14.5,-3,2.5,6);
+    g.fillStyle='#f4f1ea';g.beginPath();g.ellipse(0,0,7,4.6,0,0,7);g.fill();g.fillStyle='#e3dfea';g.beginPath();g.ellipse(0,1.6,7,2.6,0,0,Math.PI);g.fill();
+    g.fillStyle='#d9493a';g.fillRect(-5,-1,8,2);g.fillStyle='#6f7f99';g.beginPath();g.ellipse(4,0,2.6,3,0,0,7);g.fill();
+    const ra=(v.state==='sail'||v.state==='idle'&&false)?t*28:(v.state==='hold'?t*3:t*10*0.3);
+    g.fillStyle='rgba(255,255,255,.22)';g.beginPath();g.arc(0,0,12,0,7);g.fill();g.strokeStyle='#352f45';g.lineWidth=1.6;g.beginPath();g.moveTo(Math.cos(ra)*12,Math.sin(ra)*12);g.lineTo(-Math.cos(ra)*12,-Math.sin(ra)*12);g.moveTo(Math.cos(ra+1.57)*12,Math.sin(ra+1.57)*12);g.lineTo(-Math.cos(ra+1.57)*12,-Math.sin(ra+1.57)*12);g.stroke();
+    g.fillStyle='#352f45';g.beginPath();g.arc(0,0,1.4,0,7);g.fill();
+  }else{
+    const ferry=v.kind==='ferry',L=ferry?13:9,Wd=ferry?5.2:3.6;g.rotate(v.ang);g.scale(sc,sc);
+    const hull=()=>{g.beginPath();g.moveTo(-L,-Wd);g.lineTo(L*0.5,-Wd);g.lineTo(L,0);g.lineTo(L*0.5,Wd);g.lineTo(-L,Wd);g.closePath();};
+    g.save();g.translate(1.2,2.4);hull();g.fillStyle='rgba(53,47,69,.22)';g.fill();g.restore();
+    hull();g.fillStyle=ferry?'#f4f1ea':'#c4463a';g.fill();
+    g.beginPath();g.moveTo(-L,0);g.lineTo(L,0);g.lineTo(L*0.5,Wd);g.lineTo(-L,Wd);g.closePath();g.fillStyle=ferry?'#ddd8e3':'#a83a31';g.fill();
+    if(ferry){g.fillStyle='#d9493a';g.fillRect(-L,-Wd,L*1.5,1.3);g.fillStyle='#3e3b45';g.fillRect(-L*0.2,-Wd*0.62,L*0.5,Wd*1.24);g.fillStyle='#f4f1ea';g.fillRect(-L*0.1,-Wd*0.4,L*0.3,Wd*0.8);}
+    else{g.fillStyle='#f4f1ea';g.fillRect(-L*0.35,-Wd*0.6,L*0.6,Wd*1.2);g.fillStyle='#6f7f99';g.fillRect(L*0.1,-Wd*0.45,L*0.12,Wd*0.9);}
+  }
+  g.restore();
+  // cargo aboard
+  const n=v.load.length;if(n){const cs=clamp(VIEW.k*0.55,7,10);const tot=n*(cs+1);let x=s.x-tot/2+cs/2;for(const it of v.load){drawGlyph(g,it.type,x,s.y-16*sc-4,cs,G.L.col[it.to]);x+=cs+1;}}
+  const badge=v.state==='broken'?'🔧':v.state==='hold'?(v.hold==='storm'?'⛈':'🌫'):null;
+  if(badge){const bx=s.x+12*sc,by=s.y-12*sc;g.fillStyle='rgba(251,249,253,.92)';g.beginPath();g.arc(bx,by,9,0,7);g.fill();g.strokeStyle='rgba(53,47,69,.15)';g.lineWidth=1;g.stroke();g.font='11px system-ui, sans-serif';g.textAlign='center';g.textBaseline='middle';g.fillText(badge,bx,by+0.5);
+    if(v.state==='broken'){const f=clamp(v.brokenT/45,0,1);g.strokeStyle='#f0b23a';g.lineWidth=2.4;g.beginPath();g.arc(bx,by,11,-Math.PI/2,-Math.PI/2+Math.PI*2*(1-f));g.stroke();}}
+}
+function drawNode(g,id,t){const N=NODES[id],s=toS(N.x,N.y),col=G.L.col[id];const r=clamp(VIEW.k*0.55,8,13);
+  const d=G.draw;const can=d&&compat(d.kind,id)&&!d.stops.includes(id);
+  if(can&&d.blocked===id){g.strokeStyle='#d9493a';g.setLineDash([4,4]);g.lineWidth=3;g.beginPath();g.arc(s.x,s.y,r+7,0,7);g.stroke();g.setLineDash([]);}
+  else if(can){g.strokeStyle=KIND[d.kind].col;g.globalAlpha=0.5+0.4*Math.sin(t*6);g.lineWidth=3;g.beginPath();g.arc(s.x,s.y,r+7,0,7);g.stroke();g.globalAlpha=1;}
+  else if(d&&!d.stops.includes(id))g.globalAlpha=0.55;
+  g.fillStyle='rgba(53,47,69,.25)';g.beginPath();g.arc(s.x+1,s.y+2,r,0,7);g.fill();
+  if(N.H){g.fillStyle='#fff';g.beginPath();g.arc(s.x,s.y,r,0,7);g.fill();g.strokeStyle='#352f45';g.lineWidth=2;g.stroke();g.strokeStyle=col;g.lineWidth=3.4;g.beginPath();g.arc(s.x,s.y,r-3.6,0,7);g.stroke();}
+  if(N.P){const pr=N.H?r*0.62:r,px=N.H?s.x+r*0.8:s.x,py=N.H?s.y-r*0.8:s.y;g.fillStyle=N.H?'#352f45':'#fff';g.beginPath();g.roundRect?g.roundRect(px-pr,py-pr,pr*2,pr*2,pr*0.45):g.rect(px-pr,py-pr,pr*2,pr*2);g.fill();
+    if(!N.H){g.strokeStyle='#352f45';g.lineWidth=2;g.stroke();g.strokeStyle=col;g.lineWidth=2.4;g.strokeRect(px-pr+3.6,py-pr+3.6,pr*2-7.2,pr*2-7.2);}
+    g.fillStyle=N.H?'#fff':'#352f45';g.font=`800 ${Math.round(pr*(N.H?1.25:1.05))}px Figtree, system-ui, sans-serif`;g.textAlign='center';g.textBaseline='middle';g.fillText('H',px,py+0.5);}
+  g.globalAlpha=1;
+  // label
+  const up=G.labUp?G.labUp[id]:N.lab==='up';g.font=`800 ${clamp(VIEW.k*0.7,11,13)}px Figtree, system-ui, sans-serif`;g.textAlign='center';g.textBaseline='middle';const ly=up?s.y-r-10:s.y+r+11;
+  g.lineWidth=3.5;g.strokeStyle='rgba(251,249,253,.92)';g.lineJoin='round';g.strokeText(nodeName(id),s.x,ly);g.fillStyle='#352f45';g.fillText(nodeName(id),s.x,ly);
+  // waiting cargo chips
+  const wait=[],later=[];for(const it of G.sim.items){if(it.node!==id)continue;if(it.state==='wait')wait.push(it);else if(it.state==='pending')later.push(it);}
+  const cs=clamp(VIEW.k*0.62,10,13),per=5;const list=wait.concat(later).slice(0,15);const left=G.chipLeft&&G.chipLeft[id];const sx=left?s.x-r-5-per*(cs+2):s.x+r+5+(N.P&&N.H?r*0.5:0);
+  let strand=false;const showS=G.routes.length>0;
+  list.forEach((it,i)=>{const row=Math.floor(i/per),col2=i%per;g.globalAlpha=it.state==='pending'?0.35:1;const cx=sx+col2*(cs+2)+cs/2,cy=s.y-cs*0.5-2+(up?row:-row)*(cs+2)+(up?cs:0);
+    const st=showS&&G.sim.stranded(it);if(st){strand=true;g.strokeStyle='#e8352a';g.lineWidth=2.2;g.beginPath();g.roundRect?g.roundRect(cx-cs/2-2,cy-cs/2-2,cs+4,cs+4,4):g.rect(cx-cs/2-2,cy-cs/2-2,cs+4,cs+4);g.stroke();}
+    drawGlyph(g,it.type,cx,cy,cs,G.L.col[it.to]);});
+  if(strand){const bx=sx-9,by=s.y-cs*0.5-2+(up?cs:0),r2=8+Math.sin(t*6)*1;g.globalAlpha=1;g.fillStyle='#e8352a';g.beginPath();g.arc(bx,by,r2,0,7);g.fill();g.fillStyle='#fff';g.font='800 12px Figtree, system-ui';g.textAlign='center';g.textBaseline='middle';g.fillText('!',bx,by+0.5);}
+  g.globalAlpha=1;const more=wait.length+later.length-list.length;if(more>0){g.font='800 11px Figtree, system-ui';g.textAlign='left';g.fillStyle='#352f45';g.strokeText('+'+more,sx+per*(cs+2),s.y-cs*0.5);g.fillText('+'+more,sx+per*(cs+2),s.y-cs*0.5);}
+}
+function drawFog(g,t){const sim=G.sim;for(const f of sim.fogs){const I=sim.fogI(f,sim.t);if(I<=0.01)continue;const c=sim.fogC(f,sim.t);const s=toS(c.x,c.y),rx=f.rx*VIEW.k,ry=f.ry*VIEW.k;
+  for(let i=0;i<9;i++){const a=i*0.7+hash2(i,3)*2,dx=Math.cos(a)*rx*0.55*hash2(i,5),dy=Math.sin(a)*ry*0.5*hash2(i,7);const br=(0.45+hash2(i,9)*0.35)*Math.min(rx,ry)*(1+0.04*Math.sin(t*0.6+i));
+    g.globalAlpha=0.5*I;g.fillStyle='#ece7f2';ellipseFacet(g,s.x+dx,s.y+dy,br*1.35,br*0.95,9,i+f.x);g.fill();g.globalAlpha=0.35*I;g.fillStyle='#ffffff';ellipseFacet(g,s.x+dx-br*0.15,s.y+dy-br*0.25,br*0.9,br*0.55,7,i+2);g.fill();}
+  g.globalAlpha=1;}}
+function drawStorms(g,t){const sim=G.sim;for(const st of sim.storms){const s=toS(st.x,st.y),rx=st.rx*VIEW.k,ry=st.ry*VIEW.k;
+  if(sim.t>=st.warn&&sim.t<st.t0){g.setLineDash([8,7]);g.lineDashOffset=-t*20;g.strokeStyle='rgba(53,47,69,.55)';g.lineWidth=2;g.beginPath();g.ellipse(s.x,s.y,rx,ry,0,0,7);g.stroke();g.setLineDash([]);
+    const txt='⛈ '+fmtClock(st.t0)+'–'+fmtClock(st.t1);g.font='800 12px Figtree, system-ui';const w=g.measureText(txt).width+16;g.fillStyle='rgba(251,249,253,.9)';g.beginPath();g.roundRect?g.roundRect(s.x-w/2,s.y-11,w,22,11):g.rect(s.x-w/2,s.y-11,w,22);g.fill();g.fillStyle='#352f45';g.textAlign='center';g.textBaseline='middle';g.fillText(txt,s.x,s.y+0.5);}
+  else if(sim.stormOn(st)){const I=Math.min(1,(sim.t-st.t0)/10,(st.t1-sim.t)/10);g.save();g.beginPath();g.ellipse(s.x,s.y,rx,ry,0,0,7);g.clip();
+    g.globalAlpha=0.32*I;g.fillStyle='#5a5470';g.fillRect(s.x-rx,s.y-ry,rx*2,ry*2);g.globalAlpha=0.5*I;g.strokeStyle='#e9e6f2';g.lineWidth=1.2;
+    for(let i=0;i<70;i++){const x=s.x-rx+((hash2(i,1)*rx*2+t*60)%(rx*2)),y=s.y-ry+((hash2(i,2)*ry*2+t*180+i*13)%(ry*2));g.beginPath();g.moveTo(x,y);g.lineTo(x-4,y+10);g.stroke();}
+    if(Math.sin(t*1.7)>0.995){g.globalAlpha=0.25;g.fillStyle='#fff';g.fillRect(s.x-rx,s.y-ry,rx*2,ry*2);}
+    g.restore();g.globalAlpha=1;}}}
+function landRuns(d){// which parts of the drawn path are over land (ignoring the area right around harbours)
+  const a=NODES[d.stops[d.stops.length-1]],ex=Math.max(0.85,9/VIEW.k);const P=[{x:a.x,y:a.y},...d.raw,d.cur];
+  return P.map(p=>{if(Math.hypot(p.x-a.x,p.y-a.y)<ex)return false;const q=toS(p.x,p.y);return !!landAt(p.x,p.y)&&!nodeAt(q.x,q.y,SNAP*0.9);});}
+function drawPreview(g,t){const d=G.draw;if(!d)return;const K=KIND[d.kind];const bad=d.partBad;
+  const pts=[];d.segs.forEach((sg,i)=>sg.forEach((p,j)=>{if(i>0&&j===0)return;pts.push(p);}));const last=NODES[d.stops[d.stops.length-1]];
+  if(!pts.length)pts.push({x:last.x,y:last.y});
+  if(K.sea)pts.push(...d.raw);pts.push(d.cur);
+  g.lineCap='round';g.lineJoin='round';g.strokeStyle='rgba(255,255,255,.8)';g.lineWidth=9;g.setLineDash([]);
+  const stroke=()=>{g.beginPath();pts.forEach((p,i)=>{const s=toS(p.x,p.y);i?g.lineTo(s.x,s.y):g.moveTo(s.x,s.y);});g.stroke();};stroke();
+  g.strokeStyle=K.col;g.globalAlpha=0.85;g.lineWidth=5;g.setLineDash(d.kind==='heli'?[7,7]:[]);stroke();g.setLineDash([]);g.globalAlpha=1;
+  // over-land stretches: hazard stripes in red and white
+  let firstLand=null;
+  if(K.sea&&bad){const P=[{x:last.x,y:last.y},...d.raw,d.cur],F=landRuns(d);
+    for(const pass of [0,1]){g.strokeStyle=pass?'#ffffff':'#e8352a';g.lineWidth=pass?3:10;g.setLineDash(pass?[5,5]:[]);g.lineDashOffset=-t*30;g.beginPath();
+      for(let i=1;i<P.length;i++){if(!(F[i]||F[i-1]))continue;const a=toS(P[i-1].x,P[i-1].y),b=toS(P[i].x,P[i].y);g.moveTo(a.x,a.y);g.lineTo(b.x,b.y);if(!firstLand&&F[i])firstLand=b;}g.stroke();}
+    g.setLineDash([]);
+    if(firstLand){const r=11+2*Math.sin(t*10);g.fillStyle='#e8352a';g.beginPath();g.arc(firstLand.x,firstLand.y,r,0,7);g.fill();g.strokeStyle='#fff';g.lineWidth=2.6;g.beginPath();g.moveTo(firstLand.x-4.5,firstLand.y-4.5);g.lineTo(firstLand.x+4.5,firstLand.y+4.5);g.moveTo(firstLand.x+4.5,firstLand.y-4.5);g.lineTo(firstLand.x-4.5,firstLand.y+4.5);g.stroke();}}
+  let len=0;for(const sg of d.segs)len+=polyLen(sg);len+=polyLen([{x:last.x,y:last.y},...(K.sea?d.raw:[]),d.cur]);
+  // label sits well above the finger so it stays visible on phones
+  const c=toS(d.cur.x,d.cur.y);const txt=bad?'⚠ '+tr('overLandShort'):'≈ '+routeCost(d.kind,len)+' kr';g.font=`800 ${bad?15:12}px Figtree, system-ui`;const w=g.measureText(txt).width+(bad?26:18),h=bad?32:24;
+  const bx=clamp(c.x-w/2,6,W-w-6),by=clamp(c.y-(bad?86:62),6,H-h-6);g.fillStyle=bad?'#e8352a':'rgba(251,249,253,.94)';g.beginPath();g.roundRect?g.roundRect(bx,by,w,h,h/2):g.rect(bx,by,w,h);g.fill();
+  g.fillStyle=bad?'#ffffff':'#352f45';g.textAlign='center';g.textBaseline='middle';g.fillText(txt,bx+w/2,by+h/2+0.5);
+  if(bad){g.strokeStyle='#e8352a';g.globalAlpha=0.5+0.4*Math.sin(t*10);g.lineWidth=3;g.beginPath();g.arc(c.x,c.y,22,0,7);g.stroke();g.globalAlpha=1;}}
+function frame(now){
+  requestAnimationFrame(frame);
+  const dt=Math.min(0.05,(now-(frame.last||now))/1000);frame.last=now;const t=now/1000;
+  if(!G)return;
+  if(G.phase==='run'&&!G.paused&&!anyModal())G.sim.step(dt*4*G.speed);
+  ctx.setTransform(DPR,0,0,DPR,0,0);ctx.drawImage(cache,0,0,W,H);
+  // glints
+  ctx.strokeStyle='#f4f8fb';ctx.lineWidth=1.4;ctx.lineCap='round';for(const gl of G.glints){const a=Math.max(0,Math.sin(t*0.7+gl.ph));if(a<0.05)continue;ctx.globalAlpha=a*0.7;ctx.beginPath();ctx.moveTo(gl.x-gl.l/2,gl.y);ctx.lineTo(gl.x+gl.l/2,gl.y);ctx.stroke();}ctx.globalAlpha=1;
+  // routes
+  for(const r of G.routes){const grow=clamp((now-r.born)/350,0,1);drawRoutePath(ctx,r,0.9,reduceMotion?1:1-Math.pow(1-grow,3));}
+  // wakes
+  for(const v of G.sim.vessels){if(v.state==='sail'&&KIND[v.kind].sea&&G.phase==='run'&&!G.paused&&Math.random()<0.5){G.wakes.push({x:v.x-Math.cos(v.ang)*0.4,y:v.y-Math.sin(v.ang)*0.4,t:0,s:rand(0.6,1.2)});}}
+  ctx.fillStyle='#fff';for(const w of G.wakes){w.t+=dt;const s=toS(w.x,w.y);ctx.globalAlpha=0.55*(1-w.t/1.1);ctx.beginPath();ctx.arc(s.x,s.y,(1.2+w.t*4)*w.s,0,7);ctx.fill();}ctx.globalAlpha=1;G.wakes=G.wakes.filter(w=>w.t<1.1);if(G.wakes.length>240)G.wakes.splice(0,G.wakes.length-240);
+  // ripples
+  for(const r of G.ripples){r.t+=dt;const s=toS(r.x,r.y),k=r.t/0.8;ctx.globalAlpha=0.85*(1-k);ctx.strokeStyle=r.c;ctx.lineWidth=3*(1-k)+0.5;ctx.beginPath();ctx.arc(s.x,s.y,10+k*28,0,7);ctx.stroke();}ctx.globalAlpha=1;G.ripples=G.ripples.filter(r=>r.t<0.8);
+  for(const id of G.L.nodes)drawNode(ctx,id,t);
+  for(const v of G.sim.vessels)drawShip(ctx,v,t);
+  drawFog(ctx,t);drawStorms(ctx,t);drawPreview(ctx,t);
+  // HUD numbers
+  hudT-=dt;if(hudT<=0){hudT=0.12;applyHUD();if(G.pop&&G.pop.kind==='route')refreshRouteCard();checkStranded();}
+}
+let hudT=0;
+
+/* ======================= HUD & UI ======================= */
+const ICON={
+ ferry:'<path d="M2.5 15.5l2 4h15l2-4z"/><path d="M5.5 15.5V11h10l3 4.5"/><path d="M8.5 11V7.5h4.5V11"/>',
+ boat:'<path d="M2.5 14.5h19l-3.5 5H6z"/><path d="M8 14.5V10h6l2.5 4.5"/>',
+ heli:'<ellipse cx="11" cy="13.5" rx="5.5" ry="3.8"/><path d="M16.5 13.5H22M4 7.5h14M11 7.5v2.2M8 17.3L7 19.5M14 17.3l1 2.2M5.5 19.5h11"/>',
+ play:'<path d="M7 5l12 7-12 7z"/>',pause:'<rect x="6" y="5" width="4" height="14" rx="1"/><rect x="14" y="5" width="4" height="14" rx="1"/>',
+ son:'<path d="M4 9.5v5h4l5 4v-13l-5 4z"/><path d="M16.5 9a4 4 0 0 1 0 6M19 6.5a7.5 7.5 0 0 1 0 11"/>',soff:'<path d="M4 9.5v5h4l5 4v-13l-5 4z"/><path d="M17 9.5l5 5M22 9.5l-5 5"/>'
+};
+function renderDock(){const L=G.L;const toks=$('#toks');toks.innerHTML=KINDS.filter(k=>(L.fleet[k]|0)>0).map(k=>`<button type="button" class="tok${G.sel===k?' sel':''}${avail(k)<=0?' empty':''}" data-kind="${k}" aria-pressed="${G.sel===k}" title="${tr(k)}"><svg viewBox="0 0 24 24">${ICON[k]}</svg><span class="tl">${tr(k)}</span><em>${avail(k)}</em></button>`).join('');
+  const go=$('#goBtn');go.classList.toggle('ready',G.phase==='plan'&&G.routes.length>0);go.classList.toggle('run',G.phase==='run'&&!G.paused);go.hidden=G.phase==='done';
+  if(G.phase==='plan')go.innerHTML=`<svg viewBox="0 0 24 24">${ICON.play}</svg>${tr('go')}`;else if(G.paused)go.innerHTML=`<svg viewBox="0 0 24 24">${ICON.play}</svg>${tr('resume')}`;else go.innerHTML=`<svg viewBox="0 0 24 24">${ICON.pause}</svg>${tr('pause')}`;
+  const sp=$('#spdBtn');sp.textContent='×'+G.speed;sp.classList.toggle('fast',G.speed>1);sp.hidden=G.phase==='done';}
+$('#toks').addEventListener('click',e=>{const b=e.target.closest('.tok');if(!b)return;initAudio();G.sel=b.dataset.kind;if(avail(G.sel)<=0)toast(tr('noneLeft')(tr(G.sel)),tr('noneLeftS'));renderDock();updateHint();});
+$('#goBtn').addEventListener('click',()=>{initAudio();startRun();});
+$('#spdBtn').addEventListener('click',()=>{initAudio();G.speed=G.speed===1?2:G.speed===2?4:1;renderDock();});
+function bumpMoney(){const m=$('#moneyPill');m.classList.add('bump');setTimeout(()=>m.classList.remove('bump'),130);}
+function applyHUD(){if(!G)return;const L=G.L,left=L.budget-G.spent;$('#budget').textContent=Math.abs(left);$('#budgetLbl').textContent=left>=0?tr('left'):tr('over');$('#moneyPill').classList.toggle('over',left<0);
+  const t=G.phase==='done'&&G.sim.finish!=null?G.sim.finish:G.sim.t,late=t>L.target;$('#clock').innerHTML=`<b>${fmtClock(t)}</b> · <span class="${late?'late':''}">${tr('target')} ${fmtClock(L.target)}</span>`;
+  $('#count').textContent=G.sim.delivered;$('#countUnit').textContent=`/ ${L.total} ${tr('delivered')}`;}
+function applyStatic(){document.documentElement.lang=LANG;document.querySelectorAll('[data-t]').forEach(el=>{const v=tr(el.dataset.t);if(typeof v==='string')el.textContent=v;});
+  document.querySelectorAll('.lang button').forEach(b=>b.setAttribute('aria-pressed',String(b.dataset.lang===LANG)));
+  if(G){$('#lvName').textContent=lvName(G.L);$('#lvDate').textContent=LANG==='fo'?G.L.dateFo:G.L.date;}}
+function updateHint(){const h=$('#hint');let a='',b='';
+  if(G.hint===1){a=tr('hint1');b=tr('hint1s');}else if(G.hint===2&&G.phase==='plan'){a=tr('hint2');b=tr('hint2s');}
+  else if(G.phase==='plan'&&G.idx===1&&G.sel==='heli'&&!G.routes.some(r=>r.kind==='heli')){a=tr('heliHint');}
+  if(a){h.innerHTML=a+(b?`<small>${b}</small>`:'');h.hidden=false;h.classList.remove('gone');}else if(!h.hidden){h.classList.add('gone');setTimeout(()=>{if(h.classList.contains('gone'))h.hidden=true;},600);}}
+function toast(msg,sub,warn){if(!msg)return;const w=$('#toasts');const el=document.createElement('div');el.className='toast'+(warn?' warn':'');el.innerHTML=msg+(sub?`<small>${sub}</small>`:'');w.appendChild(el);
+  while(w.children.length>3)w.firstChild.remove();setTimeout(()=>{el.classList.add('out');setTimeout(()=>el.remove(),420);},3000);}
+const floatersEl=$('#floaters');
+function floatScreen(x,y,text,cls){if(floatersEl.childElementCount>30)return;const el=document.createElement('div');el.className='fl '+(cls||'');el.textContent=text;el.style.left=clamp(x,30,W-30)+'px';el.style.top=clamp(y,40,H-40)+'px';floatersEl.appendChild(el);setTimeout(()=>el.remove(),1000);}
+
+/* pop-up cards */
+const popEl=$('#pop');
+function placePop(x,y){popEl.hidden=false;const r=popEl.getBoundingClientRect();let px=x+14,py=y-r.height-14;if(px+r.width>W-8)px=x-r.width-14;if(px<8)px=8;if(py<8)py=y+14;if(py+r.height>H-8)py=H-r.height-8;popEl.style.left=px+'px';popEl.style.top=py+'px';}
+function closePop(){popEl.hidden=true;if(G)G.pop=null;}
+function vesselStatus(v){if(v.state==='broken')return tr('broken');if(v.state==='hold')return v.hold==='storm'?tr('holdStorm'):tr('holdFog');if(v.state==='sail')return tr('sailing');if(v.state==='idle'&&!v.load.length)return tr('idle');return tr('docked');}
+function routeCardHTML(r){const v=r.v,K=KIND[r.kind];const used=G.sim.loadSize(v);
+  return `<h3>${v.name}</h3><div class="sub">${tr(r.kind)}</div><p>${r.stops.map(nodeName).join(' ⇄ ')}</p><span class="pill">${tr('aboard')} ${used}/${K.cap}</span> <span class="pill">${vesselStatus(v)}</span>
+  <button type="button" class="rm" data-rm="${r.id}">${tr('remove')(refundOf(r))}</button>${G.phase==='plan'?`<p style="font-size:11.5px;color:var(--ink-soft)">${tr('fullRefund')}</p>`:''}`;}
+function openRouteCard(r,x,y){popEl.innerHTML=routeCardHTML(r);G.pop={kind:'route',r,x,y,key:''};placePop(x,y);}
+function refreshRouteCard(){const p=G.pop;if(!G.routes.includes(p.r)){closePop();return;}const v=p.r.v;const key=v.state+v.hold+G.sim.loadSize(v)+G.phase+LANG;if(key===p.key)return;p.key=key;popEl.innerHTML=routeCardHTML(p.r);}
+popEl.addEventListener('click',e=>{const b=e.target.closest('[data-rm]');if(!b)return;const r=G.routes.find(q=>q.id===b.dataset.rm);if(r)removeRoute(r);closePop();});
+// Tell the player once per stuck group (place + cargo type + destination) while the day is running.
+function strandGroups(){const g={};for(const it of G.sim.items){if(!G.sim.stranded(it))continue;const k=it.node+'|'+it.type+'|'+it.to;(g[k]=g[k]||{n:0,from:it.node,to:it.to,type:it.type}).n++;}return g;}
+function strandMsg(x){return [tr('stranded')(x.n,tr(x.type),nodeName(x.from),nodeName(x.to)),(x.type==='c'||x.type==='s')?tr('strandedFerry'):tr('strandedAny')];}
+function checkStranded(){if(G.phase!=='run'||G.paused||anyModal())return;G.warned=G.warned||{};const g=strandGroups();
+  for(const k in g){if(G.warned[k])continue;G.warned[k]=1;const [a,b]=strandMsg(g[k]);toast(a,b,true);sfx.bad();}
+  for(const k in G.warned)if(!g[k])delete G.warned[k];}
+function openNodeCard(id,x,y){const N=NODES[id];const groups={};let later=0,laterT=1e9;
+  for(const it of G.sim.items){if(it.node!==id)continue;if(it.state==='pending'){later++;laterT=Math.min(laterT,it.at);continue;}if(it.state!=='wait')continue;const k=it.to;groups[k]=groups[k]||{p:0,c:0,s:0,m:0};groups[k][it.type]++;}
+  const em={p:'👤',c:'📦',s:'🐑',m:'✉️'};const rows=Object.entries(groups).map(([to,g])=>`<li><span class="dot" style="background:${G.L.col[to]}"></span><b>${nodeName(to)}</b>&nbsp;${Object.entries(g).filter(([,n])=>n).map(([t,n])=>`${em[t]}${n}`).join(' ')}</li>`).join('');
+  const sg=G.routes.length?Object.values(strandGroups()).filter(x=>x.from===id):[];const warn=sg.map(x=>{const [m1,m2]=strandMsg(x);return `<p style="color:#c42d24;font-weight:800">⚠ ${m1}<br><span style="font-weight:600;color:var(--ink-soft)">${m2}</span></p>`;}).join('');
+  popEl.innerHTML=`<h3>${nodeName(id)}</h3><div class="sub">${[N.H&&tr('harbour'),N.P&&tr('helipad')].filter(Boolean).join(' · ')}</div>${rows?`<ul>${rows}</ul>`:`<p>${tr('nothing')}</p>`}${warn}${later?`<p style="color:var(--ink-soft)">+${later} ${tr('later')(fmtClock(laterT))}</p>`:''}`;
+  G.pop={kind:'node',id};placePop(x,y);}
+
+/* brief */
+function cargoLine(L){const c={p:0,c:0,s:0,m:0};for(const d of L.demand)c[d[0]]+=d[3];const em={p:'👤',c:'📦',s:'🐑',m:'✉️'};return Object.entries(c).filter(([,n])=>n).map(([t,n])=>`${em[t]} ${n} ${tr(t)}`).join(' · ');}
+function openBrief(){const L=G.L;$('#briefTitle').textContent=lvName(L);$('#briefSub').textContent=(LANG==='fo'?L.dateFo:L.date);
+  const fleet=KINDS.filter(k=>L.fleet[k]).map(k=>`${L.fleet[k]}× ${tr(k)}`).join(' · ');
+  const watch=[L.fogs.length&&tr('fogW'),L.storms.length&&tr('stormW'),L.breaks.length&&tr('brkW')].filter(Boolean).join(' · ')||tr('none');
+  $('#brief').innerHTML=`<div class="teach">${LANG==='fo'?L.teachFo:L.teach}</div><dl><dt>${tr('deliver')}</dt><dd>${cargoLine(L)}</dd><dt>${tr('fleet')}</dt><dd>${fleet}</dd><dt>${tr('budget')}</dt><dd>${L.budget} kr</dd><dt>${tr('targetL')}</dt><dd>${fmtClock(L.target)}</dd><dt>${tr('watch')}</dt><dd>${watch}</dd></dl>
+  <p class="fact">${LANG==='fo'?L.factFo:L.fact}</p><button type="button" class="bigBtn" id="briefGo">${tr('plan')}</button>`;
+  $('#briefWrap').hidden=false;setTimeout(()=>$('#briefGo')&&$('#briefGo').focus(),50);}
+$('#briefWrap').addEventListener('click',e=>{if(e.target.id==='briefGo'||e.target===$('#briefWrap')){initAudio();$('#briefWrap').hidden=true;}});
+
+/* level list */
+function renderLevels(){const n=totalStars();$('#levels').innerHTML=LEVELS.map((L,i)=>{const here=G&&G.idx===i,open=unlocked(i),st=SAVE.stars[i]|0;
+  const btn=here?`<button type="button" class="go2" data-go="${i}">${tr('replay')}</button>`:open?`<button type="button" data-go="${i}">${tr('play')}</button>`:`<button type="button" disabled>${tr('locked')}</button>`;
+  return `<div class="area${here?' here':''}${open?'':' locked'}"><div class="n">${i+1}</div><div class="t"><b>${lvName(L)}</b><small>${LANG==='fo'?L.dateFo:L.date} · ${L.nodes.map(nodeName).slice(0,4).join(', ')}${L.nodes.length>4?'…':''}</small><p>${LANG==='fo'?L.factFo:L.fact}</p><div class="chips"><span class="mul">${LANG==='fo'?L.tagFo:L.tag}</span><span class="mini-stars">${[0,1,2].map(k=>`<i class="${k<st?'on':''}">★</i>`).join('')}</span></div></div>${btn}</div>`;}).join('');
+  $('#levelsGoal').textContent=tr('goal')(n);}
+function openLevels(){initAudio();closePop();renderLevels();$('#levelsWrap').hidden=false;}
+function closeLevels(){$('#levelsWrap').hidden=true;}
+$('#areaBtn').addEventListener('click',openLevels);$('#levelsClose').addEventListener('click',closeLevels);
+$('#levelsWrap').addEventListener('pointerdown',e=>{if(e.target===$('#levelsWrap'))closeLevels();});
+$('#levels').addEventListener('click',e=>{const b=e.target.closest('[data-go]');if(!b)return;closeLevels();travel(+b.dataset.go);});
+function travel(i){const f=$('#fade');f.classList.add('on');setTimeout(()=>{loadLevel(i,true);applyStatic();setTimeout(()=>f.classList.remove('on'),80);},360);}
+
+/* win */
+function showWin(){if(!G||G.phase!=='done'||!$('#winWrap').hidden)return;const L=G.L,sim=G.sim;
+  const okB=G.spent<=L.budget,okT=sim.finish<=L.target;const stars=1+(okB?1:0)+(okB&&okT?1:0);
+  if(stars>(SAVE.stars[G.idx]|0))SAVE.stars[G.idx]=stars;save();
+  const last=G.idx===LEVELS.length-1;$('#winTitle').textContent=L.win?(LANG==='fo'?L.winFo:L.win):(last?tr('winFinal'):tr('winT'));
+  $('#winStars').innerHTML=[0,1,2].map(i=>`<div class="star${i<stars?' on':''}" style="animation-delay:${0.25+i*0.28}s"></div>`).join('');
+  $('#winChecks').innerHTML=`<li><b>✓</b>${tr('chk1')}</li><li class="${okB?'':'no'}"><b>${okB?'✓':'–'}</b>${tr('chk2')(G.spent,L.budget)}</li><li class="${okT?'':'no'}"><b>${okT?'✓':'–'}</b>${tr('chk3')(fmtClock(sim.finish),fmtClock(L.target))}</li>`;
+  const hasNext=!last;$('#winBtns').innerHTML=`<button type="button" class="bigBtn soft" data-w="replay">${tr('replay')}</button>${hasNext?`<button type="button" class="bigBtn" data-w="next">${tr('next')}</button>`:`<button type="button" class="bigBtn blue" data-w="levels">${tr('levels')}</button>`}`;
+  $('#winWrap').hidden=false;sfx.win();for(let i=0;i<stars;i++)setTimeout(()=>sfx.star(i),300+i*280);
+  const sh=$('#winWrap .win');sh.querySelectorAll('.confetti').forEach(c=>c.remove());if(!reduceMotion)for(let i=0;i<28;i++){const c=document.createElement('i');c.className='confetti';const a=rand(0,Math.PI*2),d=rand(70,180);c.style.setProperty('--dx',Math.cos(a)*d+'px');c.style.setProperty('--dy',Math.sin(a)*d*0.7+40+'px');c.style.setProperty('--r',rand(-400,400)+'deg');c.style.background=['#f0b23a','#d9493a','#2c5597','#a9b77f','#ffffff'][i%5];c.style.animationDelay=rand(0,0.15)+'s';sh.appendChild(c);}}
+$('#winBtns').addEventListener('click',e=>{const b=e.target.closest('[data-w]');if(!b)return;$('#winWrap').hidden=true;const w=b.dataset.w;if(w==='replay')travel(G.idx);else if(w==='next')travel(G.idx+1);else openLevels();});
+
+/* misc buttons */
+$('#restartBtn').addEventListener('click',()=>{initAudio();travel(G.idx);});
+// sound effects follow the shared Effects switch in the site menu bar
+addEventListener('spael:sfx',e=>{SAVE.sound=!!e.detail;if(master)master.gain.value=SAVE.sound?0.55:0;});
+document.querySelectorAll('.lang button').forEach(b=>b.addEventListener('click',()=>{LANG=b.dataset.lang;save();applyStatic();renderDock();applyHUD();updateHint();if(G.pop)closePop();if(!$('#levelsWrap').hidden)renderLevels();if(!$('#briefWrap').hidden)openBrief();buildStatic();}));
+addEventListener('pagehide',save);
+
+/* ======================= START ======================= */
+resize();
+loadLevel(clamp(unlocked(SAVE.last)?SAVE.last:0,0,LEVELS.length-1),true);
+applyStatic();
+if(document.fonts&&document.fonts.ready)document.fonts.ready.then(()=>{if(G)buildStatic();});
+requestAnimationFrame(frame);
+
+window.__ferry={get G(){return G;},LEVELS,NODES,loadLevel,startRun,
+  build(kind,stops){const segs=[];for(let k=1;k<stops.length;k++)segs.push([{x:NODES[stops[k-1]].x,y:NODES[stops[k-1]].y},{x:NODES[stops[k]].x,y:NODES[stops[k]].y}]);return addRoute(kind,stops,segs);},
+  step(min){G.sim.step(min);},landAt,toS,overLand};
+})();
+</script>
+<!-- SPAEL-BAR START · shared menu bar: back to the front page, music and sound effects.
+     Edit this block in shared/spael-bar.html, then run:  python3 tools/sync-bar.py
+     That copies it into every game, so all games stay the same. -->
+<style>
+/* A game can move the bar by setting these on :root in its own CSS (outside this block):
+   --spael-left / --spael-bottom (desktop, bottom-left)   --spael-m-top / --spael-m-left / --spael-m-right (phones) */
+#spaelBar{position:fixed;z-index:60;left:var(--spael-left,calc(14px + env(safe-area-inset-left,0px)));bottom:var(--spael-bottom,calc(14px + env(safe-area-inset-bottom,0px)));display:flex;gap:4px;align-items:center;padding:4px;border-radius:999px;background:rgba(251,249,253,.86);-webkit-backdrop-filter:blur(10px);backdrop-filter:blur(10px);box-shadow:0 2px 12px rgba(53,47,69,.16);font:800 13px Figtree,"Segoe UI",system-ui,sans-serif;color:#352f45;-webkit-user-select:none;user-select:none}
+#spaelBar a,#spaelBar button{all:unset;box-sizing:border-box;display:inline-flex;align-items:center;justify-content:center;gap:6px;height:36px;min-width:36px;padding:0 10px;border-radius:999px;cursor:pointer;color:inherit;font:inherit;line-height:1;white-space:nowrap}
+#spaelBar a{padding:0 13px 0 10px;background:#2c5597;color:#fff}
+#spaelBar a:hover{filter:brightness(1.1)}
+#spaelBar button:hover{background:rgba(53,47,69,.08)}
+#spaelBar a:focus-visible,#spaelBar button:focus-visible{outline:3px solid #2c5597;outline-offset:2px}
+#spaelBar svg{width:20px;height:20px;fill:none;stroke:currentColor;stroke-width:2.2;stroke-linecap:round;stroke-linejoin:round;flex:none}
+#spaelBar .off{color:rgba(53,47,69,.42)}
+#spaelBar .slash{display:none}
+#spaelBar .off .slash{display:inline}
+#spaelBar .lbl{display:none}
+@media (min-width:900px){#spaelBar button .lbl{display:inline;font-size:12px;font-weight:700}}
+#spaelMore{display:none!important}
+@media (max-width:760px){
+ #spaelBar{bottom:auto;top:var(--spael-m-top,calc(12px + env(safe-area-inset-top,0px)));left:var(--spael-m-left,auto);right:var(--spael-m-right,calc(12px + env(safe-area-inset-right,0px)));flex-direction:column;align-items:stretch;padding:3px;border-radius:22px}
+ #spaelMore{display:inline-flex!important}
+ #spaelBar:not(.open)>:not(#spaelMore){display:none}
+ #spaelBar .ic-x{display:none}#spaelBar.open .ic-x{display:inline}#spaelBar.open .ic-dots{display:none}
+}
+</style>
+<nav id="spaelBar" aria-label="Game menu">
+  <button id="spaelMore" type="button" aria-expanded="false" aria-controls="spaelBar"><svg viewBox="0 0 24 24"><g class="ic-dots"><path d="M4 7h16M4 12h16M4 17h16"/></g><g class="ic-x"><path d="M6 6l12 12M18 6L6 18"/></g></svg></button>
+  <a id="spaelHome" href="../index.html"><svg viewBox="0 0 24 24"><path d="M15 5l-7 7 7 7"/></svg><span id="spaelHomeT">Menu</span></a>
+  <button id="spaelMusic" type="button" aria-pressed="true"><svg viewBox="0 0 24 24"><path d="M9 18V5l11-2v13"/><circle cx="6.5" cy="18" r="2.5"/><circle cx="17.5" cy="16" r="2.5"/><path class="slash" d="M3 3l18 18"/></svg><span class="lbl" id="spaelMusicT">Music</span></button>
+  <button id="spaelSfx" type="button" aria-pressed="true"><svg viewBox="0 0 24 24"><path d="M4 9v6h4l5 4V5L8 9z"/><path d="M16.5 8.5a5 5 0 010 7M19 6a8.5 8.5 0 010 12"/><path class="slash" d="M3 3l18 18"/></svg><span class="lbl" id="spaelSfxT">Effects</span></button>
+</nav>
+<script>
+/* Shared menu bar. Settings are shared by every game on the site:
+   spael-music / spael-sfx = 'on' | 'off'. The game listens for the "spael:sfx" event to mute its own effects. */
+(function(){
+"use strict";
+const TXT={en:{home:'Menu',homeA:'Back to all games',music:'Music',sfx:'Effects',on:'on',off:'off',more:'Menu, music and sound'},
+           fo:{home:'Forsíða',homeA:'Aftur til øll spølini',music:'Tónleikur',sfx:'Ljóð',on:'tendrað',off:'sløkt',more:'Forsíða, tónleikur og ljóð'}};
+const get=(k,d)=>{try{const v=localStorage.getItem(k);return v===null?d:v==='on';}catch(e){return d;}};
+const put=(k,v)=>{try{localStorage.setItem(k,v?'on':'off');}catch(e){}};
+let music=get('spael-music',true),sfx=get('spael-sfx',true);
+const $=id=>document.getElementById(id);
+const L=()=>((document.documentElement.lang||'en').toLowerCase().startsWith('fo')?TXT.fo:TXT.en);
+function paint(){const t=L();$('spaelMore').setAttribute('aria-label',t.more);$('spaelMore').title=t.more;$('spaelHomeT').textContent=t.home;$('spaelHome').setAttribute('aria-label',t.homeA);$('spaelHome').title=t.homeA;
+  $('spaelMusicT').textContent=t.music;$('spaelSfxT').textContent=t.sfx;
+  [['spaelMusic',music,t.music],['spaelSfx',sfx,t.sfx]].forEach(([id,on,name])=>{const b=$(id);b.classList.toggle('off',!on);b.setAttribute('aria-pressed',String(on));const lab=name+': '+(on?t.on:t.off);b.setAttribute('aria-label',lab);b.title=lab;});}
+function tellGame(){window.dispatchEvent(new CustomEvent('spael:sfx',{detail:sfx}));}
+/* keep clicks on the bar from reaching the game underneath */
+['pointerdown','mousedown','touchstart','click'].forEach(ev=>$('spaelBar').addEventListener(ev,e=>e.stopPropagation()));
+$('spaelBar').addEventListener('keydown',e=>e.stopPropagation());
+
+/* ---------- music: a soft, looping folk tune made in the browser ---------- */
+let ac=null,out=null,timer=null,next=0,step=0,last=7,playing=false;
+const BPM=80,E8=60/BPM/2;                       // one eighth note
+const SCALE=[50,52,53,55,57,60,62,64,65,67,69,72,74]; // D dorian-ish, MIDI
+const CHORDS=[[50,57,62,65],[48,55,60,64],[53,60,65,69],[48,55,60,64],[50,57,62,65],[45,52,57,60],[46,53,58,62],[48,55,60,64]]; // Dm C F C Dm Am Bb C
+const hz=m=>440*Math.pow(2,(m-69)/12);
+function audio(){if(ac)return true;try{ac=new (window.AudioContext||window.webkitAudioContext)();}catch(e){return false;}
+  out=ac.createGain();out.gain.value=0;out.connect(ac.destination);
+  const d=ac.createDelay(1);d.delayTime.value=E8*3;const fb=ac.createGain();fb.gain.value=0.32;const wet=ac.createGain();wet.gain.value=0.28;
+  d.connect(fb);fb.connect(d);d.connect(wet);wet.connect(out);out.echo=d;return true;}
+function voice(type,m,t,dur,vol,att,dest,cut){const o=ac.createOscillator(),g=ac.createGain();o.type=type;o.frequency.value=hz(m);
+  let node=o;if(cut){const f=ac.createBiquadFilter();f.type='lowpass';f.frequency.value=cut;o.connect(f);node=f;}
+  node.connect(g);g.connect(dest||out);g.gain.setValueAtTime(0.0001,t);g.gain.linearRampToValueAtTime(vol,t+att);g.gain.exponentialRampToValueAtTime(0.0001,t+dur);o.start(t);o.stop(t+dur+0.05);}
+function pluck(m,t,vol){voice('triangle',m,t,1.1,vol,0.006);voice('sine',m+12,t,0.5,vol*0.35,0.004);const g=ac.createGain();g.gain.value=1;
+  const o=ac.createOscillator();o.type='triangle';o.frequency.value=hz(m);const eg=ac.createGain();eg.gain.setValueAtTime(0.0001,t);eg.gain.linearRampToValueAtTime(vol*0.5,t+0.006);eg.gain.exponentialRampToValueAtTime(0.0001,t+0.8);o.connect(eg);eg.connect(out.echo);o.start(t);o.stop(t+0.85);}
+function schedule(){while(next<ac.currentTime+0.3){const bar=Math.floor(step/8)%CHORDS.length,b8=step%8,ch=CHORDS[bar],phrase=Math.floor(step/64)%4;
+    if(b8===0){ch.slice(1).forEach(m=>voice('triangle',m,next,E8*8.6,0.035,0.9,null,900));voice('sine',ch[0]-12,next,E8*8.4,0.09,0.25);}
+    if(b8===4)voice('sine',ch[0]-12,next,E8*4.2,0.05,0.1);
+    const quiet=phrase===3;                       // every fourth phrase rests, so the loop breathes
+    const chance=b8%2===0?0.78:0.28;
+    if(!quiet&&Math.random()<chance){let i=last+[-2,-1,-1,0,1,1,2][(Math.random()*7)|0];i=Math.max(2,Math.min(SCALE.length-1,i));
+      if(b8===0){const tones=ch.map(c=>c%12);let best=i,bd=99;for(let k=Math.max(0,i-2);k<=Math.min(SCALE.length-1,i+2);k++)if(tones.includes(SCALE[k]%12)&&Math.abs(k-i)<bd){bd=Math.abs(k-i);best=k;}i=best;}
+      last=i;pluck(SCALE[i]+12,next,b8===0?0.085:0.06);}
+    next+=E8;step++;}}
+function startMusic(){if(!music||playing||!audio())return;if(ac.state==='suspended')ac.resume();playing=true;next=ac.currentTime+0.1;
+  out.gain.cancelScheduledValues(ac.currentTime);out.gain.setValueAtTime(out.gain.value,ac.currentTime);out.gain.linearRampToValueAtTime(0.5,ac.currentTime+2.5);
+  schedule();timer=setInterval(schedule,100);}
+function stopMusic(){if(!playing)return;playing=false;clearInterval(timer);const t=ac.currentTime;out.gain.cancelScheduledValues(t);out.gain.setValueAtTime(out.gain.value,t);out.gain.linearRampToValueAtTime(0,t+0.4);}
+/* browsers only allow sound after the first tap or key press */
+const kick=()=>{startMusic();};
+['pointerdown','keydown','touchend'].forEach(ev=>window.addEventListener(ev,kick,{passive:true}));
+document.addEventListener('visibilitychange',()=>{if(!ac)return;if(document.hidden){clearInterval(timer);ac.suspend();}else if(playing){ac.resume();next=ac.currentTime+0.1;timer=setInterval(schedule,100);}});
+
+/* phones: the bar folds into one round button */
+const bar=$('spaelBar');
+function fold(open){bar.classList.toggle('open',open);$('spaelMore').setAttribute('aria-expanded',String(open));}
+$('spaelMore').addEventListener('click',()=>fold(!bar.classList.contains('open')));
+document.addEventListener('pointerdown',e=>{if(bar.classList.contains('open')&&!bar.contains(e.target))fold(false);},true);
+$('spaelMusic').addEventListener('click',()=>{music=!music;put('spael-music',music);paint();if(music)startMusic();else stopMusic();});
+$('spaelSfx').addEventListener('click',()=>{sfx=!sfx;put('spael-sfx',sfx);paint();tellGame();});
+new MutationObserver(paint).observe(document.documentElement,{attributes:true,attributeFilter:['lang']});
+paint();tellGame();
+})();
+</script>
+<!-- SPAEL-BAR END -->
+</body>
+</html>

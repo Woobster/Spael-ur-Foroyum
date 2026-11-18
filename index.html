@@ -79,6 +79,7 @@ main{position:relative;z-index:3;max-width:1160px;margin:-120px auto 0;padding:0
 .card.row .play{background:#352f45}
 .card.puffin .play{background:#e8743b}
 .card.farm .play{background:#b8892f}
+.card.ferry .play{background:#2f7f8f}
 .play svg{width:18px;height:18px;fill:currentColor}
 .card:hover .play{filter:brightness(1.07)}
 
@@ -507,6 +508,55 @@ footer .stripe{display:block;width:72px;height:6px;margin:0 auto 14px;border-rad
       </div>
     </a>
 
+    <a class="card ferry" href="ferry-season/">
+      <div class="art">
+        <svg viewBox="0 0 400 250" preserveAspectRatio="xMidYMid slice" aria-hidden="true">
+          <defs><linearGradient id="fys" x1="0" y1="0" x2="0" y2="1"><stop offset="0" stop-color="#b8cfe4"/><stop offset="1" stop-color="#dfd8e8"/></linearGradient></defs>
+          <rect width="400" height="250" fill="url(#fys)"/>
+          <rect y="96" width="400" height="154" fill="#93b7c9"/>
+          <path d="M0 150 L60 120 L130 160 L200 140 L280 175 L340 150 L400 170 V250 H0Z" fill="#86aac0" opacity=".55"/>
+          <!-- islands -->
+          <path d="M-10 112 L40 70 L82 86 L120 104 L96 118 L30 122Z" fill="#94a770"/><path d="M40 70 L82 86 L60 100Z" fill="#a9b77f"/><path d="M-10 112 L30 122 L96 118 L120 104 L124 110 L-10 120Z" fill="#bcb19c"/>
+          <path d="M268 108 L318 64 L352 78 L410 96 L410 116 L282 118Z" fill="#a9b77f"/><path d="M318 64 L352 78 L330 96Z" fill="#8f8a9b"/><path d="M268 108 L282 118 L410 116 L410 120 L272 120Z" fill="#bcb19c"/>
+          <path d="M196 204 L220 186 L246 194 L254 210 L210 214Z" fill="#94a770"/><path d="M196 204 L210 214 L254 210 L256 214 L198 216Z" fill="#bcb19c"/>
+          <!-- turf-roof houses -->
+          <g transform="translate(58 92)"><rect x="0" y="6" width="22" height="13" fill="#b8473d"/><path d="M-2 7 L11 -3 L24 7Z" fill="#8ea56a"/><rect x="8" y="11" width="6" height="8" fill="#f4f1ea"/></g>
+          <g transform="translate(300 90)"><rect x="0" y="6" width="22" height="13" fill="#3e3b45"/><path d="M-2 7 L11 -3 L24 7Z" fill="#8ea56a"/><rect x="4" y="10" width="5" height="4" fill="#f4f1ea"/></g>
+          <!-- routes -->
+          <path d="M96 124 C150 160 220 150 290 122" fill="none" stroke="#fff" stroke-width="9" stroke-linecap="round" opacity=".7"/>
+          <path d="M96 124 C150 160 220 150 290 122" fill="none" stroke="#2c5597" stroke-width="5" stroke-linecap="round"/>
+          <path d="M230 196 L300 120" fill="none" stroke="#352f45" stroke-width="3" stroke-dasharray="8 7" stroke-linecap="round" opacity=".7"/>
+          <circle cx="96" cy="124" r="8" fill="#fff" stroke="#352f45" stroke-width="2.5"/><circle cx="96" cy="124" r="4" fill="#f0b23a"/>
+          <circle cx="290" cy="122" r="8" fill="#fff" stroke="#352f45" stroke-width="2.5"/><circle cx="290" cy="122" r="4" fill="#5f9a4a"/>
+          <!-- car ferry -->
+          <g transform="translate(184 150) rotate(-8)">
+            <path d="M-34 4 L-30 16 L30 16 L38 4Z" fill="rgba(53,47,69,.22)" transform="translate(3 5)"/>
+            <path d="M-34 4 L-30 16 L30 16 L38 4Z" fill="#f4f1ea"/><path d="M-32 10 L-30 16 L30 16 L34 10Z" fill="#ddd8e3"/>
+            <rect x="-34" y="2" width="72" height="4" fill="#d9493a"/>
+            <rect x="-14" y="-10" width="30" height="12" fill="#3e3b45"/><rect x="-10" y="-7" width="22" height="5" fill="#f4f1ea"/>
+            <rect x="-4" y="-18" width="6" height="8" fill="#d9493a"/>
+          </g>
+          <!-- wake -->
+          <path d="M140 160 Q120 166 100 164 M146 168 Q126 176 104 176" stroke="#fff" stroke-width="2.5" fill="none" stroke-linecap="round" opacity=".8"/>
+          <!-- helicopter -->
+          <g transform="translate(262 150) rotate(-40)">
+            <ellipse cx="0" cy="0" rx="13" ry="8" fill="#f4f1ea"/><rect x="-8" y="-1.5" width="14" height="3" fill="#d9493a"/><ellipse cx="7" cy="0" rx="4.5" ry="5" fill="#6f7f99"/>
+            <path d="M-12 0 H-30" stroke="#352f45" stroke-width="3"/><rect x="-33" y="-5" width="4" height="10" fill="#d9493a"/>
+            <path d="M-20 -14 L20 14 M-20 14 L20 -14" stroke="#352f45" stroke-width="2.4" stroke-linecap="round"/>
+          </g>
+          <!-- fog wisp and gull -->
+          <path d="M318 196 q12 -12 28 -4 q14 -8 26 4 q10 2 6 10 h-64 q-6 -6 4 -10z" fill="#ece7f2" opacity=".85"/>
+          <path d="M150 58 q8 -7 16 0 q8 -7 16 0" stroke="#f4f1ea" stroke-width="3" fill="none" stroke-linecap="round"/><path d="M150 58 l-3 -2 M182 58 l3 -2" stroke="#352f45" stroke-width="3" stroke-linecap="round"/>
+        </svg>
+        <span class="chip" data-t="ferry.chip">Puzzle · Routes</span>
+      </div>
+      <div class="body">
+        <div class="title"><h2 data-t="ferry.title">Ferry Season</h2><span data-t="ferry.alt">Strandferðsla</span></div>
+        <p data-t="ferry.text">Draw ferry and helicopter routes between the real islands to carry passengers, mail, crates and sheep. Plan around fog and storms across 16 levels, from November to March.</p>
+        <span class="play"><svg viewBox="0 0 24 24"><path d="M7 4.5v15l12-7.5z"/></svg><span data-t="play">Play</span></span>
+      </div>
+    </a>
+
 
   </div>
 
@@ -535,6 +585,8 @@ const TEXT={
   'puffin.text':'Photograph puffins, gannets, skuas and storm petrels on the bird cliffs. Hold to focus, catch the rare poses, fill your bird book and upgrade your camera.',
   'farm.chip':'Idle · Farming','farm.title':'Cozy Faroese Farm','farm.alt':'Hoyggj',
   'farm.text':'Cut the meadow, carry the hay home in your leypur and sell it. Work your way up from bare hands to a combine harvester, dry hay on hesjur racks and grow your farm.',
+  'ferry.chip':'Puzzle · Routes','ferry.title':'Ferry Season','ferry.alt':'Strandferðsla',
+  'ferry.text':'Draw ferry and helicopter routes between the real islands to carry passengers, mail, crates and sheep. Plan around fog and storms across 16 levels, from November to March.',
   about:'All the games save your progress in your own browser, so you can come back any time.',made:'Made in the Faroe Islands',visits:'visits'},
  fo:{tag:'Hugnalig smá spøl úr Føroyum. Ókeypis at spæla í kaganum.',play:'Spæl',
   'hare.chip':'Idle · 3D','hare.title':'Haruveiða','hare.alt':'Hare Season',
@@ -549,6 +601,8 @@ const TEXT={
   'puffin.text':'Mynda lundar, súlur, skúgvar og drunnhvítar í fuglabjørgunum. Halt inni fyri at skarpstilla, fang tær sjáldsomu støðurnar, fyll fuglabókina og betra um myndatólið.',
   'farm.chip':'Idle · Hoyggj','farm.title':'Bóndagarðurin','farm.alt':'Cozy Faroese Farm',
   'farm.text':'Slá bøin, ber hoyggið heim í leypinum og sel tað. Byrja við berum hondum og arbeið teg upp til stórar maskinur, turka hoyggið á hesjum og stækka garðin.',
+  'ferry.chip':'Gáta · Leiðir','ferry.title':'Strandferðsla','ferry.alt':'Ferry Season',
+  'ferry.text':'Tekna ferju- og tyrluleiðir millum oyggjarnar og flyt ferðafólk, post, kassar og seyðir. Ætla teg eftir mjørka og stormi í 16 stigum, frá november til mars.',
   about:'Spølini goyma, hvussu langt tú ert komin, í tínum egna kaga, so tú kanst koma aftur nær tú vilt.',made:'Gjørt í Føroyum',visits:'vitjanir'}
 };
 (function(){let L='en';try{const v=localStorage.getItem('spael-lang');L=v==='fo'||v==='en'?v:((navigator.language||'').toLowerCase().startsWith('fo')?'fo':'en');}catch(e){}
