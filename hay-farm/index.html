@@ -194,14 +194,14 @@
 const CONFIG = {
   baseCycleTime: 2.5,       // seconds per harvest action with bare hands
   baseYield: 1,             // hay per action on fully grown grass
-  baseRegrowTime: 180,       // seconds for cut grass to fully regrow
+  baseRegrowTime: 30 / Math.pow(0.84, 6), // ≈ 85 s; max Seaweed Fertiliser brings it to exactly 30 s       // seconds for cut grass to fully regrow
   baseSellPrice: 1,         // kr per fresh hay
   driedBonus: 1.5,          // dried barn hay sells for this × fresh price
   baseRunSpeed: 150,        // world units per second
   baseBasket: 10,           // hay the farmer can carry
   baseBarnCap: 50,          // hay the barn can hold
   baseDryRate: 0.5,         // hay per second that dries in the barn
-  minFreshnessYield: 0.3,   // fraction of yield still gained on stubble
+  hayPerPatch: 0.27,        // hay from one fully grown patch of grass (cut early, you get less)
   cellW: 12, cellH: 10.2,   // grass grid cell size (fixed so the field can grow cell by cell)
   autosaveSeconds: 20,
   saveKey: "cozyFaroeseFarm.save.v2",
@@ -209,23 +209,53 @@ const CONFIG = {
 
 /* ------------------------------ WORLD -------------------------------- */
 // Everything lives in fixed world units and is scaled to fit the screen.
+// The world runs from x0 (west) to w (east) and from the sky down to h.
 const WORLD = {
-  w: 1400, h: 820, horizon: 290, seaBot: 345,
-  walk: { x0: 18, x1: 1382, y0: 378, y1: 806 },
-  field: { x: 70, y: 432, w: 264, h: 173 },        // resized by the "Expand the Meadow" upgrade
-  barn:  { x: 800, y: 585, door: { x: 800, y: 612 }, r: 72 },
+  x0: -720, w: 1400, h: 1320, horizon: 290, seaBot: 345,
+  walk: { x0: -700, x1: 1382, y0: 378, y1: 1300 },
+  // meadows: Bøur by the farmyard, and Heygarður (bought later) down the hill to the south-west.
+  // Each grows right and down with its own "Expand" upgrade (levelId); unlock = upgrade that buys it.
+  fields: [
+    { id: "bour", name: "Bøur", x: 70, y: 432, w: 264, h: 173, levelId: "field", unlock: null },
+    { id: "heygardur", name: "Heygarður", x: -640, y: 900, w: 264, h: 173, levelId: "field2", unlock: "buyfield2" },
+  ],
+  hub: { x: 700, y: 648 },     // farmyard crossroads south-west of the barn
+  south: { x: 700, y: 848 },   // where the track down to Heygarður leaves the farmyard
+  barn:  { x: 916, y: 585, door: { x: 916, y: 612 }, r: 72 },
   cart:  { park: { x: 1185, y: 590 }, r: 92, exitX: 1720 },
+  station: { x: 880, y: 812, door: { x: 862, y: 838 }, r: 60 }, // research station (built later)
+  shed:  { x: 250, y: 1012, door: { x: 250, y: 1036 }, r: 64 }, // Heygarður hay shed (bought later)
   house: { x: 1010, y: 482, door: { x: 1010, y: 508 }, r: 62 },
   start: { x: 430, y: 560 },
 };
 
-// Meadow size per expansion level, in grass cells (cols × rows). Grows right and down.
+WORLD.field = WORLD.fields[0]; // the home meadow
+
+// Drying racks (hesjur) stand in a 2 × 2 block on the left side of the barn.
+const RACK_SLOTS = [{ x: 760, y: 530 }, { x: 696, y: 530 }, { x: 760, y: 458 }, { x: 696, y: 458 }];
+const RACK_W = 56;
+const rackCount = () => 1 + lvl("rackcount");
+// The hay shed by Heygarður has its own little block of racks on its right side.
+const SHED_RACKS = [{ x: 352, y: 1012 }, { x: 416, y: 1012 }, { x: 352, y: 944 }, { x: 416, y: 944 }];
+const hasShed = () => lvl("shed") >= 1;
+const shedRackCount = () => hasShed() ? 2 + lvl("shedracks") : 0;
+
 // Solid footprints the farmer can't walk through (world units, at ground level).
-const OBSTACLES = [
-  { x0: 704, x1: 896, y0: 540, y1: 594 },   // barn
-  { x0: 908, x1: 988, y0: 570, y1: 586 },   // drying rack
-  { x0: 936, x1: 1084, y0: 436, y1: 490 },  // farmhouse
-];
+// Footprints include the visible side walls and the ground behind each building,
+// so the farmer can never slip out of sight behind a wall.
+const OBSTACLES = [];
+function rebuildObstacles() {
+  const b = WORLD.barn;
+  OBSTACLES.length = 0;
+  OBSTACLES.push({ x0: b.x - 96, x1: b.x + 118, y0: 400, y1: 594 });   // barn
+  OBSTACLES.push({ x0: 936, x1: 1106, y0: 400, y1: 490 });             // farmhouse
+  for (let i = 0; i < rackCount(); i++) { const r = RACK_SLOTS[i]; OBSTACLES.push({ x0: r.x - 3, x1: r.x + RACK_W + 3, y0: r.y - 14, y1: r.y + 2 }); }
+  if (lvl("station") >= 1) { const st = WORLD.station; OBSTACLES.push({ x0: st.x - 66, x1: st.x + 86, y0: st.y - 118, y1: st.y + 9 }); }
+  if (hasShed()) {
+    const sh = WORLD.shed; OBSTACLES.push({ x0: sh.x - 74, x1: sh.x + 94, y0: sh.y - 132, y1: sh.y + 9 });
+    for (let i = 0; i < shedRackCount(); i++) { const r = SHED_RACKS[i]; OBSTACLES.push({ x0: r.x - 3, x1: r.x + RACK_W + 3, y0: r.y - 14, y1: r.y + 2 }); }
+  }
+}
 const blocked = (x, y) => OBSTACLES.some(o => x > o.x0 && x < o.x1 && y > o.y0 && y < o.y1);
 
 // Top edge of the walkable land: just above the meadow on the left, level with the farmhouse on the right,
@@ -234,10 +264,13 @@ function walkTop(x) { const a = 420, b = 470, t = Math.max(0, Math.min(1, (x - 6
 // Mild perspective: the farmer is a little smaller higher up the slope.
 const depthScale = y => 0.84 + 0.16 * Math.max(0, Math.min(1, (y - 420) / 230));
 
+// Workers are 75% as effective as you with the same upgrades; their upgrades cost 90% of yours
+// (one purchase equips every worker, but they lose time walking hay to the barn).
+const WORKER_EFF = 0.75, WORKER_COST = 0.9;
+
 const FIELD_STAGES = [[22, 17], [26, 20], [30, 23], [34, 26], [38, 29], [42, 32], [46, 34], [50, 36]];
 function applyFieldSize() {
-  const [c, r] = FIELD_STAGES[lvl("field")];
-  WORLD.field.w = c * CONFIG.cellW; WORLD.field.h = +(r * CONFIG.cellH).toFixed(2);
+  for (const f of WORLD.fields) { const [c, r] = FIELD_STAGES[lvl(f.levelId)]; f.w = c * CONFIG.cellW; f.h = +(r * CONFIG.cellH).toFixed(2); }
 }
 
 /* ---------------------------- VEHICLES ------------------------------- */
@@ -261,6 +294,9 @@ const RESOURCES = [
     value: () => `${fmt(barnTotal())} / ${fmt(getStats().barnCap)}`, full: () => barnTotal() >= getStats().barnCap - 1e-6 },
   { id: "cart",  name: "Cart",   icon: "🐴", icon2: () => getStats().vehicle.icon, label: () => getStats().vehicle.name,
     value: () => Cart.state === "parked" ? `${fmt(cartTotal())} / ${fmt(getStats().cartCap)}` : `away · ${Math.ceil(Cart.eta())}s` },
+  { id: "research", name: "Research", icon: "🔬", hide: () => !state.research.active,
+    label: () => state.research.active ? RESEARCH_BY_ID[state.research.active.id].name : "Research",
+    value: () => { const a = state.research.active; return a ? fmtTime(Math.max(0, RESEARCH_BY_ID[a.id].time - a.t)) : ""; } },
 ];
 
 /* ------------------------------ TOOLS -------------------------------- */
@@ -300,6 +336,14 @@ const TOOLS = [
 ];
 // What the farmer carries hay in. Bought in order at the farmhouse, like tools.
 // style "back" = worn on the back; "pull" = pulled along behind. Machines' tanks/bags add on top.
+// Hay comes from the land: a cut gives hayPerPatch for every grown patch inside the ring,
+// times the tool's "gather" (balers and harvesters pack and waste less). Bigger tools cover more grass,
+// but a meadow can only grow so much — so land, regrowth and a second meadow matter.
+const GATHER = { reel: 1.1, push: 1.15, selfprop: 1.15, sickbar: 1.2, twowheel: 1.25, lawntrac: 1.3, ztr: 1.35, flail: 1.4,
+  disc: 1.5, tedder: 1.7, sqbaler: 2.0, rdbaler: 2.5, swather: 2.8, forage: 3.1, combine: 3.5 };
+const ringPatches = r => Math.PI * r * r / (CONFIG.cellW * CONFIG.cellH);
+const fullYield = (r, gather) => +(ringPatches(r) * CONFIG.hayPerPatch * gather).toFixed(1);
+for (const t of TOOLS) { t.gather = GATHER[t.id] || 1; t.yield = fullYield(t.radius, t.gather); }
 const CARRIERS = [
   { id: "leypur",   icon: "🧺", name: "Small Leypur",     style: "back", size: 1,   cap: 10,  cost: 0,    desc: "The traditional Faroese back-basket of woven willow." },
   { id: "bigleypur",icon: "🧺", name: "Large Leypur",     style: "back", size: 1.35,cap: 18,  cost: 12,   desc: "A bigger leypur with a strap across the forehead." },
@@ -322,7 +366,7 @@ const nextTool = () => TOOLS[toolIdx() + 1] || null;
 /* ---------------------------- UPGRADES ------------------------------- */
 // id, category, name, desc, maxLevel, cost(level), value(level), show(value), requires?
 const UPGRADES = [
-  { id: "speed", category: "Harvesting", name: "Nimble Hands",
+  { id: "speed", category: "Farmer", name: "Nimble Hands",
     desc: "Practise the rhythm of the harvest. The ring fills faster with any tool.",
     maxLevel: 10, cost: l => 5 * Math.pow(1.62, l),
     value: l => +(CONFIG.baseCycleTime - 0.1 * l).toFixed(2), show: v => v.toFixed(2) + " s / action" },
@@ -332,21 +376,53 @@ const UPGRADES = [
     maxLevel: 6, cost: l => 14 * Math.pow(1.9, l),
     value: l => Math.round(CONFIG.baseRunSpeed * Math.pow(1.12, l)), show: v => (v / 50).toFixed(1) + " m/s" },
 
-  { id: "loft", category: "Barn", name: "Barn Loft",
+  { id: "loft", category: "Buildings", building: "barn", name: "Barn Loft",
     desc: "Clear out the loft to store more hay.",
-    maxLevel: 6, cost: l => 30 * Math.pow(2, l),
-    value: l => Math.round(CONFIG.baseBarnCap * Math.pow(1.6, l)), show: v => v + " hay storage",
+    maxLevel: 12, cost: l => 30 * Math.pow(2, l),
+    value: l => Math.round(CONFIG.baseBarnCap * Math.pow(1.6, l)), show: v => fmt(v) + " hay storage",
     requires: { text: "Store hay in the barn once", met: s => s.stats.timesStored >= 1 } },
-  { id: "racks", category: "Barn", name: "Hesjur Drying Racks",
-    desc: "Traditional racks for drying hay in the island wind. Hay in the barn dries faster.",
+  { id: "rackcount", category: "Buildings", building: "barn", name: "Build a Drying Rack",
+    desc: "Another hesja beside the barn. Each rack dries hay at the same time, so two racks dry twice as fast.",
+    maxLevel: RACK_SLOTS.length - 1, cost: l => [150, 900, 5000][l] || Infinity,
+    value: l => l + 1, show: v => v + (v === 1 ? " rack" : " racks"),
+    requires: { text: "Store hay in the barn once", met: s => s.stats.timesStored >= 1 } },
+  { id: "racks", category: "Buildings", building: "barn", name: "Better Racks",
+    desc: "Sturdier hesjur that catch more island wind. Every rack dries hay faster.",
     maxLevel: 6, cost: l => 25 * Math.pow(1.9, l),
-    value: l => +(CONFIG.baseDryRate * Math.pow(1.5, l)).toFixed(2), show: v => v.toFixed(2) + " hay/s drying",
+    value: l => +(CONFIG.baseDryRate * Math.pow(1.5, l)).toFixed(2), show: v => v.toFixed(2) + " hay/s per rack",
     requires: { text: "Store hay in the barn once", met: s => s.stats.timesStored >= 1 } },
 
-  { id: "field", category: "Land", name: "Expand the Meadow",
-    desc: "Move the stone wall outward and claim more grassland. New grass sprouts in the extra space.",
+  { id: "station", category: "Buildings", building: "station", name: "Build the Research Station",
+    desc: "A little white field station by the farm track, run with Búnaðarstovan. Unlocks Research: seeds, soil, machines and markets.",
+    maxLevel: 1, cost: () => 50000, value: l => l, show: v => v ? "the station is built" : "not built",
+    requires: { text: "Own a Lawn Tractor or earn 60,000 kr", met: s => toolIdx() >= TOOL_INDEX.lawntrac || s.stats.totalMoney >= 60000 } },
+  { id: "dryer", category: "Buildings", building: "barn", name: "Hay Dryer",
+    desc: "A fan blows warm air through the hay — in the barn and the shed. Every rack dries much faster.",
+    maxLevel: 3, cost: l => [40000, 200000, 900000][l] || Infinity,
+    value: l => [1, 1.5, 2, 2.5][l], show: v => v === 1 ? "no dryer" : "×" + v + " drying",
+    requires: { text: "Build 4 drying racks", met: s => s.upgrades.rackcount >= 3 } },
+  { id: "shed", category: "Buildings", building: "shed", name: "Heygarður Hay Shed",
+    desc: "A small tarred shed with two racks by Heygarður. Its hay dries right there — short trips for your haulers.",
+    maxLevel: 1, cost: () => 6000, value: l => l, show: v => v ? "the shed is built" : "not built",
+    requires: { text: "Buy Heygarður", met: s => s.upgrades.buyfield2 >= 1 } },
+  { id: "shedracks", category: "Buildings", building: "shed", name: "Shed Drying Rack",
+    desc: "Another hesja beside the hay shed.",
+    maxLevel: 2, cost: l => [3000, 12000][l] || Infinity,
+    value: l => l + 2, show: v => v + " racks at the shed",
+    requires: { text: "Build the hay shed", met: s => s.upgrades.shed >= 1 } },
+  { id: "field", category: "Land", name: "Expand Bøur",
+    desc: "Move the home meadow's stone wall outward. New grass sprouts in the extra space.",
     maxLevel: FIELD_STAGES.length - 1, cost: l => 18 * Math.pow(2.1, l),
     value: l => FIELD_STAGES[l][0] * FIELD_STAGES[l][1], show: v => fmt(v) + " patches of grass" },
+  { id: "buyfield2", category: "Land", name: "Buy Heygarður",
+    desc: "A second hay meadow down the hill to the south-west. Further from the barn — a job for haulers.",
+    maxLevel: 1, cost: () => 2500, value: l => l, show: v => v ? "Heygarður is yours" : "not owned",
+    requires: { text: "Expand Bøur twice", met: s => s.upgrades.field >= 2 } },
+  { id: "field2", category: "Land", name: "Expand Heygarður",
+    desc: "Move Heygarður's stone wall outward for more grass.",
+    maxLevel: FIELD_STAGES.length - 1, cost: l => 40 * Math.pow(2.1, l),
+    value: l => FIELD_STAGES[l][0] * FIELD_STAGES[l][1], show: v => fmt(v) + " patches of grass",
+    requires: { text: "Buy Heygarður", met: s => s.upgrades.buyfield2 >= 1 } },
   { id: "regrow", category: "Land", name: "Seaweed Fertiliser",
     desc: "Spread kelp from the shore, an old island trick. Cut grass grows back sooner.",
     maxLevel: 6, cost: l => 15 * Math.pow(1.8, l),
@@ -367,6 +443,38 @@ const UPGRADES = [
     maxLevel: 6, cost: l => 25 * Math.pow(1.95, l),
     value: l => +Math.pow(0.85, l).toFixed(3), show: v => "×" + v.toFixed(2) + " trip time",
     requires: { text: "Deliver one load to Tórshavn", met: s => s.stats.timesSold >= 1 } },
+  // ---- Workers tab: hire neighbours, then give them their own copy of your upgrades.
+  // Workers are WORKER_EFF (75%) as effective as you would be with the same upgrades.
+  { id: "cutters", category: "Workers", name: "Hire a Cutter",
+    desc: "A neighbour cuts the meadow and drops the hay on a pile just outside the gate.",
+    maxLevel: 10, cost: l => [100, 750, 4500, 12000, 30000, 60000, 120000, 220000, 380000, 600000][l] || Infinity,
+    value: l => l, show: v => v + (v === 1 ? " cutter" : " cutters"),
+    requires: { text: "Store hay in the barn once", met: s => s.stats.timesStored >= 1 } },
+  { id: "haulers", category: "Workers", name: "Hire a Hauler",
+    desc: "Carries the piles to the barn to dry, and dried hay from the barn to the cart.",
+    maxLevel: 10, cost: l => [150, 1000, 6000, 16000, 35000, 70000, 130000, 240000, 400000, 650000][l] || Infinity,
+    value: l => l, show: v => v + (v === 1 ? " hauler" : " haulers"),
+    requires: { text: "Deliver one load to Tórshavn", met: s => s.stats.timesSold >= 1 } },
+  { id: "w_tool", category: "Workers", name: "Workers' Tools",
+    desc: "Better tools for your cutters — the same line as yours, from bare hands to the combine.",
+    maxLevel: TOOLS.length - 1, cost: l => TOOLS[l + 1] ? Math.round(TOOLS[l + 1].cost * WORKER_COST) : Infinity,
+    value: l => l, show: v => `${TOOLS[v].icon} ${TOOLS[v].name}`,
+    requires: { text: "Hire a cutter", met: s => s.upgrades.cutters >= 1 } },
+  { id: "w_carrier", category: "Workers", name: "Haulers' Carriers",
+    desc: "The same carriers as yours, from leypur to garden trailer. Haulers use them (and cutters carry more too).",
+    maxLevel: CARRIERS.length - 1, cost: l => CARRIERS[l + 1] ? Math.round(CARRIERS[l + 1].cost * WORKER_COST) : Infinity,
+    value: l => l, show: v => `${CARRIERS[v].icon} ${CARRIERS[v].name} (${Math.round(CARRIERS[v].cap * WORKER_EFF)} hay)`,
+    requires: { text: "Hire a worker", met: s => s.upgrades.cutters + s.upgrades.haulers >= 1 } },
+  { id: "w_speed", category: "Workers", name: "Workers' Nimble Hands",
+    desc: "Your cutters practise the rhythm of the harvest too.",
+    maxLevel: 10, cost: l => Math.round(5 * Math.pow(1.62, l) * WORKER_COST),
+    value: l => +(CONFIG.baseCycleTime - 0.1 * l).toFixed(2), show: v => (v / WORKER_EFF).toFixed(2) + " s / action (bare hands)",
+    requires: { text: "Hire a cutter", met: s => s.upgrades.cutters >= 1 } },
+  { id: "w_boots", category: "Workers", name: "Workers' Sheepskin Boots",
+    desc: "Good boots for everyone — your workers walk faster between field, barn and cart.",
+    maxLevel: 6, cost: l => Math.round(14 * Math.pow(1.9, l) * WORKER_COST),
+    value: l => Math.round(CONFIG.baseRunSpeed * Math.pow(1.12, l)), show: v => (v * WORKER_EFF / 50).toFixed(1) + " m/s",
+    requires: { text: "Hire a worker", met: s => s.upgrades.cutters + s.upgrades.haulers >= 1 } },
   { id: "price", category: "Transport", name: "Tórshavn Connections",
     desc: "Better connections at the harbour market raise the price your hay fetches.",
     maxLevel: 10, cost: l => 25 * Math.pow(1.85, l),
@@ -375,6 +483,55 @@ const UPGRADES = [
 ];
 const UPGRADE_BY_ID = Object.fromEntries(UPGRADES.map(u => [u.id, u]));
 
+/* ------------------------------ RESEARCH ------------------------------ */
+// The late game: projects at Búnaðarstovan, the farming advisory office. One at a time; each costs
+// króna and takes real minutes (only while you play). fx multiplies a stat once it's done:
+// soil = hay per patch · gather = hay per cut · cycle = cut time · dry = drying speed ·
+// haul = haulers' load · price = sale price · seed = unlocks a seed mix for the meadows.
+const RESEARCH = [
+  { id: "r_timothy", branch: "seeds", icon: "🌱", name: "Timothy Grass", cost: 15000, time: 180, fx: { seed: "timothy" }, desc: "A reliable hay grass. Sow it for 30% more hay." },
+  { id: "r_clover", branch: "seeds", icon: "☘️", name: "Red Clover Mix", cost: 60000, time: 360, req: ["r_timothy"], fx: { seed: "clover" }, desc: "Grass with red clover. A bit more hay and it grows back 30% faster." },
+  { id: "r_rye", branch: "seeds", icon: "🌾", name: "Perennial Ryegrass", cost: 250000, time: 720, req: ["r_clover"], fx: { seed: "rye" }, desc: "Tall and heavy: 70% more hay per cut, but it grows back slower." },
+  { id: "r_hybrid", branch: "seeds", icon: "✨", name: "Faroese Hybrid Grass", cost: 2000000, time: 1800, req: ["r_rye", "r_drain"], fx: { seed: "hybrid" }, desc: "Bred for wind and salt spray. 2.5× the hay of native grass." },
+  { id: "r_manure", branch: "soil", icon: "🟫", name: "Spread Tað", cost: 5000, time: 120, fx: { soil: 1.15 }, desc: "Sheep manure on every meadow. +15% hay from every patch." },
+  { id: "r_lime", branch: "soil", icon: "🪨", name: "Liming the Acid Soil", cost: 25000, time: 240, req: ["r_manure"], fx: { soil: 1.2 }, desc: "Crushed shell sand sweetens the peaty island soil. +20% hay." },
+  { id: "r_drain", branch: "soil", icon: "💧", name: "Drainage Ditches", cost: 120000, time: 480, req: ["r_lime"], fx: { soil: 1.25 }, desc: "Dig the wet corners dry. +25% hay." },
+  { id: "r_plough", branch: "soil", icon: "🚜", name: "Deep Ploughing", cost: 600000, time: 900, req: ["r_drain"], fx: { soil: 1.25 }, desc: "Turn and reseed the old turf. +25% hay." },
+  { id: "r_soilsci", branch: "soil", icon: "🔬", name: "Soil Science", cost: 3000000, time: 1800, req: ["r_plough"], fx: { soil: 1.3 }, desc: "Soil samples and just the right feed for each meadow. +30% hay." },
+  { id: "r_blades", branch: "machines", icon: "🔪", name: "Sharper Blades", cost: 20000, time: 180, fx: { gather: 1.1 }, desc: "Hardened steel for every tool. +10% hay per cut — for you and your cutters." },
+  { id: "r_engines", branch: "machines", icon: "⚙️", name: "Tuned Engines", cost: 100000, time: 360, req: ["r_blades"], fx: { cycle: 0.9 }, desc: "Every cut is 10% quicker." },
+  { id: "r_fans", branch: "machines", icon: "🌀", name: "Barn Fans", cost: 80000, time: 300, req: ["r_blades"], fx: { dry: 1.5 }, desc: "Fans in the barn and the shed: hay dries 50% faster." },
+  { id: "r_wagon", branch: "machines", icon: "🛻", name: "Haulers' Hay Wagons", cost: 300000, time: 600, req: ["r_engines"], fx: { haul: 2.5 }, desc: "Your haulers get small tractors with hay wagons: 2.5× the load." },
+  { id: "r_pickup", branch: "machines", icon: "🌾", name: "Better Pick-up Reels", cost: 500000, time: 720, req: ["r_engines"], fx: { gather: 1.15 }, desc: "Less hay is left behind. +15% hay per cut." },
+  { id: "r_heat", branch: "machines", icon: "🔥", name: "Heat-Recovery Dryer", cost: 800000, time: 900, req: ["r_fans"], fx: { dry: 2 }, desc: "Waste heat from the engines warms the drying air: hay dries twice as fast." },
+  { id: "r_loader", branch: "machines", icon: "🚛", name: "Loader Wagons", cost: 2000000, time: 1500, req: ["r_wagon"], fx: { haul: 3 }, desc: "Big self-loading wagons for your haulers: 3× again." },
+  { id: "r_gps", branch: "machines", icon: "🛰️", name: "GPS Steering", cost: 2500000, time: 1500, req: ["r_pickup"], fx: { gather: 1.2 }, desc: "Perfect, overlapping swaths every time. +20% hay per cut." },
+  { id: "r_ferry", branch: "market", icon: "⛴️", name: "Ferry Export Deal", cost: 40000, time: 240, fx: { price: 1.15 }, desc: "Ship hay to Suðuroy and beyond on the ferry. +15% price." },
+  { id: "r_organic", branch: "market", icon: "🍃", name: "Organic Certificate", cost: 300000, time: 600, req: ["r_ferry"], fx: { price: 1.2 }, desc: "No sprays, ever. Buyers pay 20% more." },
+  { id: "r_brand", branch: "market", icon: "🇫🇴", name: "“Føroyskt Hey” Brand", cost: 1500000, time: 1200, req: ["r_organic"], fx: { price: 1.25 }, desc: "Island hay with a name of its own. +25% price." },
+];
+const RESEARCH_BY_ID = Object.fromEntries(RESEARCH.map(n => [n.id, n]));
+const BRANCHES = [{ id: "seeds", name: "Seeds", icon: "🌱" }, { id: "soil", name: "Soil", icon: "🟫" }, { id: "machines", name: "Machines", icon: "⚙️" }, { id: "market", name: "Market", icon: "🚢" }];
+const researched = id => !!(state.research && state.research.done[id]);
+const rMult = key => RESEARCH.reduce((m, n) => researched(n.id) && n.fx[key] ? m * n.fx[key] : m, 1);
+const researchOpen = () => lvl("station") >= 1;
+const researchReady = n => !researched(n.id) && (n.req || []).every(researched);
+
+// Seed mixes, sown per meadow from the Land tab. hay = × hay per patch, regrow = × regrowth time.
+const SEEDS = [
+  { id: "native", name: "Native meadow grass", icon: "🌿", hay: 1, regrow: 1, price: 0, tall: 1, desc: "The old island grass." },
+  { id: "timothy", name: "Timothy", icon: "🌱", hay: 1.3, regrow: 1, price: 2, tall: 1.08, research: "r_timothy", desc: "Reliable: +30% hay.",
+    colors: ["#d8c07e", "#c9ad6c", "#aeb877", "#9cae6e", "#94b07c", "#84a370", "#7c9f6a", "#6c9260"] },
+  { id: "clover", name: "Red clover mix", icon: "☘️", hay: 1.2, regrow: 0.7, price: 8, tall: 0.95, flowers: true, research: "r_clover", desc: "+20% hay, regrows 30% faster — best with plenty of cutters.",
+    colors: ["#d8c07e", "#c9ad6c", "#a9b874", "#98b06a", "#8fb36c", "#7fa860", "#78a95e", "#669a52"] },
+  { id: "rye", name: "Perennial ryegrass", icon: "🌾", hay: 1.7, regrow: 1.35, price: 30, tall: 1.25, research: "r_rye", desc: "+70% hay per cut, regrows 35% slower — best when cutting is the limit.",
+    colors: ["#d8c07e", "#c9ad6c", "#9fae6c", "#8fa463", "#7d9c5c", "#6d9052", "#5f8a4d", "#507d44"] },
+  { id: "hybrid", name: "Faroese hybrid", icon: "✨", hay: 2.5, regrow: 1, price: 200, tall: 1.35, research: "r_hybrid", desc: "2.5× the hay of native grass.",
+    colors: ["#d8c07e", "#c9ad6c", "#bdb86e", "#adb066", "#b0b862", "#a0ac58", "#a6b55a", "#94a64e"] },
+];
+const SEED_BY_ID = Object.fromEntries(SEEDS.map(x => [x.id, x]));
+const seedOf = plot => SEED_BY_ID[state.seeds[plot.f.id]] || SEEDS[0];
+
 /* ------------------------- STATE & SAVING ---------------------------- */
 function defaultState() {
   return {
@@ -382,12 +539,16 @@ function defaultState() {
     money: 0,
     carry: { fresh: 0, dried: 0 },
     barn: { fresh: 0, dried: 0 },
+    shed: { fresh: 0, dried: 0 },
     cart: { fresh: 0, dried: 0, pending: 0, pendingDried: false },
+    piles: { bour: 0, heygardur: 0 },     // cut hay dumped outside each field's gate
+    seeds: { bour: "native", heygardur: "native" },
+    research: { done: Object.fromEntries(RESEARCH.map(n => [n.id, false])), active: null },
     player: { x: WORLD.start.x, y: WORLD.start.y },
     upgrades: Object.fromEntries(UPGRADES.map(u => [u.id, 0])),
-    equipment: "hands", carrier: "leypur", reachRefunded: true, refund2: true,
-    stats: { totalHay: 0, actions: 0, totalMoney: 0, haySold: 0, timesSold: 0, timesStored: 0, hayStored: 0, upgradesBought: 0, playTime: 0, distance: 0 },
-    settings: { master: 0.7, sfx: 0.8, ambience: 0.5, sfxOn: true, ambienceOn: true },
+    equipment: "hands", carrier: "leypur", reachRefunded: true, refund2: true, workersV2: true,
+    stats: { totalHay: 0, actions: 0, totalMoney: 0, haySold: 0, timesSold: 0, timesStored: 0, hayStored: 0, upgradesBought: 0, playTime: 0, distance: 0, helperHay: 0 },
+    settings: { master: 0.7, sfx: 0.8, ambience: 0.5, engine: 0.7, sfxOn: true, ambienceOn: true, engineOn: true },
   };
 }
 let state = defaultState();
@@ -422,12 +583,15 @@ const Save = {
         if (back > 0) { state.money += back; setTimeout(() => toast(`Bigger Armfuls & Bigger Basket were replaced — ${fmt(back)} kr refunded`), 1600); }
       }
       state.refund2 = true;
+      if ((saved.research && (saved.research.active || Object.values(saved.research.done || {}).some(Boolean))) && !state.upgrades.station) state.upgrades.station = 1;
+      if (!saved.workersV2 && (state.upgrades.cutters > 0) && !state.upgrades.w_tool) state.upgrades.w_tool = TOOL_INDEX.scythe; // they used scythes before
+      state.workersV2 = true;
       if (!(state.carrier in CARRIER_INDEX)) state.carrier = "leypur";
       if (!(state.equipment in TOOL_INDEX)) state.equipment = "hands";
       for (const u of UPGRADES) state.upgrades[u.id] = Math.max(0, Math.min(u.maxLevel, state.upgrades[u.id] | 0));
       Player.place(state.player.x, state.player.y);
       if (state.cart.pending > 0) { state.money += state.cart.pending; state.stats.totalMoney += state.cart.pending; state.cart.pending = 0; }
-      Cart.reset(); onFieldChanged(false);
+      Cart.reset(); onFieldChanged(false); Helpers.list = []; Helpers.sync();
       return true;
     } catch (e) { return false; }
   },
@@ -435,7 +599,7 @@ const Save = {
     try { localStorage.removeItem(CONFIG.saveKey); } catch (e) {}
     const settings = state.settings; state = defaultState(); state.settings = settings;
     Player.place(WORLD.start.x, WORLD.start.y);
-    Cart.reset(); onFieldChanged(false);
+    Cart.reset(); onFieldChanged(false); Helpers.list = []; Helpers.sync();
   },
 };
 
@@ -446,10 +610,11 @@ function getStats() {
   return {
     tool: currentTool(),
     carrier: currentCarrier(),
-    cycleTime: stat("speed") * currentTool().cycle, yield: currentTool().yield, radius: currentTool().radius,
+    cycleTime: stat("speed") * currentTool().cycle * rMult("cycle"), yield: currentTool().yield, radius: currentTool().radius, gather: currentTool().gather * rMult("gather"),
     basket: currentCarrier().cap + currentTool().carry, runSpeed: Math.round(stat("boots") * currentTool().run),
-    barnCap: stat("loft"), dryRate: stat("racks"),
-    regrowTime: stat("regrow"), sellPrice: stat("price"),
+    barnCap: stat("loft"), dryRate: stat("racks") * rackCount() * stat("dryer") * rMult("dry"),
+    shedCap: hasShed() ? Math.round(stat("loft") * 0.6) : 0, shedDryRate: stat("racks") * shedRackCount() * stat("dryer") * rMult("dry"),
+    regrowTime: stat("regrow"), sellPrice: stat("price") * rMult("price"),
     vehicle: VEHICLES[lvl("vehicle")],
     cartCap: Math.round(VEHICLES[lvl("vehicle")].cap * stat("cartload")),
     tripTime: VEHICLES[lvl("vehicle")].trip * stat("trips"),
@@ -458,6 +623,16 @@ function getStats() {
 const cartTotal = () => state.cart.fresh + state.cart.dried;
 const carryTotal = () => state.carry.fresh + state.carry.dried;
 const barnTotal = () => state.barn.fresh + state.barn.dried;
+const shedTotal = () => state.shed.fresh + state.shed.dried;
+// Stores: places where hay is kept and dried (the barn, and later the Heygarður shed)
+const Stores = {
+  ids: () => hasShed() ? ["barn", "shed"] : ["barn"],
+  cap: id => id === "barn" ? getStats().barnCap : getStats().shedCap,
+  total: id => state[id].fresh + state[id].dried,
+  space: id => Stores.cap(id) - Stores.total(id),
+  door: id => WORLD[id].door,
+  name: id => id === "barn" ? "barn" : "hay shed",
+};
 const upgradeCost = u => Math.ceil(u.cost(lvl(u.id)));
 const isUnlocked = u => !u.requires || u.requires.met(state);
 
@@ -484,7 +659,7 @@ const Sound = {
     const AC = window.AudioContext || window.webkitAudioContext; if (!AC) return;
     this.ctx = new AC();
     this.master = this.ctx.createGain(); this.master.connect(this.ctx.destination);
-    for (const b of ["sfx", "ambience"]) { const g = this.ctx.createGain(); g.connect(this.master); this.buses[b] = g; }
+    for (const b of ["sfx", "ambience", "engine"]) { const g = this.ctx.createGain(); g.connect(this.master); this.buses[b] = g; }
     const len = this.ctx.sampleRate * 2, buf = this.ctx.createBuffer(1, len, this.ctx.sampleRate), d = buf.getChannelData(0);
     for (let i = 0; i < len; i++) d[i] = Math.random() * 2 - 1;
     this.noise = buf; this.started = true;
@@ -497,6 +672,7 @@ const Sound = {
     this.master.gain.setTargetAtTime(s.master, t, 0.05);
     this.buses.sfx.gain.setTargetAtTime(s.sfxOn ? s.sfx : 0, t, 0.05);
     this.buses.ambience.gain.setTargetAtTime(s.ambienceOn ? s.ambience : 0, t, 0.05);
+    this.buses.engine.gain.setTargetAtTime(s.engineOn ? s.engine : 0, t, 0.05);
   },
   startWind() {
     const c = this.ctx, src = c.createBufferSource(); src.buffer = this.noise; src.loop = true;
@@ -542,6 +718,97 @@ const Sound = {
     if (!this.started) return; const t = this.ctx.currentTime;
     this.noiseHit(t, 1800, 5200, 0.26, 0.18 + 0.22 * fresh);
     this.tones([560 + fresh * 200], 0, "triangle", 0.05, 0.15);
+  },
+  /* ---- realistic tool sounds ------------------------------------------------
+     Every tool has a one-shot "cut" sound played on each completed circle, and
+     motorised tools also run a live engine that idles and revs while cutting. */
+  burst(t, type, f0, f1, dur, vol, q = 1, bus = "sfx", attack = 0.006) {
+    const c = this.ctx, src = c.createBufferSource(); src.buffer = this.noise;
+    const f = c.createBiquadFilter(); f.type = type; f.Q.value = q;
+    f.frequency.setValueAtTime(f0, t); f.frequency.exponentialRampToValueAtTime(Math.max(40, f1), t + dur);
+    const g = c.createGain(); g.gain.setValueAtTime(0.0001, t); g.gain.exponentialRampToValueAtTime(vol, t + attack); g.gain.exponentialRampToValueAtTime(0.0001, t + dur);
+    src.connect(f).connect(g).connect(this.buses[bus]); src.start(t, Math.random() * 1.5); src.stop(t + dur + 0.05);
+  },
+  ring(t, f, dur, vol, type = "sine", bus = "sfx") {
+    const c = this.ctx, o = c.createOscillator(), g = c.createGain(); o.type = type; o.frequency.setValueAtTime(f, t); o.frequency.exponentialRampToValueAtTime(f * 0.92, t + dur);
+    g.gain.setValueAtTime(0.0001, t); g.gain.exponentialRampToValueAtTime(vol, t + 0.004); g.gain.exponentialRampToValueAtTime(0.0001, t + dur);
+    o.connect(g).connect(this.buses[bus]); o.start(t); o.stop(t + dur + 0.05);
+  },
+  // art key → how a cut sounds
+  CUTS: {
+    none(t, v) { for (let i = 0; i < 3; i++) Sound.burst(t + i * 0.05, "highpass", 2400, 1800, 0.035, 0.22 * v, 0.8); Sound.burst(t, "lowpass", 300, 120, 0.08, 0.12 * v); }, // grass torn by hand
+    scissors(t, v) { for (let i = 0; i < 2; i++) { const s = t + i * 0.08; Sound.burst(s, "bandpass", 6500, 5200, 0.025, 0.35 * v, 8); Sound.ring(s, 3400 + Math.random() * 200, 0.07, 0.035 * v); } },
+    shears(t, v) { for (let i = 0; i < 2; i++) { const s = t + i * 0.12; Sound.burst(s, "bandpass", 4600, 3800, 0.04, 0.35 * v, 6); Sound.ring(s, 2500, 0.1, 0.03 * v); } Sound.burst(t + 0.02, "highpass", 3500, 2500, 0.18, 0.08 * v); },
+    sickle(t, v) { Sound.burst(t, "bandpass", 900, 3800, 0.2, 0.32 * v, 2.5, "sfx", 0.03); Sound.burst(t + 0.12, "highpass", 3200, 2600, 0.14, 0.12 * v); },
+    scythe(t, v) { Sound.burst(t, "bandpass", 500, 2600, 0.38, 0.36 * v, 1.8, "sfx", 0.08); Sound.burst(t + 0.18, "highpass", 4200, 3000, 0.26, 0.14 * v); Sound.ring(t + 0.2, 2350, 0.45, 0.012 * v); },
+    hedge(t, v) { for (let i = 0; i < 14; i++) Sound.burst(t + i * 0.024, "bandpass", 3600, 3000, 0.018, 0.18 * v, 5); Sound.engineBog(0.9); },
+    string(t, v) { Sound.burst(t, "bandpass", 5200, 4200, 0.28, 0.2 * v, 1.2); for (let i = 0; i < 6; i++) Sound.burst(t + i * 0.04, "highpass", 5000, 4000, 0.03, 0.09 * v); Sound.engineBog(0.88); },
+    brush(t, v) { Sound.ring(t, 1800, 0.3, 0.03 * v, "triangle"); Sound.ring(t, 2700, 0.25, 0.02 * v); Sound.burst(t, "bandpass", 3000, 2200, 0.22, 0.2 * v, 2); Sound.engineBog(0.85); },
+    reel(t, v) { for (let i = 0; i < 10; i++) Sound.burst(t + i * (0.03 + i * 0.004), "bandpass", 4600, 4000, 0.015, 0.2 * v, 7); Sound.burst(t, "highpass", 3000, 2400, 0.3, 0.06 * v); },
+    mow(t, v) { Sound.burst(t, "lowpass", 1400, 500, 0.28, 0.28 * v, 0.8, "sfx", 0.02); Sound.burst(t + 0.05, "bandpass", 2200, 1200, 0.2, 0.12 * v, 1.5); Sound.engineBog(0.82); },
+    chatter(t, v) { for (let i = 0; i < 16; i++) Sound.burst(t + i * 0.022, "bandpass", 3200, 2800, 0.016, 0.16 * v, 4); Sound.burst(t, "lowpass", 900, 400, 0.3, 0.12 * v); Sound.engineBog(0.88); },
+    tractor(t, v) { Sound.burst(t, "lowpass", 900, 300, 0.35, 0.26 * v, 0.7, "sfx", 0.04); Sound.burst(t + 0.08, "bandpass", 1800, 900, 0.3, 0.1 * v, 1.2); Sound.engineBog(0.86); },
+    thresh(t, v) { Sound.burst(t, "lowpass", 400, 150, 0.5, 0.3 * v, 0.7, "sfx", 0.06); Sound.burst(t + 0.05, "bandpass", 1600, 700, 0.45, 0.14 * v, 1.1, "sfx", 0.05); Sound.engineBog(0.9); },
+  },
+  CUT_OF: { none: "none", scissors: "scissors", shears: "shears", sickle: "sickle", scythe: "scythe", hedge: "hedge", string: "string", brush: "brush", reel: "reel",
+    push: "mow", self: "mow", sicklebar: "chatter", twowheel: "mow", lawn: "mow", ztr: "mow", flail: "tractor", disc: "chatter", tedder: "tractor", sqbaler: "tractor",
+    roundbaler: "thresh", swather: "thresh", forage: "thresh", combine: "thresh" },
+  // engine character per motorised tool: oscillator type, base pitch, filter, tremolo (firing rate), sub-octave and noise mix
+  ENGINES: {
+    hedge: { type: "sawtooth", f: 150, lp: 2400, trem: 30, sub: 0.25, noise: 0.15 },
+    string: { type: "sawtooth", f: 300, lp: 3600, trem: 0, sub: 0.15, noise: 0.3 },
+    brush: { type: "square", f: 165, lp: 1800, trem: 11, sub: 0.4, noise: 0.15 },
+    push: { type: "sawtooth", f: 76, lp: 900, trem: 13, sub: 0.6, noise: 0.2 },
+    self: { type: "sawtooth", f: 84, lp: 950, trem: 14, sub: 0.6, noise: 0.2 },
+    sicklebar: { type: "square", f: 92, lp: 1100, trem: 20, sub: 0.5, noise: 0.2 },
+    twowheel: { type: "square", f: 56, lp: 620, trem: 9, sub: 0.7, noise: 0.15 },
+    lawn: { type: "sawtooth", f: 88, lp: 900, trem: 12, sub: 0.6, noise: 0.15 },
+    ztr: { type: "sawtooth", f: 98, lp: 1000, trem: 14, sub: 0.6, noise: 0.15 },
+    flail: { type: "square", f: 46, lp: 520, trem: 7, sub: 0.8, noise: 0.2 },
+    disc: { type: "square", f: 48, lp: 540, trem: 7, sub: 0.8, noise: 0.2 },
+    tedder: { type: "square", f: 47, lp: 520, trem: 7, sub: 0.8, noise: 0.2 },
+    sqbaler: { type: "square", f: 45, lp: 520, trem: 7, sub: 0.8, noise: 0.25 },
+    roundbaler: { type: "sawtooth", f: 42, lp: 430, trem: 6, sub: 0.9, noise: 0.3 },
+    swather: { type: "sawtooth", f: 40, lp: 420, trem: 5, sub: 0.9, noise: 0.3 },
+    forage: { type: "sawtooth", f: 39, lp: 420, trem: 5, sub: 0.9, noise: 0.35 },
+    combine: { type: "sawtooth", f: 37, lp: 400, trem: 5, sub: 1, noise: 0.35 },
+  },
+  cut(art, fresh, vol = 1) {
+    if (!this.started) return;
+    const fn = this.CUTS[this.CUT_OF[art] || "sickle"]; fn(this.ctx.currentTime, vol * (0.55 + 0.45 * fresh));
+  },
+  engine: null, bog: 1,
+  engineBog(k) { this.bog = Math.min(this.bog, k); }, // the engine dips under load for a moment
+  buildEngine() {
+    const c = this.ctx, e = {};
+    e.osc = c.createOscillator(); e.sub = c.createOscillator(); e.sub.type = "square";
+    e.oscG = c.createGain(); e.subG = c.createGain();
+    e.nz = c.createBufferSource(); e.nz.buffer = this.noise; e.nz.loop = true; e.nzF = c.createBiquadFilter(); e.nzF.type = "bandpass"; e.nzF.Q.value = 0.7; e.nzG = c.createGain();
+    e.lp = c.createBiquadFilter(); e.lp.type = "lowpass"; e.lp.Q.value = 1.2;
+    e.trem = c.createGain(); e.lfo = c.createOscillator(); e.lfoG = c.createGain(); e.lfo.connect(e.lfoG).connect(e.trem.gain);
+    e.out = c.createGain(); e.out.gain.value = 0;
+    e.osc.connect(e.oscG).connect(e.lp); e.sub.connect(e.subG).connect(e.lp); e.nz.connect(e.nzF).connect(e.nzG).connect(e.lp);
+    e.lp.connect(e.trem).connect(e.out).connect(this.buses.engine);
+    e.osc.start(); e.sub.start(); e.nz.start(); e.lfo.start();
+    this.engine = e;
+  },
+  // called every frame: art of the current tool (or null), and what the farmer is doing
+  updateEngine(art, cutting, moving, dt) {
+    if (!this.started) return;
+    const p = art && this.ENGINES[art];
+    if (!this.engine) { if (!p) return; this.buildEngine(); }
+    const e = this.engine, t = this.ctx.currentTime;
+    if (!p) { e.out.gain.setTargetAtTime(0, t, 0.15); return; }
+    if (e.art !== art) {
+      e.art = art; e.osc.type = p.type; e.lp.frequency.setTargetAtTime(p.lp, t, 0.05);
+      e.subG.gain.value = p.sub * 0.6; e.oscG.gain.value = 0.6; e.nzG.gain.value = p.noise * 1.5; e.nzF.frequency.value = p.lp * 1.4;
+      e.lfo.frequency.value = p.trem || 1; e.lfoG.gain.value = p.trem ? 0.35 : 0; e.trem.gain.value = p.trem ? 0.75 : 1;
+    }
+    this.bog += (1 - this.bog) * Math.min(1, dt * 3);
+    const rev = (cutting ? 1.3 : moving ? 1.12 : 1) * this.bog * (1 + Math.sin(t * 0.7) * 0.01);
+    e.osc.frequency.setTargetAtTime(p.f * rev, t, 0.08); e.sub.frequency.setTargetAtTime(p.f * rev / 2, t, 0.08);
+    e.lp.frequency.setTargetAtTime(p.lp * (cutting ? 1.35 : 1), t, 0.1);
+    e.out.gain.setTargetAtTime(cutting ? 0.2 : moving ? 0.13 : 0.08, t, 0.12);
   },
   step(i) { if (this.started) this.noiseHit(this.ctx.currentTime, i ? 700 : 900, 300, 0.09, 0.05, "lowpass", 0.7); },
   store() {
@@ -604,25 +871,25 @@ function computeLayout() {
   const topH = parseFloat(css.getPropertyValue("--top-h"));
   // On narrow screens the panel floats over the farm instead of squeezing it.
   cam.play = { x: 0, y: topH, w: W, h: H - topH };
-  const kFit = Math.min(cam.play.w / WORLD.w, cam.play.h / WORLD.h);
+  const kFit = Math.min(cam.play.w / (WORLD.w - WORLD.x0), cam.play.h / WORLD.h);
   // Zoom in close enough that the farmer reads clearly; the camera follows him around the farm.
   cam.k = Math.max(kFit, Math.min(cam.play.w / 460, Math.max(cam.play.h / 700, Math.min(cam.play.w, cam.play.h * 1.6) / 1100)));
-  cam.follow = WORLD.w * cam.k > cam.play.w + 1;
+  cam.follow = (WORLD.w - WORLD.x0) * cam.k > cam.play.w + 1;
   updateCamera(true);
 }
 function updateCamera(snap) {
   const p = cam.play, k = cam.k;
   // bottom of the world sits on the bottom of the screen; sky extends upward
-  let ox = cam.follow ? p.x + p.w / 2 - Player.x * k : p.x + (p.w - WORLD.w * k) / 2;
-  if (cam.follow) ox = Math.min(p.x, Math.max(p.x + p.w - WORLD.w * k, ox));
+  let ox = cam.follow ? p.x + p.w / 2 - Player.x * k : p.x + (p.w - (WORLD.w + WORLD.x0) * k) / 2;
+  if (cam.follow) ox = Math.min(p.x - WORLD.x0 * k, Math.max(p.x + p.w - WORLD.w * k, ox));
   let oy = p.y + p.h - WORLD.h * k;
-  if (WORLD.h * k > p.h + 1) { oy = p.y + p.h / 2 - Player.y * k; oy = Math.min(p.y, Math.max(p.y + p.h - WORLD.h * k, oy)); }
+  if (WORLD.h * k > p.h + 1) { oy = p.y + p.h * 0.6 - Player.y * k; oy = Math.min(p.y + 140 * k, Math.max(p.y + p.h - WORLD.h * k, oy)); } // farmer a little below centre, so the mountains stay in view
   if (snap) { cam.ox = ox; cam.oy = oy; } else { cam.ox += (ox - cam.ox) * 0.12; cam.oy += (oy - cam.oy) * 0.12; }
 }
 
 /* ----------------------------- SCENERY ------------------------------- */
 function rng(seed) { return () => { seed = (seed * 1664525 + 1013904223) >>> 0; return seed / 4294967296; }; }
-const BG = { x0: -260, x1: WORLD.w + 260, y0: -420, y1: WORLD.h + 40 };
+const BG = { x0: WORLD.x0 - 260, x1: WORLD.w + 260, y0: -420, y1: WORLD.h + 40 };
 let bgCache = null, bgScale = 1;
 
 /* ------------------------- LOW-POLY HELPERS -------------------------- */
@@ -724,10 +991,12 @@ function windowLP(g, x, y, w, h, trim = PAL.white, glass = PAL.window) {
 
 function buildBackground() {
   bgScale = cam.k * Math.min(DPR, 1.5);
+  const bw = BG.x1 - BG.x0, bh = BG.y1 - BG.y0;
+  bgScale = Math.min(bgScale, Math.sqrt(16e6 / (bw * bh)), 8000 / bw, 8000 / bh); // keep the cached picture within memory limits
   bgCache = document.createElement("canvas");
   bgCache.width = Math.ceil((BG.x1 - BG.x0) * bgScale); bgCache.height = Math.ceil((BG.y1 - BG.y0) * bgScale);
   const g = bgCache.getContext("2d"); g.setTransform(bgScale, 0, 0, bgScale, -BG.x0 * bgScale, -BG.y0 * bgScale);
-  const R = rng(7), { horizon, seaBot, field } = WORLD, X0 = BG.x0, X1 = BG.x1, XW = X1 - X0;
+  const R = rng(7), { horizon, seaBot } = WORLD, X0 = BG.x0, X1 = BG.x1, XW = X1 - X0;
   const fog = rgbOf(PAL.fog);
 
   // sky
@@ -764,11 +1033,12 @@ function buildBackground() {
     }, 0.34);
   }
   range([
+    { x: -900, w: 380, h: 240, flat: 0.25 }, { x: -520, w: 300, h: 190, flat: 0.15 },
     { x: -60, w: 330, h: 230, flat: 0.25 }, { x: 520, w: 260, h: 175, flat: 0.15 },
     { x: 980, w: 390, h: 250, flat: 0.3 }, { x: 1520, w: 330, h: 210, flat: 0.2 },
   ], horizon, 250, 0.3, 0.28, 3);
   range([
-    { x: -120, w: 420, h: 200, flat: 0.1 }, { x: 1460, w: 460, h: 175, flat: 0.25 },
+    { x: -760, w: 360, h: 185, flat: 0.2 }, { x: -120, w: 420, h: 200, flat: 0.1 }, { x: 1460, w: 460, h: 175, flat: 0.25 },
   ], seaBot + 8, 200, 0, 0.42, 11);
 
   // rolling meadow, faceted
@@ -793,57 +1063,76 @@ function buildBackground() {
   drawTurfHouse(g, 1250, seaBot + 22, 0.62, PAL.dark);
   drawTurfHouse(g, 1315, seaBot + 28, 0.72, PAL.red);
   drawTurfHouse(g, 690, seaBot + 26, 0.55, "#f1ede6");
+  drawTurfHouse(g, -420, seaBot + 24, 0.6, PAL.red);
   // a distant dry-stone wall across the slope
-  for (let i = 0; i < 70; i++) { const t = i / 70, x = -200 + t * 760, y = seaBot + 48 - Math.sin(t * 5) * 10; rock(g, x, y, 3.2, i + 300, PAL.wall); }
+  for (let i = 0; i < 110; i++) { const t = i / 110, x = -640 + t * 1200, y = seaBot + 48 - Math.sin(t * 7) * 10; rock(g, x, y, 3.2, i + 300, PAL.wall); }
 
-  // roads: field gate → barn → cart stop → east to Tórshavn, plus a lane to the farmhouse and village
-  const gate = fieldGate(), door = WORLD.barn.door, park = WORLD.cart.park;
+  // roads: each field's gate → farmyard hub → barn → cart stop → east to Tórshavn,
+  // a lane from the main road up to the farmhouse, and on to the village
+  const door = WORLD.barn.door, park = WORLD.cart.park, hub = WORLD.hub, south = WORLD.south;
   const road = new Path2D();
-  road.moveTo(field.x + field.w + 6, gate.mid);
-  road.bezierCurveTo(field.x + field.w + 90, gate.mid + 10, door.x - 90, door.y + 14, door.x, door.y + 12);
-  road.bezierCurveTo(door.x + 140, door.y + 10, park.x - 160, park.y + 4, park.x, park.y + 4);
+  const bour = Field.byId("bour"), hey = Field.byId("heygardur");
+  { const go = bour.gateOut(); road.moveTo(go.x - 16, go.y); road.bezierCurveTo(go.x + 40, go.y + 4, hub.x - 30, hub.y - 4, hub.x, hub.y); }
+  road.bezierCurveTo(hub.x + 80, hub.y + 2, door.x - 90, door.y + 14, door.x, door.y + 12);
+  road.bezierCurveTo(door.x + 110, door.y + 10, park.x - 140, park.y + 4, park.x, park.y + 4);
   road.lineTo(BG.x1 + 20, park.y + 4);
   const hd = WORLD.house.door;
-  road.moveTo(door.x + 40, door.y + 4);
-  road.bezierCurveTo(900, 590, hd.x - 40, hd.y + 30, hd.x, hd.y + 4);
-  road.bezierCurveTo(hd.x + 90, hd.y - 10, 1100, 420, 1060, seaBot + 34);
+  road.moveTo(hd.x + 42, door.y + 8);
+  road.bezierCurveTo(hd.x + 46, door.y - 40, hd.x + 18, hd.y + 30, hd.x, hd.y + 4);
+  road.bezierCurveTo(hd.x + 100, hd.y - 10, 1110, 420, 1070, seaBot + 34);
+  // the farm track down the hill toward Heygarður
+  road.moveTo(hub.x, hub.y); road.bezierCurveTo(hub.x + 6, hub.y + 80, south.x - 6, south.y - 80, south.x, south.y);
+  if (hey.unlocked) { const go = hey.gateOut(); road.bezierCurveTo(south.x - 200, south.y + 4, go.x + 100, south.y - 4, go.x + 30, south.y); road.bezierCurveTo(go.x + 10, south.y + 20, go.x + 6, go.y - 20, go.x - 16, go.y); }
+  else road.bezierCurveTo(south.x - 200, south.y + 4, -100, south.y + 10, -20, south.y + 40);
+  if (lvl("station") >= 1) { const sd = WORLD.station.door; road.moveTo(704, sd.y + 6); road.bezierCurveTo(760, sd.y + 10, sd.x - 50, sd.y + 10, sd.x, sd.y + 4); }
+  if (hasShed()) { // a track from Heygarður's gate past the shed door, and back up to the farmyard track
+    const sd = WORLD.shed.door, go = hey.gateOut(), ry = sd.y + 12;
+    road.moveTo(go.x + 30, Math.max(go.y, south.y + 40)); road.bezierCurveTo(go.x + 40, ry, sd.x - 120, ry, sd.x, ry);
+    road.bezierCurveTo(sd.x + 220, ry, south.x, ry, south.x, ry - 30); road.lineTo(south.x, south.y);
+  }
   g.lineCap = "round"; g.lineJoin = "round";
   g.strokeStyle = PAL.roadEdge; g.lineWidth = 22; g.stroke(road);
   g.strokeStyle = PAL.road; g.lineWidth = 15; g.stroke(road);
 
-  // scattered boulders, heather and yellow tufts (kept off the roads, buildings and the meadow's full extent)
+  // scattered boulders, heather and yellow tufts (kept off the roads, buildings and every meadow's full extent)
   const hit = document.createElement("canvas").getContext("2d"); hit.lineWidth = 40;
-  const blocked = (x, y) => (x > 50 && x < 700 && y > 410 && y < 820) || (x > 680 && x < 1010 && y > 440 && y < 625) || (x > 900 && x < 1110 && y > 370 && y < 525) || hit.isPointInStroke(road, x, y);
+  const maxW = FIELD_STAGES[FIELD_STAGES.length - 1][0] * CONFIG.cellW, maxH = FIELD_STAGES[FIELD_STAGES.length - 1][1] * CONFIG.cellH;
+  const keep = [...WORLD.fields.map(f => ({ x0: f.x - 20, x1: f.x + maxW + 70, y0: f.y - 22, y1: f.y + maxH + 22 })),
+    { x0: 680, x1: 1050, y0: 430, y1: 630 }, { x0: 920, x1: 1110, y0: 370, y1: 525 }, { x0: 160, x1: 490, y0: 860, y1: 1060 }, { x0: 790, x1: 990, y0: 680, y1: 860 }];
+  const offLimits = (x, y) => keep.some(k => x > k.x0 && x < k.x1 && y > k.y0 && y < k.y1) || hit.isPointInStroke(road, x, y);
   const items = [];
-  for (let i = 0; i < 520; i++) {
+  for (let i = 0; i < 1300; i++) {
     const x = X0 + R() * XW, y = meadowTop(x) + 12 + R() * (BG.y1 - meadowTop(x) - 12);
-    if (blocked(x, y)) continue;
+    if (offLimits(x, y)) continue;
     const k = R(); items.push({ x, y, k, s: R(), i });
   }
   items.sort((a, b) => a.y - b.y);
   for (const it of items) {
-    const depth = 0.55 + 0.45 * ((it.y - seaBot) / (BG.y1 - seaBot));
+    const depth = 0.55 + 0.45 * Math.min(1, (it.y - seaBot) / 600);
     if (it.k < 0.2) rock(g, it.x, it.y, (5 + it.s * it.s * 16) * depth, it.i);
     else if (it.k < 0.45) { g.fillStyle = shade(PAL.heather[it.i % 4], 1); g.beginPath(); g.ellipse(it.x, it.y, 5 * depth, 2.6 * depth, 0, 0, Math.PI * 2); g.fill(); g.fillStyle = shade(PAL.heather[it.i % 4], 1.15); g.beginPath(); g.ellipse(it.x - 1.2, it.y - 0.8, 2.6 * depth, 1.2 * depth, 0, 0, Math.PI * 2); g.fill(); }
     else tuft(g, it.x, it.y, (2.4 + it.s * 2) * depth, PAL.tufts[it.i % 5]);
   }
 
-  // the hay meadow bed: darker faceted earth framed by a dry-stone wall with a gate gap
-  roundRect(g, field.x - 3, field.y - 3, field.w + 6, field.h + 6, 6); g.fillStyle = "#7f8a5c"; g.fill();
-  g.save(); roundRect(g, field.x, field.y, field.w, field.h, 5); g.clip();
-  meshStrip(g, Math.ceil(field.w / 30), Math.ceil(field.h / 26), (c, r) => ({ x: field.x - 4 + c * 30 + (hash2(c, r + 1) - 0.5) * 10, y: field.y - 4 + r * 26 + (hash2(c + 3, r) - 0.5) * 10, h: hash2(c * 9, r * 4) * 18 }),
-    (cx, cy) => vnoise(cx * 0.03, cy * 0.03) > 0.5 ? rgbOf("#8b9462") : rgbOf("#7d8a58"), 0.3);
-  g.restore();
-  drawStoneWall(g, field, R, gate);
-
-  // signs: the meadow ("Bøur") and the road to Tórshavn
-  signpost(g, field.x + field.w + 22, gate.y0 - 14, "Bøur");
+  // each owned hay meadow: darker faceted earth framed by a dry-stone wall with a gate gap
+  for (const plot of Field.plots) {
+    const field = plot.f, gate = plot.gate();
+    if (!plot.unlocked) { // for sale: corner stakes and a sign
+      for (const [sx, sy] of [[field.x, field.y], [field.x + 360, field.y], [field.x, field.y + 230], [field.x + 360, field.y + 230]]) { g.fillStyle = "#8a7465"; g.fillRect(sx - 2, sy - 16, 4, 18); g.fillStyle = "#d9493a"; g.fillRect(sx - 2, sy - 16, 4, 4); }
+      signpost(g, field.x + 180, field.y + 110, `${field.name} · for sale`);
+      continue;
+    }
+    roundRect(g, field.x - 3, field.y - 3, field.w + 6, field.h + 6, 6); g.fillStyle = "#7f8a5c"; g.fill();
+    g.save(); roundRect(g, field.x, field.y, field.w, field.h, 5); g.clip();
+    meshStrip(g, Math.ceil(field.w / 30), Math.ceil(field.h / 26), (c, r) => ({ x: field.x - 4 + c * 30 + (hash2(c, r + 1) - 0.5) * 10, y: field.y - 4 + r * 26 + (hash2(c + 3, r) - 0.5) * 10, h: hash2(c * 9, r * 4) * 18 }),
+      (cx, cy) => vnoise(cx * 0.03, cy * 0.03) > 0.5 ? rgbOf("#8b9462") : rgbOf("#7d8a58"), 0.3);
+    g.restore();
+    drawStoneWall(g, field, R, gate);
+    signpost(g, field.x + field.w + 22, gate.y0 - 14, field.name);
+  }
   signpost(g, park.x + 150, park.y - 34, "Tórshavn →");
 }
-function fieldGate() {
-  const f = WORLD.field, mid = f.y + f.h * 0.55;
-  return { mid, y0: mid - 32, y1: mid + 32 };
-}
+function fieldGate() { return Field.byId("bour").gate(); }
 function signpost(g, x, y, text) {
   g.font = "800 9px Figtree, 'Segoe UI', sans-serif";
   const w = g.measureText(text).width + 14;
@@ -911,42 +1200,46 @@ function buildClouds() {
 }
 
 /* ------------------------------ FIELD -------------------------------- */
-const Field = {
-  cols: 0, rows: 0, cw: 0, ch: 0, growth: null, blades: null,
+// One grass meadow. The farm can own several (WORLD.fields); `Field` below manages them all.
+class Plot {
+  constructor(def) { this.f = def; this.cols = 0; this.rows = 0; this.growth = null; this.blades = null; }
+  get unlocked() { return !this.f.unlock || lvl(this.f.unlock) >= 1; }
   // (Re)build the grass grid. When the meadow grows, existing cells keep their growth
   // and the new strip starts as fresh sprouts (newGrowth).
   build(keep, newGrowth = 1) {
-    const f = WORLD.field, oldCols = this.cols, oldRows = this.rows, old = this.growth;
+    const f = this.f, oldCols = this.cols, oldRows = this.rows, old = this.growth;
     this.cw = CONFIG.cellW; this.ch = CONFIG.cellH;
     this.cols = Math.round(f.w / this.cw); this.rows = Math.round(f.h / this.ch);
     const n = this.cols * this.rows; this.growth = new Float32Array(n).fill(newGrowth);
     if (keep && old) for (let r = 0; r < Math.min(oldRows, this.rows); r++) for (let c = 0; c < Math.min(oldCols, this.cols); c++) this.growth[r * this.cols + c] = old[r * oldCols + c];
-    const R = rng(99), per = 3; this.blades = new Float32Array(n * per * 7); let k = 0;
+    const R = rng(99 + f.x), per = 3; this.blades = new Float32Array(n * per * 7); let k = 0;
     for (let i = 0; i < n; i++) for (let b = 0; b < per; b++) {
       this.blades[k++] = i; this.blades[k++] = R(); this.blades[k++] = R();
       this.blades[k++] = (R() - 0.5) * 0.6; this.blades[k++] = R() * Math.PI * 2;
       this.blades[k++] = R() < 0.5 ? 0 : 1; this.blades[k++] = 0.75 + R() * 0.5;
     }
-  },
-  update(dt, regrowTime) { const g = this.growth, r = dt / regrowTime; for (let i = 0; i < g.length; i++) if (g[i] < 1) g[i] = Math.min(1, g[i] + r); },
-  contains(x, y) { const f = WORLD.field; return x >= f.x && x <= f.x + f.w && y >= f.y && y <= f.y + f.h; },
+  }
+  hayMult() { return seedOf(this).hay * rMult("soil"); }
+  update(dt, regrowTime) { const g = this.growth, r = dt / (regrowTime * seedOf(this).regrow); for (let i = 0; i < g.length; i++) if (g[i] < 1) g[i] = Math.min(1, g[i] + r); }
+  contains(x, y) { const f = this.f; return x >= f.x && x <= f.x + f.w && y >= f.y && y <= f.y + f.h; }
   forCells(cx, cy, r, fn) {
-    const f = WORLD.field, r2 = r * r;
+    const f = this.f, r2 = r * r;
     const c0 = Math.max(0, Math.floor((cx - r - f.x) / this.cw)), c1 = Math.min(this.cols - 1, Math.floor((cx + r - f.x) / this.cw));
     const r0 = Math.max(0, Math.floor((cy - r - f.y) / this.ch)), r1 = Math.min(this.rows - 1, Math.floor((cy + r - f.y) / this.ch));
     for (let row = r0; row <= r1; row++) for (let col = c0; col <= c1; col++) {
       const x = f.x + (col + 0.5) * this.cw, y = f.y + (row + 0.5) * this.ch;
       if ((x - cx) ** 2 + (y - cy) ** 2 <= r2) fn(row * this.cols + col, x, y);
     }
-  },
-  harvest(cx, cy, r) {
-    let sum = 0, count = 0; const cut = [];
-    this.forCells(cx, cy, r, (i, x, y) => { sum += this.growth[i]; count++; if (this.growth[i] > 0.35) cut.push([x, y]); this.growth[i] = 0; });
-    return { freshness: count ? sum / count : 0, cut };
-  },
-  freshnessAt(cx, cy, r) { let s = 0, c = 0; this.forCells(cx, cy, r, i => { s += this.growth[i]; c++; }); return c ? s / c : 0; },
+  }
+  // the gate is in the middle of the right-hand wall; the hay pile sits just outside it
+  gate() { const f = this.f, mid = f.y + f.h * 0.55; return { mid, y0: mid - 32, y1: mid + 32, inX: f.x + f.w - 14, outX: f.x + f.w + 22 }; }
+  gateIn() { const g = this.gate(); return { x: g.inX, y: g.mid }; }
+  gateOut() { const g = this.gate(); return { x: g.outX, y: g.mid }; }
+  pilePos() { const f = this.f, g = this.gate(); return { x: f.x + f.w + 36, y: g.y1 + 34 }; }
+  // waypoints from just outside the gate to the farmyard hub (south-west of the barn)
+  hubRoute() { const go = this.gateOut(); return this.f.id === "bour" ? [WORLD.hub] : [{ x: go.x + 30, y: WORLD.south.y }, WORLD.south, WORLD.hub]; }
   draw(g, t) {
-    const f = WORLD.field, cols = this.cols, cw = this.cw, ch = this.ch, gr = this.growth;
+    const f = this.f, cols = this.cols, cw = this.cw, ch = this.ch, gr = this.growth;
     // cut patches: ochre stubble, drawn as low-poly diamonds
     g.save(); roundRect(g, f.x, f.y, f.w, f.h, 5); g.clip();
     g.fillStyle = "rgba(216,192,126,0.75)"; g.beginPath();
@@ -957,14 +1250,18 @@ const Field = {
     }
     g.fill(); g.restore();
     // grass blades as thin flat-shaded triangles; each blade has a lit and a shaded half
-    const colors = ["#d8c07e", "#c9ad6c", "#b9b878", "#a9ad70", "#a3b27a", "#94a770", "#8ea56a", "#7f9a5f"];
+    const sd = seedOf(this), colors = sd.colors || ["#d8c07e", "#c9ad6c", "#b9b878", "#a9ad70", "#a3b27a", "#94a770", "#8ea56a", "#7f9a5f"], flowers = sd.flowers ? new Path2D() : null, tall = sd.tall;
     const lit = colors.map(() => new Path2D()), dark = colors.map(() => new Path2D());
     const B = this.blades, wind = 0.6 + 0.4 * Math.sin(t * 0.25);
     const inF = this.contains(Player.x, Player.y), mx = inF ? Player.x : -9999, my = inF ? Player.y : -9999, pr = 34;
+    // skip blades that are off screen (the bigger world has a lot of grass)
+    const vx0 = (0 - cam.ox) / cam.k - 30, vx1 = (W - cam.ox) / cam.k + 30, vy0 = (0 - cam.oy) / cam.k - 30, vy1 = (H - cam.oy) / cam.k + 30;
+    if (f.x > vx1 || f.x + f.w < vx0 || f.y > vy1 || f.y + f.h < vy0) return;
     for (let k = 0; k < B.length; k += 7) {
       const i = B[k], col = i % cols, row = (i / cols) | 0, growth = gr[i];
       const bx = f.x + (col + B[k + 1]) * cw, by = f.y + (row + B[k + 2]) * ch;
-      const depth = 0.75 + 0.45 * (row / this.rows), len = (3 + 15 * growth) * depth * B[k + 6], hw = 1.5 * depth;
+      if (bx < vx0 || bx > vx1 || by < vy0 || by > vy1) continue;
+      const depth = 0.75 + 0.45 * Math.min(1, row / 36), len = (3 + 15 * growth * tall) * depth * B[k + 6], hw = 1.5 * depth;
       let sway = Math.sin(t * 1.7 + bx * 0.025 + B[k + 4]) * 0.22 * wind + B[k + 3];
       const dx = bx - mx, dy = by - my, d2 = dx * dx + dy * dy;
       if (d2 < pr * pr) sway += (dx / pr) * 0.7 * (1 - Math.sqrt(d2) / pr);
@@ -972,20 +1269,45 @@ const Field = {
       const tx = bx + sway * len, ty = by - len;
       lit[bucket].moveTo(bx - hw, by); lit[bucket].lineTo(tx, ty); lit[bucket].lineTo(bx, by); lit[bucket].closePath();
       dark[bucket].moveTo(bx, by); dark[bucket].lineTo(tx, ty); dark[bucket].lineTo(bx + hw, by); dark[bucket].closePath();
+      if (flowers && growth > 0.75 && B[k + 5] === 0 && (i % 4) === 0) { flowers.moveTo(tx + 2, ty); flowers.arc(tx, ty, 2, 0, Math.PI * 2); }
     }
     for (let b = 0; b < colors.length; b++) { g.fillStyle = shade(colors[b], 1.07); g.fill(lit[b]); g.fillStyle = shade(colors[b], 0.86); g.fill(dark[b]); }
+    if (flowers) { g.fillStyle = "#c4415a"; g.fill(flowers); }
+  }
+}
+// All the farm's meadows, treated as one surface for harvesting.
+const Field = {
+  plots: [],
+  init() { this.plots = WORLD.fields.map(d => new Plot(d)); },
+  active() { return this.plots.filter(p => p.unlocked); },
+  plotAt(x, y) { return this.active().find(p => p.contains(x, y)) || null; },
+  byId(id) { return this.plots.find(p => p.f.id === id); },
+  contains(x, y) { return !!this.plotAt(x, y); },
+  build(keep, newGrowth) { for (const p of this.plots) p.build(keep, newGrowth); },
+  update(dt, regrowTime) { for (const p of this.active()) p.update(dt, regrowTime); },
+  harvest(cx, cy, r) {
+    let sum = 0, raw = 0, count = 0; const cut = [];
+    for (const p of this.active()) { const m = p.hayMult(); p.forCells(cx, cy, r, (i, x, y) => { sum += p.growth[i] * m; raw += p.growth[i]; count++; if (p.growth[i] > 0.35) cut.push([x, y]); p.growth[i] = 0; }); }
+    return { freshness: count ? raw / count : 0, cut, sum };
   },
+  freshnessAt(cx, cy, r) { let s = 0, c = 0; for (const p of this.active()) p.forCells(cx, cy, r, i => { s += p.growth[i]; c++; }); return c ? s / c : 0; },
+  draw(g, t) { for (const p of this.active()) p.draw(g, t); },
+  // compatibility for tests / older code paths
+  get growth() { return this.plots[0].growth; }, get cols() { return this.plots[0].cols; }, get rows() { return this.plots[0].rows; },
 };
 
 /* --------------------------- CARRIER ART ----------------------------- */
 function hayHeap(g, x, y, w, h, load, t) {
   if (load <= 0.01) return;
   const hh = h * Math.pow(load, 0.7);
-  g.fillStyle = state.carry.dried > state.carry.fresh ? "#d8b65a" : "#c9c26a";
+  g.fillStyle = carryHay();
   g.beginPath(); g.moveTo(x - w / 2, y); g.bezierCurveTo(x - w / 2, y - hh * 1.3, x + w / 2, y - hh * 1.3, x + w / 2, y); g.closePath(); g.fill();
   g.strokeStyle = "rgba(140,110,40,0.55)"; g.lineWidth = 1;
   for (let i = 0; i < 6; i++) { const sx = x - w * 0.38 + i * w * 0.15; g.beginPath(); g.moveTo(sx, y - 1); g.lineTo(sx + Math.sin(t + i) * 2, y - hh * (0.55 + (i % 3) * 0.13)); g.stroke(); }
 }
+// CARRY_LOOK lets a worker borrow the carrier art: { dried, sleeve }
+let CARRY_LOOK = null;
+const carryHay = () => (CARRY_LOOK ? CARRY_LOOK.dried : state.carry.dried > state.carry.fresh) ? "#d8b65a" : "#c9c26a";
 function drawCarrier(g, c, x, y, by, f, load, t, a, mv) {
   if (c.style === "pull") {
     // pulled along behind the farmer by a handle
@@ -1015,7 +1337,7 @@ function drawCarrier(g, c, x, y, by, f, load, t, a, mv) {
     }
     g.restore();
     // a hand reaching back to the handle
-    g.strokeStyle = "#3e4c78"; g.lineWidth = 4.5; g.lineCap = "round";
+    g.strokeStyle = CARRY_LOOK ? CARRY_LOOK.sleeve : "#3e4c78"; g.lineWidth = 4.5; g.lineCap = "round";
     g.beginPath(); g.moveTo(x - f * 4, by - 17); g.lineTo(x - f * 9, by - 7); g.stroke();
     g.fillStyle = "#efbf9b"; g.beginPath(); g.arc(x - f * 9, by - 6, 2.4, 0, Math.PI * 2); g.fill();
     return;
@@ -1023,7 +1345,7 @@ function drawCarrier(g, c, x, y, by, f, load, t, a, mv) {
   const bx = x - f * 10, k = c.size || 1;
   if (c.style === "back") {
     if (load > 0) {
-      g.fillStyle = state.carry.dried > state.carry.fresh ? "#d8b65a" : "#c9c26a";
+      g.fillStyle = carryHay();
       g.beginPath(); g.ellipse(bx, by - 18 * k - load * 9, (7 + load * 6) * k, (5 + load * 9) * k, 0, 0, Math.PI * 2); g.fill();
       g.strokeStyle = "rgba(140,110,40,0.6)"; g.lineWidth = 1;
       for (let i = 0; i < 6; i++) { const b = i * 1.1 + t; g.beginPath(); g.moveTo(bx + Math.cos(b) * 4, by - 18 * k - load * 9); g.lineTo(bx + Math.cos(b) * (8 + load * 6) * k, by - 22 * k - load * 16 * k + Math.sin(b) * 3); g.stroke(); }
@@ -1037,7 +1359,7 @@ function drawCarrier(g, c, x, y, by, f, load, t, a, mv) {
     if (load > 0.3) { g.strokeStyle = "#c9c26a"; g.beginPath(); g.moveTo(bx, by - 16 - load * 4 - r); g.lineTo(bx + 2, by - 20 - load * 4 - r); g.stroke(); }
   } else if (c.style === "net") {
     const r = 8 + load * 12;
-    if (load > 0.01) { g.fillStyle = state.carry.dried > state.carry.fresh ? "#d8b65a" : "#c9c26a"; g.beginPath(); g.ellipse(bx - f * load * 3, by - 16 - load * 8, r, r * 0.9, 0, 0, Math.PI * 2); g.fill(); }
+    if (load > 0.01) { g.fillStyle = carryHay(); g.beginPath(); g.ellipse(bx - f * load * 3, by - 16 - load * 8, r, r * 0.9, 0, 0, Math.PI * 2); g.fill(); }
     g.strokeStyle = "#6e5c50"; g.lineWidth = 1;
     for (let i = -2; i <= 2; i++) { g.beginPath(); g.moveTo(bx - f * load * 3 + i * r * 0.4, by - 16 - load * 8 - r * 0.85); g.lineTo(bx - f * load * 3 + i * r * 0.25, by - 16 - load * 8 + r * 0.85); g.stroke(); }
     g.beginPath(); g.moveTo(bx + 4 * f, by - 22); g.lineTo(x + f * 2, by - 4); g.stroke();
@@ -1066,18 +1388,19 @@ function drawHead(g, x, hy, f, flop) {
   stripes(() => { g.beginPath(); g.moveTo(x + f * 1, hy - 12.3); g.lineTo(x - f * 4, hy - 12); g.lineTo(x - f * 12, hy - 7 + flop * 0.5); g.lineTo(x - f * 13, hy - 2.5 + flop); g.lineTo(x - f * 9.5, hy - 2 + flop); g.lineTo(x - f * 2, hy - 8.5); g.closePath(); }, 0.85); // fold
   g.fillStyle = "#2b1f2e"; g.fillRect(x - 8, hy - 4.2, 16, 2.4); // brim band
 }
-function sweater(g, x, top, h) {
-  // navy knitted sweater with white bands, flat-shaded on the right
-  g.fillStyle = "#3e4c78"; g.beginPath(); g.moveTo(x - 7, top); g.lineTo(x + 7, top); g.lineTo(x + 9.5, top + 4); g.lineTo(x + 9, top + h); g.lineTo(x - 9, top + h); g.lineTo(x - 9.5, top + 4); g.closePath(); g.fill();
-  g.fillStyle = "#33406a"; g.beginPath(); g.moveTo(x + 1, top); g.lineTo(x + 7, top); g.lineTo(x + 9.5, top + 4); g.lineTo(x + 9, top + h); g.lineTo(x + 1, top + h); g.closePath(); g.fill();
+function sweater(g, x, top, h, col = "#3e4c78") {
+  // knitted sweater (navy by default) with white bands, flat-shaded on the right
+  g.fillStyle = col; g.beginPath(); g.moveTo(x - 7, top); g.lineTo(x + 7, top); g.lineTo(x + 9.5, top + 4); g.lineTo(x + 9, top + h); g.lineTo(x - 9, top + h); g.lineTo(x - 9.5, top + 4); g.closePath(); g.fill();
+  g.fillStyle = shade(col, 0.84); g.beginPath(); g.moveTo(x + 1, top); g.lineTo(x + 7, top); g.lineTo(x + 9.5, top + 4); g.lineTo(x + 9, top + h); g.lineTo(x + 1, top + h); g.closePath(); g.fill();
   g.fillStyle = "#f1ede4"; g.fillRect(x - 9.5, top + 5, 19, 2.6); g.fillRect(x - 9, top + h - 5, 18, 2.2);
   g.fillStyle = "#dcd7d0"; g.fillRect(x + 1, top + 5, 8.5, 2.6); g.fillRect(x + 1, top + h - 5, 8, 2.2);
 }
 // farmer sitting in a driver's seat (local coords, facing right)
+let SEAT_SWEATER = "#3e4c78"; // who's in the driver's seat (helpers drive in their own sweaters)
 function seatedFarmer(g, sx, sy, t, mv) {
   const bob = Math.sin(t * 14) * 0.6 * mv;
-  sweater(g, sx, sy - 20 + bob, 20);
-  g.strokeStyle = "#3e4c78"; g.lineWidth = 5; g.lineCap = "round";
+  sweater(g, sx, sy - 20 + bob, 20, SEAT_SWEATER);
+  g.strokeStyle = SEAT_SWEATER; g.lineWidth = 5; g.lineCap = "round";
   g.beginPath(); g.moveTo(sx + 5, sy - 15 + bob); g.lineTo(sx + 14, sy - 10 + bob); g.stroke();
   g.fillStyle = "#efbf9b"; g.beginPath(); g.arc(sx + 15, sy - 10 + bob, 2.6, 0, Math.PI * 2); g.fill();
   drawHead(g, sx, sy - 28 + bob, 1, Math.sin(t * 3) * 1.2);
@@ -1378,13 +1701,12 @@ const Harvester = {
     if (this.progress >= 1) { this.progress -= 1; this.complete(s); }
   },
   complete(s) {
-    const { freshness, cut } = Field.harvest(Player.x, Player.y, s.radius);
-    const mult = CONFIG.minFreshnessYield + (1 - CONFIG.minFreshnessYield) * freshness;
-    const gained = Math.min(s.yield * mult, s.basket - carryTotal());
+    const { freshness, cut, sum } = Field.harvest(Player.x, Player.y, s.radius);
+    const gained = Math.min(sum * CONFIG.hayPerPatch * s.gather, s.basket - carryTotal());
     state.carry.fresh += gained; state.stats.totalHay += gained; state.stats.actions++;
     this.pulse = 1;
     FX.harvestBurst(Player.x, Player.y, s.radius, cut, gained, freshness);
-    Sound.harvest(freshness); if (s.tool.motor) Sound.motor(toolIdx());
+    Sound.cut(s.tool.art, freshness);
     UI.onHarvest();
   },
   draw(g, t) {
@@ -1415,6 +1737,303 @@ const Harvester = {
   },
 };
 
+/* ------------------------------ HELPERS ------------------------------ */
+// Neighbours you can hire. Cutters scythe the meadow and carry the grass to the barn;
+// haulers carry dried hay from the barn to the cart and send it to Tórshavn when it's full.
+// Their tools scale with yours so they stay useful all game, but they're slower than you.
+const HELPER_LOOKS = (() => {
+  const names = ["Jógvan", "Turið", "Sjúrður", "Marjun", "Rógvi", "Guðrun", "Sámal", "Bára", "Óli", "Sunnvá",
+                 "Rakul", "Hanus", "Elin", "Pætur", "Ragna", "Heðin", "Jónleif", "Tróndur", "Durita", "Eyðun"];
+  const cols = ["#7a3b45", "#4d6a55", "#5b4d7a", "#8a5a3c", "#6b6b48"];
+  return names.map((name, i) => ({ name, sweater: cols[(i + Math.floor(i / 5)) % cols.length] }));
+})();
+
+const Helpers = {
+  list: [], swishT: 0,
+  // everything a worker can do is WORKER_EFF of what you'd do with the same upgrades
+  tool() { return TOOLS[lvl("w_tool")] || TOOLS[0]; },
+  carrier() { return CARRIERS[lvl("w_carrier")] || CARRIERS[0]; },
+  cutterStats() {
+    const t = this.tool(), e = WORKER_EFF;
+    return { tool: t, radius: Math.max(9, Math.round(t.radius * e)), cycle: stat("w_speed") * t.cycle * rMult("cycle") / e, gather: t.gather * rMult("gather"), yield: fullYield(Math.max(9, Math.round(t.radius * e)), t.gather * rMult("gather")),
+      cap: Math.max(6, Math.round((this.carrier().cap + t.carry) * e)), speed: stat("w_boots") * t.run * e };
+  },
+  haulerCap() { return Math.max(6, Math.round(this.carrier().cap * WORKER_EFF * rMult("haul"))); },
+  speed(h) { return h.role === "cutter" ? this.cutterStats().speed : stat("w_boots") * WORKER_EFF; },
+  // keep the crew in step with the hired counts
+  sync() {
+    const want = [];
+    for (let i = 0; i < lvl("cutters"); i++) want.push("cutter");
+    for (let i = 0; i < lvl("haulers"); i++) want.push("hauler");
+    while (this.list.length > want.length) this.list.pop();
+    want.forEach((role, i) => {
+      const look = HELPER_LOOKS[(role === "cutter" ? 0 : 10) + want.slice(0, i).filter(r => r === role).length];
+      if (this.list[i] && this.list[i].role === role) { this.list[i].look = look; return; }
+      const d = WORLD.barn.door;
+      this.list[i] = { role, look: HELPER_LOOKS[(role === "cutter" ? 0 : 10) + want.slice(0, i).filter(r => r === role).length],
+        x: d.x - 30 + (i % 7) * 22, y: d.y + 26 + Math.floor(i / 7) * 14, face: 1, walk: 0, moving: false, state: "idle", dest: "barn", src: "barn", reserve: 0, route: [], load: 0, prog: 0, wait: 0, tx: 0, ty: 0, pop: 0, bubble: "" };
+    });
+  },
+  // walk along a list of waypoints; returns true on arrival at the last one
+  follow(h, dt) {
+    if (!h.route.length) { h.moving = false; return true; }
+    const p = h.route[0], dx = p.x - h.x, dy = p.y - h.y, d = Math.hypot(dx, dy), step = this.speed(h) * dt;
+    if (d <= step) { h.x = p.x; h.y = p.y; h.route.shift(); }
+    else { h.x += dx / d * step; h.y += dy / d * step; if (Math.abs(dx) > 2) h.face = dx > 0 ? 1 : -1; }
+    h.moving = true; h.walk += dt * 11;
+    return !h.route.length;
+  },
+  // ---- routes: through field gates, along the farm tracks via the farmyard hub ----
+  doorSpot() { const d = WORLD.barn.door; return { x: d.x - 24, y: d.y + 12 }; },
+  homeSpot(h) { const d = WORLD.barn.door, i = this.list.filter(o => o.role === "hauler").indexOf(h); return { x: d.x + 34 + (i % 5) * 22, y: d.y + 18 + Math.floor(i / 5) * 22 + (i % 2) * 5 }; },
+  // from wherever the worker is to just inside a plot's gate
+  routeToPlot(h, plot) {
+    const here = Field.plotAt(h.x, h.y);
+    if (here === plot) return [];
+    const r = here ? [here.gateIn(), here.gateOut(), ...here.hubRoute()] : [WORLD.hub];
+    return [...r, ...plot.hubRoute().slice().reverse(), plot.gateOut(), plot.gateIn()];
+  },
+  pileSpot(plot) { const p = plot.pilePos(); return { x: p.x + 16, y: p.y + 8 }; },
+  // each cutter works one meadow; they share them out when you own more than one
+  plotFor(h) { const plots = Field.active(), cutters = this.list.filter(o => o.role === "cutter"); return plots[cutters.indexOf(h) % plots.length]; },
+  // pick a patch of tall grass in the cutter's own meadow, avoiding the farmer and the other cutters
+  // how far apart two cutters must work: their rings must not overlap, and a riding machine is drawn
+  // much wider than its ring (mower bars, balers), so give machines room for their bodywork too
+  spacing() { const cs = this.cutterStats(), t = cs.tool; return Math.max(cs.radius * 1.9, t.kind === "ride" ? Math.min(150, 40 + t.radius * 0.8) * 1.25 : t.kind === "walk" ? 55 : 34); },
+  pickPatch(h) {
+    const plot = this.plotFor(h), f = plot.f, cs = this.cutterStats(); let best = null, bs = -1e9;
+    // each cutter keeps its own patch: spots near where another cutter stands or is heading are
+    // ruled out (rings may only just touch), so they spread out instead of crowding the last green bit
+    const others = this.list.filter(o => o !== h && o.role === "cutter" && this.plotFor(o) === plot), D = this.spacing();
+    for (let k = 0; k < 40; k++) {
+      const x = f.x + cs.radius * 0.6 + Math.random() * Math.max(1, f.w - cs.radius * 1.2), y = f.y + cs.radius * 0.6 + Math.random() * Math.max(1, f.h - cs.radius * 1.2);
+      const fr = Field.freshnessAt(x, y, cs.radius);
+      let sc = fr - Math.hypot(x - h.x, y - h.y) / 3000;
+      if (Math.hypot(x - Player.x, y - Player.y) < getStats().radius + cs.radius) sc -= 0.6;
+      for (const o of others) {
+        const busy = o.state === "cutting" || o.state === "toField" || o.state === "waitGrass";
+        if (!busy) continue;
+        const d = Math.min(Math.hypot(x - o.tx, y - o.ty), o.state === "toField" ? 1e9 : Math.hypot(x - o.x, y - o.y));
+        if (d < D) sc -= 3 + (1 - d / D);
+      }
+      if (sc > bs) { bs = sc; best = { x, y, fr }; }
+    }
+    return best;
+  },
+  update(dt) {
+    this.swishT -= dt;
+    for (const h of this.list) {
+      h.pop = Math.min(1, h.pop + dt * 3); h.bubble = "";
+      if (h.role === "cutter") this.updateCutter(h, dt); else this.updateHauler(h, dt);
+      if (!h.moving) h.walk += (Math.round(h.walk / Math.PI) * Math.PI - h.walk) * Math.min(1, dt * 10);
+    }
+    // one speech bubble per message, so idle haulers standing together don't stack the same text
+    const seen = new Set(); for (const h of this.list) { if (!h.bubble) continue; if (seen.has(h.bubble)) h.bubble = ""; else seen.add(h.bubble); }
+    this.sendCheck(dt);
+  },
+  updateCutter(h, dt) {
+    const cs = this.cutterStats(), plot = this.plotFor(h);
+    if (h.state === "idle") { const tgt = this.pickPatch(h); h.tx = tgt.x; h.ty = tgt.y; h.route = [...this.routeToPlot(h, plot), tgt]; h.state = "toField"; }
+    else if (h.state === "waitGrass") { // the meadow is cut short: stand on your own patch and let it grow back
+      h.moving = false; h.bubble = "Letting the grass grow…"; h.wait -= dt;
+      if (Field.plotAt(h.x, h.y) !== plot) { h.state = "idle"; return; }
+      if (Field.freshnessAt(h.x, h.y, cs.radius) >= 0.6) { h.state = "cutting"; h.prog = 0; return; }
+      if (h.wait <= 0) { const tgt = this.pickPatch(h); if (tgt.fr >= 0.6) { h.tx = tgt.x; h.ty = tgt.y; h.route = [tgt]; h.state = "toField"; } else h.wait = 1.5; }
+    }
+    else if (h.state === "toField") { if (this.follow(h, dt)) { h.state = "cutting"; h.prog = 0; } }
+    else if (h.state === "cutting") {
+      h.moving = false;
+      if (Field.plotAt(h.x, h.y) !== plot) { h.state = "idle"; return; } // reassigned to another meadow
+      h.prog += dt / cs.cycle;
+      if (h.prog >= 1) {
+        h.prog = 0;
+        const me = this.list.indexOf(h), D = this.spacing();
+        if (this.list.some((o, k) => k < me && o.role === "cutter" && (o.state === "cutting" || o.state === "waitGrass") && Math.hypot(o.x - h.x, o.y - h.y) < D * 0.8)) {
+          const tgt = this.pickPatch(h); h.tx = tgt.x; h.ty = tgt.y; h.route = [tgt]; h.state = "toField"; return;
+        }
+        const { freshness, cut, sum } = Field.harvest(h.x, h.y, cs.radius);
+        const gained = Math.min(sum * CONFIG.hayPerPatch * cs.gather, cs.cap - h.load);
+        h.load += gained; state.stats.totalHay += gained; state.stats.helperHay += gained;
+        for (let i = 0; i < Math.min(cut.length, 10); i++) { const c = cut[(Math.random() * cut.length) | 0]; FX.parts.push({ x: c[0], y: c[1] - 4, vx: (c[0] - h.x) * 1.6 + (Math.random() - 0.5) * 30, vy: -50 - Math.random() * 60, life: 0.7, age: 0, rot: Math.random() * 6, vr: 8, col: "#a3b27a", kind: "clip" }); }
+        if (this.swishT <= 0) { Sound.cut(cs.tool.art, freshness, 0.35); this.swishT = 0.3; }
+        if (h.load >= cs.cap - 0.05) { h.state = "toPile"; h.route = [plot.gateIn(), plot.gateOut(), this.pileSpot(plot)]; }
+        else if (Field.freshnessAt(h.x, h.y, cs.radius) < 0.45) {
+          const tgt = this.pickPatch(h);
+          // only move for grass clearly better than staying put; otherwise wait here for regrowth
+          if (tgt.fr > Math.max(0.35, Field.freshnessAt(h.x, h.y, cs.radius) + 0.2)) { h.tx = tgt.x; h.ty = tgt.y; h.route = [tgt]; h.state = "toField"; }
+          else { h.tx = h.x; h.ty = h.y; h.state = "waitGrass"; h.wait = 1.5; }
+        }
+      }
+    } else if (h.state === "toPile") {
+      if (this.follow(h, dt)) { // dump the hay on the pile outside the gate and head straight back in
+        state.piles[plot.f.id] += h.load; const pp = plot.pilePos(); FX.haul(h.x, h.y - 30, pp.x, pp.y - 14, h.load); h.load = 0;
+        const tgt = this.pickPatch(h); h.tx = tgt.x; h.ty = tgt.y; h.route = [plot.gateOut(), plot.gateIn(), tgt]; h.state = "toField";
+      }
+    }
+  },
+  reservedCart() { return this.list.reduce((a, h) => a + (h.role !== "hauler" ? 0 : h.state === "toCart" ? h.load : h.state === "fetch" || (h.state === "toPile" && h.dest === "cart") ? h.reserve : 0), 0); },
+  reservedPile(id) { return this.list.reduce((a, h) => a + (h.role === "hauler" && h.state === "toPile" && h.target === id ? h.reserve : 0), 0); },
+  // fresh hay already on its way into a store
+  reservedStore(id) { return this.list.reduce((a, h) => a + (h.role !== "hauler" || h.dest !== id ? 0 : h.state === "toPile" ? h.reserve : h.state === "toBarn" ? h.load : 0), 0); },
+  reservedDried(id) { return this.list.reduce((a, h) => a + (h.role === "hauler" && h.state === "fetch" && h.src === id ? h.reserve : 0), 0); },
+  reservedBarn() { return this.reservedStore("barn"); },
+  // ---- shed routes: along the lower track via the farmyard ----
+  shedY() { return WORLD.shed.door.y + 12; },
+  shedSpot() { const d = WORLD.shed.door; return { x: d.x - 18, y: d.y + 10 }; },
+  toShedRoute() { return [WORLD.hub, WORLD.south, { x: WORLD.south.x, y: this.shedY() }, this.shedSpot()]; },
+  fromShedRoute() { return [{ x: WORLD.south.x, y: this.shedY() }, WORLD.south, WORLD.hub]; },
+  // Haulers' jobs, in order: dried hay to the cart (from the barn, or the shed), then piles to the nearest store to dry.
+  updateHauler(h, dt) {
+    const park = WORLD.cart.park, cap = this.haulerCap(), home = this.homeSpot(h), cartSpot = { x: park.x - 70, y: park.y + 16 };
+    if (h.state === "idle") {
+      if (Math.hypot(h.x - home.x, h.y - home.y) > 3) { h.route = [home]; this.follow(h, dt); return; }
+      h.moving = false;
+      // job 1: dried hay to the cart
+      const space = getStats().cartCap - cartTotal() - this.reservedCart(), want = Math.min(cap, space);
+      const cartOk = Cart.state === "parked" && Cart.leaveIn < 0 && space > 0.5;
+      const ready = id => { const d = state[id].dried - this.reservedDried(id); return d >= want - 0.05 || (d >= 1 && (state[id].fresh < 0.5 || h.wait > 20)); };
+      if (cartOk && ready("barn")) {
+        const dried = state.barn.dried - this.reservedDried("barn");
+        h.wait = 0; const take = Math.min(dried, cap, space), d = WORLD.barn.door;
+        state.barn.dried -= take; clean(state.barn); h.load = take; UI.bump("barn");
+        FX.haul(d.x, d.y - 50, h.x, h.y - 30, take);
+        h.state = "toCart"; h.route = [{ x: 1062, y: 624 }, cartSpot];
+        return;
+      }
+      if (cartOk && hasShed() && ready("shed")) {
+        h.wait = 0; h.src = "shed"; h.reserve = Math.min(state.shed.dried - this.reservedDried("shed"), cap, space);
+        h.state = "fetch"; h.route = this.toShedRoute(); return;
+      }
+      // job 2: fetch a pile and bring it to a store to dry — Heygarður's hay goes to the shed once you have one
+      let best = null, avail = 0, bestDest = null, bestSpace = 0;
+      for (const plot of Field.active()) {
+        const a = (state.piles[plot.f.id] || 0) - this.reservedPile(plot.f.id); if (a <= avail) continue;
+        const pref = plot.f.id === "heygardur" && hasShed() ? ["shed", "barn"] : hasShed() ? ["barn", "shed"] : ["barn"];
+        // barn and shed full? then the pile goes straight to the cart and is sold fresh
+        const dest = pref.find(id => Stores.space(id) - this.reservedStore(id) > 1) || (cartOk && space > 1 ? "cart" : null);
+        if (!dest) continue;
+        avail = a; best = plot; bestDest = dest; bestSpace = dest === "cart" ? space : Stores.space(dest) - this.reservedStore(dest);
+      }
+      const want2 = Math.min(cap, bestSpace);
+      if (best && avail >= 1 && (avail >= want2 - 0.05 || h.wait > 20)) {
+        h.wait = 0; h.target = best.f.id; h.dest = bestDest; h.reserve = Math.min(avail, want2);
+        h.state = "toPile"; h.route = [WORLD.hub, ...best.hubRoute().slice().reverse().slice(1), this.pileSpot(best)];
+        return;
+      }
+      // nothing worth a trip yet: wait, and say what for
+      h.wait += dt;
+      const anyPile = Field.active().some(pl => (state.piles[pl.f.id] || 0) >= 1), anyDried = Stores.ids().some(id => state[id].dried >= 1);
+      if (cartOk && anyDried) h.bubble = `Waiting for dried hay ${fmt(Math.max(...Stores.ids().map(id => state[id].dried)))}/${fmt(want)}`;
+      else if (best) h.bubble = `Waiting for a bigger pile ${fmt(avail)}/${fmt(want2)}`;
+      else if (anyPile) h.bubble = hasShed() ? "Barn and shed full!" : "Barn full!";
+      else if (Stores.ids().some(id => state[id].fresh > 0.5)) h.bubble = "Drying…";
+    } else if (h.state === "toPile") {
+      if (this.follow(h, dt)) {
+        const plot = Field.byId(h.target), id = h.target;
+        const room = h.dest === "cart" ? getStats().cartCap - cartTotal() - (this.reservedCart() - h.reserve) : Stores.space(h.dest) - (this.reservedStore(h.dest) - h.reserve);
+        const take = Math.min(state.piles[id], cap, Math.max(0, room));
+        state.piles[id] -= take; if (state.piles[id] < 1e-6) state.piles[id] = 0;
+        h.load = take; h.reserve = 0; const pp = plot.pilePos(); FX.haul(pp.x, pp.y - 14, h.x, h.y - 30, take);
+        if (h.dest === "cart") { h.state = "toCart"; h.fresh = true; h.route = [...plot.hubRoute(), { x: 1062, y: 624 }, cartSpot]; return; }
+        h.state = "toBarn";
+        h.route = h.dest === "barn" ? [...plot.hubRoute(), this.doorSpot()]
+          : plot.f.id === "heygardur" ? [{ x: pp.x + 40, y: this.shedY() }, this.shedSpot()] : [...plot.hubRoute(), WORLD.south, { x: WORLD.south.x, y: this.shedY() }, this.shedSpot()];
+      }
+    } else if (h.state === "toBarn") { // carrying fresh hay into a store (barn or shed)
+      if (this.follow(h, dt)) {
+        const st = state[h.dest], space = Stores.space(h.dest), door = Stores.door(h.dest);
+        if (space <= 0.05) { h.bubble = h.dest === "barn" ? "Barn full!" : "Shed full!"; return; }
+        const amt = Math.min(h.load, space); h.load -= amt; st.fresh += amt; state.stats.hayStored += amt;
+        FX.haul(h.x, h.y - 30, door.x, door.y - 50, amt); UI.bump("barn");
+        if (h.load <= 0.05) { h.load = 0; if (h.dest === "shed") { h.state = "back"; h.route = [...this.fromShedRoute(), home]; } else h.state = "idle"; }
+      }
+    } else if (h.state === "fetch") { // walking down to the shed for dried hay
+      if (this.follow(h, dt)) {
+        const space = getStats().cartCap - cartTotal() - (this.reservedCart() - h.reserve);
+        const take = Math.min(state.shed.dried, cap, Math.max(0, space)); h.reserve = 0;
+        if (take < 0.05) { h.state = "back"; h.route = [...this.fromShedRoute(), home]; return; }
+        state.shed.dried -= take; clean(state.shed); h.load = take; const d = WORLD.shed.door; FX.haul(d.x, d.y - 40, h.x, h.y - 30, take);
+        h.state = "toCart"; h.route = [...this.fromShedRoute(), { x: 1062, y: 624 }, cartSpot];
+      }
+    } else if (h.state === "toCart") {
+      if (this.follow(h, dt)) {
+        if (Cart.state !== "parked" || Cart.leaveIn >= 0) { h.moving = false; h.bubble = "Waiting for the cart"; return; }
+        const amt = Math.min(h.load, getStats().cartCap - cartTotal());
+        if (h.fresh) state.cart.fresh += amt; else state.cart.dried += amt; h.load -= amt; Cart.lastLoad = performance.now();
+        FX.haul(h.x, h.y - 30, park.x - 10, park.y - 40, amt); UI.bump("cart");
+        if (cartTotal() >= getStats().cartCap - 0.05) { Cart.leaveIn = 0.8; toast(`${getStats().vehicle.icon} Your haulers filled the cart — off to Tórshavn!`); }
+        if (h.load > 0.05 && Cart.leaveIn < 0) return;
+        if (h.load > 0.05) { if (h.fresh) state.barn.fresh += h.load; else state.barn.dried += h.load; }
+        h.load = 0; h.fresh = false; h.state = "back"; h.route = [{ x: 1062, y: 624 }, home];
+      }
+    } else if (h.state === "back") { if (this.follow(h, dt)) h.state = "idle"; }
+  },
+  // with nothing more on its way, the haulers send off a part-full cart rather than let it sit
+  sendT: 0,
+  sendCheck(dt) {
+    if (!this.list.some(h => h.role === "hauler")) return;
+    const busy = this.list.some(h => h.role === "hauler" && h.state === "toCart");
+    const coming = state.barn.fresh > 1 || state.shed.fresh > 1 || state.shed.dried > 1 || Object.values(state.piles).some(v => v > 1);
+    if (Cart.state === "parked" && Cart.leaveIn < 0 && cartTotal() > 0.5 && !busy && state.barn.dried < 1 && state.shed.dried < 1) {
+      this.sendT += dt; if (this.sendT > (coming ? 45 : 10)) { this.sendT = 0; Cart.send(); toast(`${getStats().vehicle.icon} Your haulers sent a part load to Tórshavn`); }
+    } else this.sendT = 0;
+  },
+  drawList() { return this.list.map(h => ({ y: h.y, d: (g, t) => drawHelper(g, h, t) })); },
+};
+
+function drawHelper(g, h, t) {
+  const x = h.x, y = h.y, f = h.face, mv = h.moving ? 1 : 0, ph = h.walk, s = depthScale(y) * Math.max(0.01, Math.sin(h.pop * Math.PI / 2));
+  g.save(); g.translate(x, y); g.scale(s, s); g.translate(-x, -y);
+  if (h.role === "cutter" && h.state === "cutting") { // their own little harvest ring
+    const r = Helpers.cutterStats().radius;
+    g.beginPath(); g.arc(x, y, r, 0, Math.PI * 2); g.lineWidth = 5; g.strokeStyle = "rgba(53,47,69,0.25)"; g.stroke(); g.lineWidth = 2.5; g.strokeStyle = "rgba(255,255,255,0.7)"; g.stroke();
+    g.beginPath(); g.arc(x, y, r, -Math.PI / 2, -Math.PI / 2 + h.prog * Math.PI * 2); g.lineWidth = 3.5; g.lineCap = "round"; g.strokeStyle = "#f0b23a"; g.stroke();
+  }
+  const tool = h.role === "cutter" ? Helpers.tool() : TOOLS[0], cutting = h.role === "cutter" && h.state === "cutting";
+  if (tool.kind === "ride") { // drives the machine, in their own sweater
+    const sw = Math.min(150, 40 + tool.radius * 0.8);
+    g.fillStyle = "rgba(53,47,69,0.25)"; g.beginPath(); g.ellipse(x - f * sw * 0.15, y, sw * 0.6, 7, 0, 0, Math.PI * 2); g.fill();
+    g.translate(x, y); g.scale(f, 1); SEAT_SWEATER = h.look.sweater;
+    RIDE_ART[tool.art](g, t, x / 9 * f, mv, cutting); SEAT_SWEATER = "#3e4c78";
+    g.restore(); if (h.bubble) label(g, x, y - 90, h.bubble, false); return;
+  }
+  g.fillStyle = "rgba(53,47,69,0.22)"; g.beginPath(); g.ellipse(x, y, 13, 4, 0, 0, Math.PI * 2); g.fill();
+  const bob = -Math.abs(Math.sin(ph)) * 2 * mv, legSwing = Math.sin(ph) * 6.5 * mv;
+  g.lineCap = "round"; g.strokeStyle = "#5d4b40"; g.lineWidth = 5.2;
+  for (const sd of [-1, 1]) {
+    const hipX = x + sd * 3.4, footX = hipX + sd * legSwing * f;
+    g.beginPath(); g.moveTo(hipX, y - 16 + bob); g.lineTo(footX, y - 2); g.stroke();
+    g.fillStyle = "#2f2c35"; g.beginPath(); g.ellipse(footX + f * 2, y - 1.5, 4.3, 2.5, 0, 0, Math.PI * 2); g.fill();
+  }
+  const by = y - 16 + bob;
+  // hay on the back: a leypur for cutters, a big hay bundle for haulers
+  const cap = h.role === "cutter" ? Helpers.cutterStats().cap : Helpers.haulerCap(), load = Math.min(1, h.load / cap), bx = x - f * 10;
+  if (h.role === "hauler") { // the carrier you bought them in the Workers tab: leypur, sack, net, barrow, cart, sledge, trailer
+    CARRY_LOOK = { dried: h.state === "toCart" && !h.fresh, sleeve: h.look.sweater };
+    drawCarrier(g, Helpers.carrier(), x, y, by, f, load, t, x / 9 * f, mv); CARRY_LOOK = null;
+  } else if (load > 0.01) { g.fillStyle = "#c9c26a"; g.beginPath(); g.ellipse(bx, by - 18 - load * 8, 6 + load * 7, 5 + load * 9, 0, 0, Math.PI * 2); g.fill(); g.fillStyle = shade("#c9c26a", 0.86); g.beginPath(); g.ellipse(bx + 3, by - 16 - load * 7, 3 + load * 4, 4 + load * 7, 0, 0, Math.PI * 2); g.fill(); }
+  if (h.role === "cutter") { g.fillStyle = "#8a7465"; roundRect(g, bx - 6, by - 20, 12, 14, 3); g.fill(); g.fillStyle = "#6e5c50"; g.fillRect(bx, by - 20, 6, 14); }
+  sweater(g, x, by - 21, 21, h.look.sweater);
+  if (tool.kind === "walk") { // pushing a walk-behind machine
+    g.save(); g.translate(x + f * 30, y); g.scale(f, 1);
+    const grip = WALK_ART[tool.art](g, t, x / 9 * f, false, cutting);
+    g.strokeStyle = "#6c6580"; g.lineWidth = 2.4; g.beginPath(); g.moveTo(grip.hx, grip.hy); g.lineTo(-20, by - y - 9); g.stroke(); g.restore();
+    g.strokeStyle = h.look.sweater; g.lineWidth = 4.8; g.beginPath(); g.moveTo(x + f * 5, by - 17); g.lineTo(x + f * 11, by - 10); g.stroke();
+    g.fillStyle = "#efbf9b"; g.beginPath(); g.arc(x + f * 11, by - 9, 2.5, 0, Math.PI * 2); g.fill();
+    drawHead(g, x, by - 29, f, Math.sin(ph * 0.5 + t) * 1.4 * mv);
+    g.restore(); if (h.bubble) label(g, x, y - 72, h.bubble, false); return;
+  }
+  // arms and hand tool
+  const sw = cutting ? Math.sin(h.prog * Math.PI * 2) * 8 : Math.sin(ph) * 5 * mv;
+  const hx = x + f * (9 + Math.max(0, sw) * 0.4), hy = by - 6 + sw * 0.3;
+  g.strokeStyle = h.look.sweater; g.lineWidth = 4.8; g.beginPath(); g.moveTo(x + f * 6, by - 17); g.lineTo(hx, hy - 1); g.stroke();
+  if (h.role === "cutter" && HELD_ART[tool.art]) { g.save(); g.translate(hx, hy); g.scale(f, 1); g.rotate(cutting ? Math.sin(h.prog * Math.PI * 2) * 0.45 : 0.15); HELD_ART[tool.art](g, t, cutting); g.restore(); }
+  g.fillStyle = "#efbf9b"; g.beginPath(); g.arc(hx, hy, 2.5, 0, Math.PI * 2); g.fill();
+  drawHead(g, x, by - 29, f, Math.sin(ph * 0.5 + t) * 1.4 * mv);
+  g.restore();
+  if (h.bubble) label(g, x, y - 72, h.bubble, false);
+}
+
 /* ------------------------------ PLACES ------------------------------- */
 // Interactive locations. Add new buildings here with a zone, prompt and action.
 const Places = {
@@ -1422,14 +2041,18 @@ const Places = {
   update() {
     const nb = dist(Player, WORLD.barn.door) < WORLD.barn.r, nc = dist(Player, WORLD.cart.park) < WORLD.cart.r, nh = dist(Player, WORLD.house.door) < WORLD.house.r;
     this.near = nb ? "barn" : nh ? "house" : nc ? "cart" : null;
+    if (!this.near && hasShed() && dist(Player, WORLD.shed.door) < WORLD.shed.r) this.near = "shed";
+    if (!this.near && lvl("station") >= 1 && dist(Player, WORLD.station.door) < WORLD.station.r) this.near = "station";
+    if (!this.near) for (const plot of Field.active()) if (dist(Player, plot.pilePos()) < 46) { this.near = "pile:" + plot.f.id; break; }
   },
   prompt() {
     const s = getStats();
-    if (this.near === "barn") {
-      const c = carryTotal(), b = barnTotal(), space = s.barnCap - b;
-      if (c > 0.05) return space > 0.05 ? { label: `🛖 Store ${fmt(Math.min(c, space))} hay`, ok: true } : { label: "Barn is full", ok: false };
+    if (this.near === "station") { const a = state.research.active; return { label: a ? `🔬 ${RESEARCH_BY_ID[a.id].name} · ${fmtTime(Math.max(0, RESEARCH_BY_ID[a.id].time - a.t))} left` : "🔬 Choose research", ok: true }; }
+    if (this.near === "barn" || this.near === "shed") {
+      const id = this.near, nm = id === "barn" ? "Barn" : "Shed", c = carryTotal(), b = Stores.total(id), space = Stores.space(id);
+      if (c > 0.05) return space > 0.05 ? { label: `🛖 Store ${fmt(Math.min(c, space))} hay`, ok: true } : { label: `${nm} is full`, ok: false };
       if (b > 0.05) return { label: `🧺 Load ${fmt(Math.min(b, s.basket))} hay`, ok: true };
-      return { label: "Barn is empty", ok: false };
+      return { label: `${nm} is empty`, ok: false };
     }
     if (this.near === "cart") {
       if (Cart.state !== "parked") return { label: `${s.vehicle.icon} In Tórshavn · back in ${Math.ceil(Cart.eta())}s`, ok: false };
@@ -1440,42 +2063,62 @@ const Places = {
       return { label: `${s.vehicle.icon} Empty — bring hay`, ok: false };
     }
     if (this.near === "house") return { label: "🏠 Go inside · upgrades", ok: true };
+    if (this.near && this.near.startsWith("pile:")) {
+      const n = state.piles[this.near.slice(5)] || 0, room = s.basket - carryTotal();
+      if (state.carry.fresh > 0.05) return { label: `🌾 Drop ${fmt(state.carry.fresh)} hay on the pile`, ok: true };
+      if (n > 0.05 && room > 0.05) return { label: `🧺 Load ${fmt(Math.min(n, room))} hay from the pile`, ok: true };
+      return { label: n > 0.05 ? "Your carrier is full" : "The pile is empty", ok: false };
+    }
     return null;
   },
 };
 function interact() {
-  if (Places.near === "barn") barnAction();
+  if (Places.near === "barn" || Places.near === "shed") storeAction(Places.near);
   else if (Places.near === "house") UI.open("home");
+  else if (Places.near === "station") UI.open("home", "research");
+  else if (Places.near && Places.near.startsWith("pile:")) pileAction(Places.near.slice(5));
   else if (Places.near === "cart") {
     if (Cart.state !== "parked" || Cart.leaveIn >= 0) return;
     if (carryTotal() > 0.05 && cartTotal() < getStats().cartCap - 0.05) loadCart(); else Cart.send();
   }
 }
 
-function barnAction() {
-  if (Places.near !== "barn") return;
-  const s = getStats(), c = carryTotal(), space = s.barnCap - barnTotal();
+function barnAction() { if (Places.near === "barn" || Places.near === "shed") storeAction(Places.near); }
+function storeAction(id) {
+  const st = state[id], door = Stores.door(id), s = getStats(), c = carryTotal(), space = Stores.space(id);
   if (c > 0.05) {
-    if (space <= 0.05) { Sound.bump(); toast("The barn is full — buy a Barn Loft upgrade or take hay to the cart"); return; }
+    if (space <= 0.05) { Sound.bump(); toast(id === "barn" ? "The barn is full — buy a Barn Loft upgrade or take hay to the cart" : "The shed is full — take hay to the barn or the cart"); return; }
     let amt = Math.min(c, space), moved = amt;
-    const fromDried = Math.min(state.carry.dried, amt); state.carry.dried -= fromDried; state.barn.dried += fromDried; amt -= fromDried;
-    state.carry.fresh -= amt; state.barn.fresh += amt;
+    const fromDried = Math.min(state.carry.dried, amt); state.carry.dried -= fromDried; st.dried += fromDried; amt -= fromDried;
+    state.carry.fresh -= amt; st.fresh += amt;
     clean(state.carry);
     state.stats.timesStored++; state.stats.hayStored += moved;
-    FX.haul(Player.x, Player.y - 30, WORLD.barn.door.x, WORLD.barn.door.y - 50, moved);
-    FX.float(WORLD.barn.door.x, WORLD.barn.y - 120, `Stored ${fmt(moved)} 🌾`, "#fff3c4");
+    FX.haul(Player.x, Player.y - 30, door.x, door.y - 50, moved);
+    FX.float(door.x, WORLD[id].y - 120, `Stored ${fmt(moved)} 🌾`, "#fff3c4");
     Sound.store();
     if (state.stats.timesStored === 1) { toast("Hay in the barn dries into hay worth 50% more"); UI.render(); }
   } else {
     let room = s.basket, total = 0;
-    const d = Math.min(state.barn.dried, room); state.barn.dried -= d; state.carry.dried += d; room -= d; total += d;
-    const f = Math.min(state.barn.fresh, room); state.barn.fresh -= f; state.carry.fresh += f; total += f;
-    clean(state.barn);
+    const d = Math.min(st.dried, room); st.dried -= d; state.carry.dried += d; room -= d; total += d;
+    const f = Math.min(st.fresh, room); st.fresh -= f; state.carry.fresh += f; total += f;
+    clean(st);
     if (total < 0.05) return;
-    FX.haul(WORLD.barn.door.x, WORLD.barn.door.y - 50, Player.x, Player.y - 30, total);
+    FX.haul(door.x, door.y - 50, Player.x, Player.y - 30, total);
     Sound.store();
   }
   UI.bump("carry"); UI.bump("barn"); UI.refreshLive(true);
+}
+// Hay piles outside each field's gate: drop fresh hay for the haulers, or load some up yourself.
+function pileAction(id) {
+  const plot = Field.byId(id), pp = plot.pilePos(), s = getStats();
+  if (state.carry.fresh > 0.05) {
+    const n = state.carry.fresh; state.piles[id] += n; state.carry.fresh = 0;
+    FX.haul(Player.x, Player.y - 30, pp.x, pp.y - 14, n); Sound.store(); UI.bump("carry");
+  } else {
+    const take = Math.min(state.piles[id], s.basket - carryTotal()); if (take < 0.05) return;
+    state.piles[id] -= take; if (state.piles[id] < 1e-6) state.piles[id] = 0; state.carry.fresh += take;
+    FX.haul(pp.x, pp.y - 14, Player.x, Player.y - 30, take); Sound.store(); UI.bump("carry");
+  }
 }
 function clean(o) { for (const k in o) if (o[k] < 1e-6) o[k] = 0; }
 
@@ -1557,19 +2200,35 @@ const Cart = {
   },
 };
 
+// A hesja (drying rack). Fresh hay in the barn is shared out across the racks while it dries.
+function drawRack(g, i, t, slots = RACK_SLOTS, store = "barn") {
+  const r = slots[i], rx = r.x, ry = r.y, w = RACK_W;
+  g.fillStyle = "rgba(53,47,69,0.15)"; g.beginPath(); g.ellipse(rx + w / 2 + 4, ry + 2, w * 0.6, 5, 0, 0, Math.PI * 2); g.fill();
+  for (const px of [rx, rx + w]) { g.fillStyle = "#8a7465"; g.fillRect(px - 2, ry - 46, 4, 46); g.fillStyle = "#6e5c50"; g.fillRect(px, ry - 46, 2, 46); }
+  for (let k = 0; k < 4; k++) { g.fillStyle = "#8a7465"; g.fillRect(rx, ry - 12 - k * 10, w, 2); }
+  const drying = Math.min(1, state[store].fresh / (18 * (store === "barn" ? rackCount() : shedRackCount())));
+  for (let k = 0; k < 4; k++) if (drying > k / 4) {
+    const yy = ry - 17 - k * 10;
+    g.fillStyle = shade(PAL.tufts[4], 1.05); g.beginPath(); g.moveTo(rx + 3, yy + 8); g.lineTo(rx + w / 2, yy - 1); g.lineTo(rx + w - 3, yy + 8); g.closePath(); g.fill();
+    g.fillStyle = shade(PAL.tufts[4], 0.85); g.beginPath(); g.moveTo(rx + w / 2, yy - 1); g.lineTo(rx + w - 3, yy + 8); g.lineTo(rx + w / 2 + 6, yy + 8); g.closePath(); g.fill();
+  }
+}
+// A haystack outside a field's gate, where cutters (and you) dump fresh hay for the haulers.
+function drawPile(g, plot, t) {
+  const n = state.piles[plot.f.id] || 0, p = plot.pilePos(), near = Places.near === "pile:" + plot.f.id;
+  g.fillStyle = "rgba(53,47,69,0.16)"; g.beginPath(); g.ellipse(p.x + 4, p.y + 2, 26, 6, 0, 0, Math.PI * 2); g.fill();
+  if (n > 0.05) {
+    const s = Math.min(1.9, 0.45 + Math.sqrt(n) / 9), w = 22 * s, h = 22 * s;
+    g.fillStyle = "#d8c07e"; g.beginPath(); g.moveTo(p.x - w, p.y); g.lineTo(p.x - w * 0.35, p.y - h); g.lineTo(p.x + w * 0.2, p.y - h * 1.05); g.lineTo(p.x, p.y); g.closePath(); g.fill();
+    g.fillStyle = "#c9ad6c"; g.beginPath(); g.moveTo(p.x, p.y); g.lineTo(p.x + w * 0.2, p.y - h * 1.05); g.lineTo(p.x + w * 0.55, p.y - h * 0.8); g.lineTo(p.x + w, p.y); g.closePath(); g.fill();
+    g.fillStyle = "#e2cd92"; g.beginPath(); g.moveTo(p.x - w * 0.35, p.y - h); g.lineTo(p.x + w * 0.2, p.y - h * 1.05); g.lineTo(p.x - w * 0.1, p.y - h * 0.6); g.closePath(); g.fill();
+    for (let k = 0; k < 5; k++) { g.strokeStyle = "rgba(160,130,70,0.6)"; g.lineWidth = 1; g.beginPath(); g.moveTo(p.x - w * 0.6 + k * w * 0.3, p.y - 2); g.lineTo(p.x - w * 0.5 + k * w * 0.3 + Math.sin(t + k) * 2, p.y - h * (0.4 + k % 2 * 0.2)); g.stroke(); }
+  } else { g.fillStyle = "rgba(216,192,126,0.45)"; g.beginPath(); g.ellipse(p.x, p.y - 1, 16, 4, 0, 0, Math.PI * 2); g.fill(); }
+  if (n > 0.05 || near) label(g, p.x, p.y - 22 - Math.min(1.9, 0.45 + Math.sqrt(n) / 9) * 24, `Pile ${fmt(n)}`, near);
+}
 function drawBarn(g, t) {
   const { x, y } = WORLD.barn, w = 176, h = 96;
   const fill = Math.min(1, barnTotal() / getStats().barnCap);
-  // hesja drying rack beside the barn; hay hangs on it while drying
-  const rx = x + w / 2 + 34, ry = y - 4;
-  for (const px of [rx, rx + 66]) { g.fillStyle = "#8a7465"; g.fillRect(px - 2, ry - 48, 4, 48); g.fillStyle = "#6e5c50"; g.fillRect(px, ry - 48, 2, 48); }
-  for (let i = 0; i < 4; i++) { g.fillStyle = "#8a7465"; g.fillRect(rx, ry - 13 - i * 10, 66, 2); }
-  const drying = Math.min(1, state.barn.fresh / 20);
-  for (let i = 0; i < 4; i++) if (drying > i / 4) {
-    const yy = ry - 18 - i * 10;
-    g.fillStyle = shade(PAL.tufts[4], 1.05); g.beginPath(); g.moveTo(rx + 3, yy + 8); g.lineTo(rx + 33, yy - 1); g.lineTo(rx + 63, yy + 8); g.closePath(); g.fill();
-    g.fillStyle = shade(PAL.tufts[4], 0.85); g.beginPath(); g.moveTo(rx + 33, yy - 1); g.lineTo(rx + 63, yy + 8); g.lineTo(rx + 40, yy + 8); g.closePath(); g.fill();
-  }
   // the barn itself: tarred walls, turf roof
   const f = house3(g, { x, y, w, h, d: 26, rh: 40, wall: PAL.dark });
   g.strokeStyle = "rgba(255,255,255,0.05)"; g.lineWidth = 1;
@@ -1589,6 +2248,40 @@ function drawBarn(g, t) {
   // tufts swaying on the turf
   for (let i = 0; i < 12; i++) { const tx = f.L + 16 + f.rx + i * (w - 28) / 11, sw = Math.sin(t * 1.5 + i) * 1.2; g.fillStyle = shade(PAL.turf, 1.2); g.beginPath(); g.moveTo(tx - 2, f.ridgeY + 1); g.lineTo(tx + sw, f.ridgeY - 5); g.lineTo(tx + 2, f.ridgeY + 1); g.closePath(); g.fill(); }
   label(g, x + 12, f.ridgeY - 18, `Barn ${fmt(barnTotal())}/${fmt(getStats().barnCap)}`, Places.near === "barn");
+}
+// The research station: a white-walled field station with a turf roof, a weather mast and a sign.
+function drawStation(g, t) {
+  const { x, y } = WORLD.station, w = 120, h = 66;
+  const f = house3(g, { x, y, w, h, d: 20, rh: 30, wall: PAL.white });
+  for (let i = 0; i < 6; i++) rock(g, f.L + 9 + i * 20, y - 4, 5.5, i + 120, PAL.wall);
+  g.fillStyle = PAL.dark; g.fillRect(x - 32, y - 46, 26, 42); g.fillStyle = shade(PAL.dark, 1.25); g.fillRect(x - 30, y - 44, 10, 38); // door
+  windowLP(g, x + 4, y - 46, 16, 16, PAL.dark); windowLP(g, x + 28, y - 46, 16, 16, PAL.dark);
+  // weather mast with spinning anemometer
+  const mx = f.R + 10, my = f.ridgeY - 4;
+  g.strokeStyle = "#6c6580"; g.lineWidth = 2; g.beginPath(); g.moveTo(mx, f.top - 4); g.lineTo(mx, my - 34); g.stroke();
+  const a = t * 4; g.lineWidth = 1.6;
+  for (let k = 0; k < 3; k++) { const ang = a + k * 2.094, ex = mx + Math.cos(ang) * 9, ey = my - 34 + Math.sin(ang) * 3; g.beginPath(); g.moveTo(mx, my - 34); g.lineTo(ex, ey); g.stroke(); g.fillStyle = "#b8473d"; g.beginPath(); g.arc(ex, ey, 2, 0, Math.PI * 2); g.fill(); }
+  // test plots of grass out front
+  for (let k = 0; k < 3; k++) { const px = x - 50 + k * 30, cols = ["#a9b874", "#7d9c5c", "#b0b862"]; g.fillStyle = "rgba(53,47,69,0.12)"; g.fillRect(px - 1, y + 18, 24, 9);
+    for (let b = 0; b < 5; b++) { g.fillStyle = cols[k]; const bx = px + 2 + b * 4.5, sw = Math.sin(t * 1.6 + b + k) * 1.2; g.beginPath(); g.moveTo(bx - 1.3, y + 26); g.lineTo(bx + sw, y + 15 - (k + 1) * 2); g.lineTo(bx + 1.3, y + 26); g.closePath(); g.fill(); } }
+  const a2 = state.research.active;
+  label(g, x + 6, f.ridgeY - 18, a2 ? `🔬 ${RESEARCH_BY_ID[a2.id].name} · ${fmtTime(Math.max(0, RESEARCH_BY_ID[a2.id].time - a2.t))}` : "🔬 Research station", Places.near === "station");
+}
+// The Heygarður hay shed: a smaller tarred hut with a turf roof and a red door.
+function drawShed(g, t) {
+  const { x, y } = WORLD.shed, w = 132, h = 74, fill = Math.min(1, shedTotal() / Math.max(1, getStats().shedCap));
+  const f = house3(g, { x, y, w, h, d: 22, rh: 32, wall: PAL.dark });
+  g.strokeStyle = "rgba(255,255,255,0.05)"; g.lineWidth = 1;
+  for (let px = f.L + 8; px < f.R; px += 8) { g.beginPath(); g.moveTo(px, f.top); g.lineTo(px, y - 8); g.stroke(); }
+  for (let i = 0; i < 7; i++) rock(g, f.L + 9 + i * 19, y - 4, 6, i + 80, PAL.wall);
+  g.fillStyle = PAL.white; g.fillRect(x - 21, y - 52, 42, 46);
+  g.fillStyle = PAL.red; g.fillRect(x - 18, y - 49, 36, 43); g.fillStyle = shade(PAL.red, 0.85); g.fillRect(x, y - 49, 18, 43);
+  g.strokeStyle = PAL.white; g.lineWidth = 2; g.beginPath(); g.moveTo(x - 18, y - 49); g.lineTo(x + 18, y - 6); g.moveTo(x + 18, y - 49); g.lineTo(x - 18, y - 6); g.stroke();
+  const lx = x - 14, ly = f.top + 4;
+  g.fillStyle = PAL.white; g.fillRect(lx - 3, ly - 3, 34, 20); g.fillStyle = "#24212d"; g.fillRect(lx, ly, 28, 14);
+  if (fill > 0) { const c = state.shed.dried >= state.shed.fresh ? "#e2cd92" : "#c9c26a"; g.fillStyle = c; g.fillRect(lx, ly + 14 * (1 - fill), 28, 14 * fill); }
+  for (let i = 0; i < 9; i++) { const tx = f.L + 14 + f.rx + i * (w - 24) / 8, sw = Math.sin(t * 1.5 + i) * 1.2; g.fillStyle = shade(PAL.turf, 1.2); g.beginPath(); g.moveTo(tx - 2, f.ridgeY + 1); g.lineTo(tx + sw, f.ridgeY - 5); g.lineTo(tx + 2, f.ridgeY + 1); g.closePath(); g.fill(); }
+  label(g, x + 10, f.ridgeY - 18, `Shed ${fmt(shedTotal())}/${fmt(getStats().shedCap)}`, Places.near === "shed");
 }
 function drawCart(g, t) {
   const s = getStats(), p = WORLD.cart.park, near = Places.near === "cart";
@@ -1837,7 +2530,7 @@ window.addEventListener("keyup", e => keys.delete(e.code));
 window.addEventListener("blur", () => { keys.clear(); Input.joy = null; Input.hold = null; });
 // Click / tap a building or the cart you're standing next to = same as pressing E.
 const HITBOXES = {
-  barn:  () => ({ x0: 700, x1: 900, y0: 440, y1: 600 }),
+  barn:  () => ({ x0: WORLD.barn.x - 100, x1: WORLD.barn.x + 100, y0: 440, y1: 600 }),
   house: () => ({ x0: 930, x1: 1090, y0: 380, y1: 495 }),
   cart:  () => ({ x0: Cart.x - 110, x1: Cart.x + 90, y0: WORLD.cart.park.y - 80, y1: WORLD.cart.park.y + 12 }),
 };
@@ -1880,17 +2573,19 @@ function drawJoystick(g) {
 /* -------------------------------- UI --------------------------------- */
 const TABS = [
   { id: "farm", name: "Farm", icon: "🏡" },
-  { id: "upgrades", name: "Upgrades", icon: "⬆️", home: true },
-  { id: "equipment", name: "Tools & carrying", icon: "🧰", home: true },
+  { id: "farmer", name: "Farmer", icon: "🧑‍🌾", home: true },
   { id: "land", name: "Land", icon: "🗺️", home: true },
-  { id: "animals", name: "Animals", icon: "🐑", home: true, locked: true, soon: "Sheep, cows, chickens and goats that eat hay from your barn and give wool, milk and eggs." },
-  { id: "buildings", name: "Buildings", icon: "🛖", home: true, locked: true, soon: "A farmhouse, sheep shelter, cow barn and more, built right into the landscape." },
+  { id: "buildings", name: "Buildings", icon: "🛖", home: true },
+  { id: "transport", name: "Transport", icon: "🚚", home: true },
+  { id: "workers", name: "Workers", icon: "👥", home: true },
+  { id: "research", name: "Research", icon: "🔬", home: true },
   { id: "stats", name: "Statistics", icon: "📊" },
   { id: "settings", name: "Settings", icon: "⚙️" },
 ];
 // Text that refreshes live while a panel is open: <span data-live="key">
 const LIVE = {
   carryFresh: () => fmt(state.carry.fresh), carryDried: () => fmt(state.carry.dried),
+  researchLeft: () => { const a = state.research.active; return a ? fmtTime(Math.max(0, RESEARCH_BY_ID[a.id].time - a.t)) + " left" : ""; },
   carryCap: () => fmt(getStats().basket), carryValue: () => fmt((state.carry.fresh + state.carry.dried * CONFIG.driedBonus) * getStats().sellPrice) + " kr",
   cartLoad: () => fmt(cartTotal()), cartCap: () => fmt(getStats().cartCap),
   cartStatus: () => Cart.state === "parked" ? (Cart.leaveIn >= 0 ? "setting off…" : "waiting at the road") : `in Tórshavn · back in ${Math.ceil(Cart.eta())}s`,
@@ -1900,12 +2595,13 @@ const LIVE = {
   dryEta: () => state.barn.fresh > 0.05 ? `all dry in ${fmtTime(Math.ceil(state.barn.fresh / getStats().dryRate))}` : "nothing drying",
   "stat-hay": () => fmt(state.stats.totalHay), "stat-actions": () => fmt(state.stats.actions), "stat-sold": () => fmt(state.stats.haySold),
   "stat-money": () => fmt(state.stats.totalMoney) + " kr", "stat-stored": () => fmt(state.stats.hayStored), "stat-time": () => fmtTime(state.stats.playTime),
-  "stat-dist": () => (state.stats.distance / 50 / 1000).toFixed(2) + " km", "stat-ups": () => state.stats.upgradesBought, "stat-loads": () => fmt(state.stats.timesSold),
+  "stat-dist": () => (state.stats.distance / 50 / 1000).toFixed(2) + " km", "stat-ups": () => state.stats.upgradesBought, "stat-loads": () => fmt(state.stats.timesSold), "stat-helper": () => fmt(state.stats.helperHay),
 };
 const LIVE_BARS = {
   carry: () => [state.carry.fresh / getStats().basket, state.carry.dried / getStats().basket],
   barn: () => [state.barn.fresh / getStats().barnCap, state.barn.dried / getStats().barnCap],
   cart: () => [state.cart.fresh / getStats().cartCap, state.cart.dried / getStats().cartCap],
+  research: () => { const a = state.research.active; return a ? [a.t / RESEARCH_BY_ID[a.id].time, 0] : [1, 0]; },
 };
 const UI = {
   tab: "farm", confirmReset: false, lastAfford: "", isOpen: false, mode: "menu",
@@ -1926,9 +2622,9 @@ const UI = {
   },
   // mode "home": inside the farmhouse — upgrades and land can be bought here.
   // mode "menu": the ☰ button — farm info, statistics and settings from anywhere.
-  open(mode) {
-    this.mode = mode; this.isOpen = true; this.confirmReset = false; keys.clear(); Input.hold = null; Input.joy = null;
-    if (mode === "home") this.tab = "upgrades";
+  open(mode, tab) {
+    this.homeTab = tab || null; this.mode = mode; this.isOpen = true; this.confirmReset = false; keys.clear(); Input.hold = null; Input.joy = null;
+    if (mode === "home") this.tab = this.homeTab || "farmer";
     else if (TABS.find(t => t.id === this.tab).home) this.tab = "farm";
     document.getElementById("tabs").querySelectorAll(".tab").forEach(b => { b.style.display = mode === "home" || !TABS.find(t => t.id === b.dataset.tab).home ? "" : "none"; });
     document.getElementById("ptitle").innerHTML = mode === "home"
@@ -1946,6 +2642,7 @@ const UI = {
       if (ve.textContent !== v) ve.textContent = v;
       if (le.textContent !== l) le.textContent = l;
       if (r.full) document.getElementById("res-" + r.id).classList.toggle("full", r.full());
+      if (r.hide) { const el = document.getElementById("res-" + r.id), hd = r.hide(); if (el.style.display !== (hd ? "none" : "")) el.style.display = hd ? "none" : ""; }
       if (r.icon2) { const ic = document.querySelector(`#res-${r.id} .ico`), i2 = r.icon2(); if (ic.textContent !== i2) ic.textContent = i2; }
     }
     // big carried-hay counter (bottom centre)
@@ -1995,6 +2692,9 @@ const UI = {
         <div class="desc" style="margin-bottom:0"><span data-live="barnFresh"></span> drying · <span data-live="barnDried"></span> dried · worth <b data-live="barnValue"></b><br><span data-live="dryEta"></span> · ${s.dryRate.toFixed(2)} hay/s</div>
         ${this.bar("barn", ["#9bbd56", "#d8b65a"])}
       </div>
+      ${hasShed() ? `<div class="card" style="margin-top:8px">
+        <div class="row"><div class="name">🛖 Heygarður hay shed</div><div class="lvl">${fmt(s.shedCap)} max</div></div>
+        <div class="desc" style="margin-bottom:0">${fmt(state.shed.fresh)} drying · ${fmt(state.shed.dried)} dried · ${shedRackCount()} racks · ${s.shedDryRate.toFixed(2)} hay/s</div></div>` : ""}
       <h3>Transport</h3>
       <div class="card">
         <div class="row"><div class="name">${s.vehicle.icon} ${s.vehicle.name}</div><div class="lvl"><span data-live="cartCap"></span> max</div></div>
@@ -2015,10 +2715,11 @@ const UI = {
         <div class="stat"><div class="k">Hay price</div><div class="v">${s.sellPrice.toFixed(2)} kr</div></div>
       </div>`;
   },
-  render_equipment() {
+  render_farmer() {
     const cur = currentTool(), nxt = nextTool(), i = toolIdx();
-    const stats = t => `Reach <b>${t.radius}</b> · speed <b>×${(1 / t.cycle).toFixed(2)}</b> · hay <b>×${t.yield}</b>${t.carry ? ` · +${fmt(t.carry)} capacity` : ""}${t.run > 1 ? ` · run ×${t.run}` : ""}`;
-    let html = `<h2>Tools</h2>
+    const stats = t => `Reach <b>${t.radius}</b> · speed <b>×${(1 / t.cycle).toFixed(2)}</b> · hay <b>${t.yield}</b>/cut${t.carry ? ` · +${fmt(t.carry)} capacity` : ""}${t.run > 1 ? ` · run ×${t.run}` : ""}`;
+    let html = `<h2>You, the farmer</h2><div class="cardgrid">${this.upgradeCard(UPGRADE_BY_ID.speed)}${this.upgradeCard(UPGRADE_BY_ID.boots)}</div>
+      <h3>Tools</h3>
       <div class="hint">Better tools are the only way to widen the harvest ring. Each one also cuts faster and brings in more hay per circle.</div>
       <div class="cardgrid">
         <div class="card"><div class="row"><div class="name">${cur.icon} ${cur.name}</div><div class="lvl">in use</div></div><div class="desc">${cur.desc}</div><div class="effect">${stats(cur)}</div></div>
@@ -2046,17 +2747,71 @@ const UI = {
     return html;
   },
   render_land() {
-    const s = getStats(), [c, r] = FIELD_STAGES[lvl("field")];
-    return `<h2>Land</h2>
-      <div class="card"><div class="row"><div class="name">🌾 Bøur — the home meadow</div><div class="lvl">${c} × ${r}</div></div>
-        <div class="desc" style="margin-bottom:0">${fmt(c * r)} patches of grass · regrows in ${fmtTime(s.regrowTime)}</div></div>
-      <h3>Upgrades</h3><div class="cardgrid">` + UPGRADES.filter(u => u.category === "Land").map(u => this.upgradeCard(u)).join("") + `</div>` +
-      `<div class="hint">A second field, a hillside meadow and a sheep pasture will arrive in a later update.</div>`;
+    const s = getStats();
+    const card = plot => { const [c, r] = FIELD_STAGES[lvl(plot.f.levelId)];
+      return plot.unlocked ? `<div class="card"><div class="row"><div class="name">🌾 ${plot.f.name}</div><div class="lvl">${c} × ${r}</div></div>
+        <div class="desc" style="margin-bottom:0">${fmt(c * r)} patches of grass · ${seedOf(plot).icon} ${seedOf(plot).name} · regrows in ${fmtTime(s.regrowTime * seedOf(plot).regrow)} · ${(CONFIG.hayPerPatch * plot.hayMult()).toFixed(2)} hay per patch · pile by the gate: ${fmt(state.piles[plot.f.id] || 0)} hay</div>
+        ${SEEDS.filter(sd => sd.id !== seedOf(plot).id && (!sd.research || researched(sd.research))).map(sd => `<div class="row" style="margin-top:8px"><div class="desc" style="margin:0">${sd.icon} <b>${sd.name}</b> — ${sd.desc}</div><button class="buy" data-act="sow" data-field="${plot.f.id}" data-seed="${sd.id}" data-need="sow" data-cost="${sowCost(plot, sd)}">Sow · ${fmt(sowCost(plot, sd))} kr</button></div>`).join("")}</div>`
+        : `<div class="card locked"><div class="name">🌾 ${plot.f.name} · for sale</div><div class="desc" style="margin-bottom:0">Down the hill to the south-west.</div></div>`; };
+    return `<h2>Land</h2><div class="cardgrid">${Field.plots.map(card).join("")}</div>
+      <h3>Upgrades</h3><div class="cardgrid">` + UPGRADES.filter(u => u.category === "Land").map(u => this.upgradeCard(u)).join("") + `</div>
+      <div class="hint">New seed mixes come from Research (Seeds branch) and are sown here. Cutters drop their hay on a pile just outside each meadow's gate. Haulers carry the piles to the barn to dry — the further the meadow, the more haulers you'll want.</div>`;
   },
-  render_upgrades() {
-    const cats = [...new Set(UPGRADES.map(u => u.category))];
-    return `<h2>Upgrades</h2>` + cats.map(cat => `<h3>${cat}</h3><div class="cardgrid">` + UPGRADES.filter(u => u.category === cat).map(u => this.upgradeCard(u)).join("") + `</div>`).join("") +
-      `<div class="hint">Equipment, machinery, animals and automation arrive in later milestones.</div>`;
+  render_research() {
+    const a = state.research.active;
+    if (!researchOpen()) return `<h2>Research</h2><div class="soon"><span class="ti">🔬</span><b>Build the Research Station first</b><br>You'll find it in the Buildings tab once you own a Lawn Tractor or have earned 60,000 kr. Then work with Búnaðarstovan on seeds, soil, machines and markets.</div>
+      <div class="cardgrid" style="margin-top:10px">${this.upgradeCard(UPGRADE_BY_ID.station)}</div>`;
+    const node = n => {
+      const done = researched(n.id), act = a && a.id === n.id, ready = researchReady(n);
+      const reqTxt = (n.req || []).filter(r => !researched(r)).map(r => RESEARCH_BY_ID[r].name).join(" + ");
+      const right = done ? `<div class="lvl">✓ done</div>` : act ? `<div class="lvl" data-live="researchLeft"></div>`
+        : ready ? `<button class="buy" data-act="research" data-id="${n.id}" data-need="research">${fmt(n.cost)} kr</button>` : "";
+      return `<div class="card${!done && !act && !ready ? " locked" : ""}"><div class="row"><div class="name">${ready || done || act ? n.icon : "🔒"} ${n.name}</div>${right}</div>
+        <div class="desc"${act ? "" : ' style="margin-bottom:0"'}>${n.desc}${!done && !act ? ` · ${fmtTime(n.time)}` : ""}${!ready && !done && !act ? `<br><span class="req">Needs: ${reqTxt}</span>` : ""}</div>
+        ${act ? `<div class="bar" data-bar="research"><i style="background:#7fa1c9"></i><i></i></div>` : ""}</div>`;
+    };
+    return `<h2>Research <small style="font-weight:600;font-size:13px;color:var(--ink-soft)">with Búnaðarstovan</small></h2>
+      <div class="hint">One project at a time. It runs while you play — keep farming and it finishes on its own.${a ? ` Now: <b>${RESEARCH_BY_ID[a.id].name}</b>.` : ""}</div>` +
+      BRANCHES.map(b => `<h3>${b.icon} ${b.name}</h3><div class="cardgrid">${RESEARCH.filter(n => n.branch === b.id).map(node).join("")}</div>`).join("") +
+      `<div class="hint">Now: hay ×${rMult("soil").toFixed(2)} from the soil · ×${rMult("gather").toFixed(2)} per cut · drying ×${rMult("dry").toFixed(2)} · haulers ×${rMult("haul").toFixed(1)} · price ×${rMult("price").toFixed(2)}</div>`;
+  },
+  render_workers() {
+    const nc = lvl("cutters"), nh = lvl("haulers"), cs = Helpers.cutterStats(), up = id => this.upgradeCard(UPGRADE_BY_ID[id]);
+    const crew = Helpers.list.map(h => `<div class="row" style="padding:5px 0;border-bottom:1px solid var(--line)"><div class="name"><span style="display:inline-block;width:10px;height:10px;border-radius:3px;background:${h.look.sweater};margin-right:6px"></span>${h.look.name} <span class="lvl">${h.role}</span></div><div class="lvl" style="background:rgba(53,47,69,.06);color:var(--ink-soft)">${{ idle: "waiting", toField: "walking to the meadow", cutting: "cutting", waitGrass: "waiting for the grass to grow", toPile: h.role === "cutter" ? "dumping hay on the pile" : "fetching a pile", toBarn: h.dest === "shed" ? "carrying hay to the shed" : "carrying hay to the barn", fetch: "fetching dried hay from the shed", toCart: h.fresh ? "taking fresh hay to the cart" : "carrying hay to the cart", back: "walking back" }[h.state] || h.state}</div></div>`).join("");
+    return `<h2>Workers</h2>
+      <div class="hint">Hire neighbours to run the farm alongside you. Cutters drop hay on the pile outside their meadow's gate; haulers carry piles to the barn and dried hay to the cart. Give them their own copy of your upgrades — workers are <b style="border:none;background:none;padding:0">75% as effective</b> as you with the same gear.</div>
+      ${Helpers.list.length ? `<div class="card" style="padding:6px 12px">${crew}</div>` : ""}
+      ${nc ? `<div class="statgrid" style="margin-bottom:6px">
+        <div class="stat"><div class="k">Cutters' tool</div><div class="v" style="font-size:13px">${cs.tool.icon} ${cs.tool.name}</div></div>
+        <div class="stat"><div class="k">Reach · speed</div><div class="v">${cs.radius} · ${cs.cycle.toFixed(2)} s</div></div>
+        <div class="stat"><div class="k">Hay per circle</div><div class="v">${cs.yield}</div></div>
+        <div class="stat"><div class="k">Cutters carry · walk</div><div class="v">${cs.cap} · ${(cs.speed / 50).toFixed(1)} m/s</div></div></div>` : ""}
+      ${nh ? `<div class="statgrid" style="margin-bottom:6px"><div class="stat"><div class="k">Haulers carry</div><div class="v">${Helpers.haulerCap()} dried hay a trip</div></div>
+        <div class="stat"><div class="k">Barn drying speed</div><div class="v">${getStats().dryRate.toFixed(2)} hay/s</div></div></div>` : ""}
+      <h3>Hire</h3><div class="cardgrid">${up("cutters")}${up("haulers")}</div>
+      <h3>Workers' gear</h3><div class="cardgrid">${up("w_tool")}${up("w_carrier")}${up("w_speed")}${up("w_boots")}</div>`;
+  },
+  render_transport() {
+    const s = getStats(), cat = UPGRADES.filter(u => u.category === "Transport");
+    return `<h2>Transport</h2>
+      <div class="card"><div class="row"><div class="name">${s.vehicle.icon} ${s.vehicle.name}</div><div class="lvl">${fmt(s.cartCap)} hay · ${s.tripTime.toFixed(1)} s trip</div></div>
+        <div class="desc" style="margin-bottom:0">Hay sells in Tórshavn for ${s.sellPrice.toFixed(2)} kr fresh, ${(s.sellPrice * CONFIG.driedBonus).toFixed(2)} kr dried.</div></div>
+      <h3>Upgrades</h3><div class="cardgrid">${cat.map(u => this.upgradeCard(u)).join("")}</div>
+      <div class="hint">Better prices come from Research too (Market branch).</div>`;
+  },
+  render_buildings() {
+    const s = getStats(), up = b => UPGRADES.filter(u => u.building === b).map(u => this.upgradeCard(u)).join("");
+    return `<h2>Buildings</h2>
+      <h3>🛖 Barn</h3>
+      <div class="card"><div class="row"><div class="name">The barn by the farmhouse</div><div class="lvl">${fmt(s.barnCap)} hay</div></div>
+        <div class="desc" style="margin-bottom:0">${fmt(state.barn.fresh)} drying · ${fmt(state.barn.dried)} dried · ${rackCount()} rack${rackCount() > 1 ? "s" : ""} · ${s.dryRate.toFixed(2)} hay/s</div></div>
+      <div class="cardgrid">${up("barn")}</div>
+      <h3>🛖 Heygarður hay shed</h3>
+      ${hasShed() ? `<div class="card"><div class="row"><div class="name">The shed by Heygarður</div><div class="lvl">${fmt(s.shedCap)} hay</div></div>
+        <div class="desc" style="margin-bottom:0">${fmt(state.shed.fresh)} drying · ${fmt(state.shed.dried)} dried · ${shedRackCount()} racks · ${s.shedDryRate.toFixed(2)} hay/s</div></div>` : ""}
+      <div class="cardgrid">${up("shed")}</div>
+      <h3>🔬 Research station</h3><div class="cardgrid">${up("station")}</div>
+      ${researchOpen() ? `<div class="hint">Start projects in the Research tab — or press E at the station.</div>` : ""}`;
   },
   upgradeCard(u) {
     const L = lvl(u.id), max = L >= u.maxLevel;
@@ -2071,7 +2826,7 @@ const UI = {
   },
   render_stats() {
     const rows = [["Hay harvested", "stat-hay"], ["Harvest actions", "stat-actions"], ["Hay stored", "stat-stored"], ["Hay sold", "stat-sold"],
-      ["Money earned", "stat-money"], ["Distance walked", "stat-dist"], ["Loads delivered", "stat-loads"], ["Upgrades bought", "stat-ups"], ["Time playing", "stat-time"]];
+      ["Money earned", "stat-money"], ["Distance walked", "stat-dist"], ["Loads delivered", "stat-loads"], ["Cut by helpers", "stat-helper"], ["Upgrades bought", "stat-ups"], ["Time playing", "stat-time"]];
     const total = UPGRADES.reduce((a, u) => a + u.maxLevel, 0), have = UPGRADES.reduce((a, u) => a + lvl(u.id), 0);
     return `<h2>Statistics</h2><div class="statgrid">${rows.map(([k, id]) => `<div class="stat"><div class="k">${k}</div><div class="v" data-live="${id}"></div></div>`).join("")}</div>
       <h3>Progress</h3><div class="card"><div class="row"><div class="name">Upgrade levels</div><div class="lvl">${have} / ${total}</div></div>
@@ -2083,7 +2838,7 @@ const UI = {
       ${mute ? `<input type="checkbox" data-set="${id}On" ${s[id + "On"] ? "checked" : ""} title="Mute / unmute">` : ""}
       <input type="range" min="0" max="100" value="${Math.round(s[id] * 100)}" data-set="${id}"><span class="pct">${Math.round(s[id] * 100)}%</span></div>`;
     return `<h2>Settings</h2>
-      <h3>Sound</h3><div class="card">${slider("master", "Master")}${slider("sfx", "Effects", true)}${slider("ambience", "Wind & birds", true)}
+      <h3>Sound</h3><div class="card">${slider("master", "Master")}${slider("sfx", "Effects", true)}${slider("engine", "Engines", true)}${slider("ambience", "Wind & birds", true)}
         <div class="slider" style="opacity:.5"><label>Music</label><span style="font-size:12px">Coming in the polish milestone</span></div></div>
       <h3>Save game</h3><div class="card">
         <div class="desc" style="margin-top:0">Your farm saves automatically every ${CONFIG.autosaveSeconds} seconds and when you close the tab.</div>
@@ -2098,6 +2853,8 @@ const UI = {
     if (act === "buy") return buyUpgrade(b.dataset.id);
     if (act === "buytool") return buyTool();
     if (act === "buycarrier") return buyCarrier();
+    if (act === "research") return Research.start(b.dataset.id);
+    if (act === "sow") return sowSeed(b.dataset.field, b.dataset.seed);
     if (act === "save") { Save.save(); toast("Game saved"); }
     if (act === "load") { if (Save.load()) { Sound.applySettings(); updateCamera(true); toast("Loaded last save"); this.render(); } else toast("No save found"); }
     if (act === "reset") { this.confirmReset = true; this.render(); }
@@ -2119,9 +2876,40 @@ const UI = {
     c.querySelectorAll("button[data-need=up]").forEach(b => { b.disabled = state.money < upgradeCost(UPGRADE_BY_ID[b.dataset.id]); });
     c.querySelectorAll("button[data-need=tool]").forEach(b => { const n = nextTool(); b.disabled = !n || state.money < n.cost; });
     c.querySelectorAll("button[data-need=carrier]").forEach(b => { const n = nextCarrier(); b.disabled = !n || state.money < n.cost; });
+    c.querySelectorAll("button[data-need=research]").forEach(b => { b.disabled = !!state.research.active || state.money < RESEARCH_BY_ID[b.dataset.id].cost; });
+    c.querySelectorAll("button[data-need=sow]").forEach(b => { b.disabled = state.money < +b.dataset.cost; });
   },
 };
 
+const Research = {
+  update(dt) {
+    const a = state.research.active; if (!a) return;
+    const n = RESEARCH_BY_ID[a.id]; if (!n) { state.research.active = null; return; }
+    a.t += dt;
+    if (a.t >= n.time) {
+      state.research.done[n.id] = true; state.research.active = null;
+      Sound.upgrade(); toast(`${n.icon} Research done: ${n.name}` + (n.fx.seed ? " — sow it from the Land tab" : ""));
+      Save.save(true); if (UI.isOpen) UI.render();
+    }
+  },
+  start(id) {
+    const n = RESEARCH_BY_ID[id]; if (!n || !researchReady(n) || state.research.active || !researchOpen()) return;
+    if (!(UI.isOpen && UI.mode === "home") && !window.__testBuyAnywhere) { toast("🏠 Research is started from your farmhouse"); return; }
+    if (state.money < n.cost) { Sound.bump(); return; }
+    state.money -= n.cost; state.research.active = { id, t: 0 };
+    Sound.upgrade(); UI.bump("money"); toast(`🔬 Researching ${n.name} — ${fmtTime(n.time)}`); Save.save(true); UI.render();
+  },
+};
+// Sow a meadow with a researched seed mix: the meadow starts again as sprouts.
+const sowCost = (plot, sd) => Math.round(plot.growth.length * sd.price);
+function sowSeed(fieldId, seedId) {
+  const plot = Field.byId(fieldId), sd = SEED_BY_ID[seedId];
+  if (!plot || !plot.unlocked || !sd || state.seeds[fieldId] === seedId || (sd.research && !researched(sd.research))) return;
+  if (!(UI.isOpen && UI.mode === "home") && !window.__testBuyAnywhere) { toast("🏠 Seed is ordered from your farmhouse"); return; }
+  const cost = sowCost(plot, sd); if (state.money < cost) { Sound.bump(); return; }
+  state.money -= cost; state.seeds[fieldId] = seedId; plot.growth.fill(0.05);
+  Sound.upgrade(); UI.bump("money"); toast(`${sd.icon} ${plot.f.name} is sown with ${sd.name} — watch it come up`); Save.save(true); UI.render();
+}
 function buyUpgrade(id) {
   const u = UPGRADE_BY_ID[id]; if (!u || !isUnlocked(u) || lvl(id) >= u.maxLevel) return;
   if (!(UI.isOpen && UI.mode === "home") && !window.__testBuyAnywhere) { toast("🏠 Upgrades are bought inside your farmhouse"); return; }
@@ -2129,7 +2917,14 @@ function buyUpgrade(id) {
   if (state.money < cost) { Sound.bump(); return; }
   state.money -= cost; state.upgrades[id]++; state.stats.upgradesBought++;
   Sound.upgrade(); UI.bump("money");
-  if (id === "field") { onFieldChanged(true); toast("🌱 The stone wall moves out — new grass is sprouting"); }
+  if (id === "cutters" || id === "haulers") { Helpers.sync(); toast(id === "cutters" ? "🌾 A neighbour has come to help cut the meadow" : "🧺 A neighbour will carry dried hay to the cart"); }
+  else if (id === "buyfield2") { onFieldChanged(true); Helpers.list.forEach(h => { if (h.role === "cutter") h.state = "idle"; }); toast("🌾 Heygarður is yours — follow the track down the hill to the south-west"); }
+  else if (id === "field2") { onFieldChanged(true); toast("🌱 Heygarður's wall moves out — new grass is sprouting"); }
+  else if (id === "station") { rebuildObstacles(); if (bgCache) buildBackground(); toast("🔬 The research station is open — start a project in the Research tab, or press E at the station"); }
+  else if (id === "shed") { rebuildObstacles(); if (bgCache) buildBackground(); toast("🛖 The hay shed is up beside Heygarður — Heygarður's hay dries there now"); }
+  else if (id === "shedracks") { rebuildObstacles(); toast(`🪵 A new hesja beside the shed — ${shedRackCount()} racks there`); }
+  else if (id === "rackcount") { rebuildObstacles(); toast(`🪵 A new hesja stands beside the barn — ${rackCount()} racks drying hay`); }
+  else if (id === "field") { onFieldChanged(true); toast("🌱 The stone wall moves out — new grass is sprouting"); }
   else if (id === "vehicle") toast(`${getStats().vehicle.icon} Your new ${getStats().vehicle.name} is waiting by the road`);
   else toast(`${u.name} → level ${state.upgrades[id]}`);
   Save.save(true); UI.render();
@@ -2154,6 +2949,7 @@ function buyCarrier() {
 function onFieldChanged(grow) {
   applyFieldSize();
   Field.build(grow, grow ? 0.25 : 1);
+  rebuildObstacles();
   if (bgCache) buildBackground();
 }
 let toastTimer = null;
@@ -2174,9 +2970,13 @@ function frame(now) {
   Player.update(dt, Input.dir(), s.runSpeed);
   Places.update();
   Cart.update(dt);
+  Helpers.update(dt);
   Field.update(dt, s.regrowTime);
   Harvester.update(dt);
+  { const tl = currentTool(), cutting = Harvester.active() && carryTotal() < s.basket - 1e-6; Sound.updateEngine(tl.motor ? tl.art : null, cutting, Player.moving, dt); }
   { const d = Math.min(state.barn.fresh, s.dryRate * dt); state.barn.fresh -= d; state.barn.dried += d; }
+  Research.update(dt);
+  if (hasShed()) { const d = Math.min(state.shed.fresh, s.shedDryRate * dt); state.shed.fresh -= d; state.shed.dried += d; }
   FX.update(dt);
   for (const c of clouds) { c.x += c.v * dt; if (c.x > BG.x1) c.x = BG.x0 - c.w; }
   birdTimer -= dt;
@@ -2209,7 +3009,11 @@ function frame(now) {
   Field.draw(ctx, time);
   Harvester.draw(ctx, time);
   // y-sorted world objects
-  const objs = [{ y: WORLD.barn.y, d: drawBarn }, { y: WORLD.cart.park.y, d: drawCart }, { y: WORLD.house.y, d: drawHouse }, { y: Player.y, d: (g, t) => Player.draw(g, t) }];
+  const objs = [{ y: WORLD.barn.y, d: drawBarn }, { y: WORLD.cart.park.y, d: drawCart }, { y: WORLD.house.y, d: drawHouse }, { y: Player.y, d: (g, t) => Player.draw(g, t) }, ...Helpers.drawList(),
+    ...RACK_SLOTS.slice(0, rackCount()).map((r, i) => ({ y: r.y, d: (g, t) => drawRack(g, i, t) })),
+    ...(lvl("station") >= 1 ? [{ y: WORLD.station.y, d: drawStation }] : []),
+    ...(hasShed() ? [{ y: WORLD.shed.y, d: drawShed }, ...SHED_RACKS.slice(0, shedRackCount()).map((r, i) => ({ y: r.y, d: (g, t) => drawRack(g, i, t, SHED_RACKS, "shed") }))] : []),
+    ...Field.active().map(pl => ({ y: pl.pilePos().y, d: (g, t) => drawPile(g, pl, t) }))];
   objs.sort((a, b) => a.y - b.y).forEach(o => o.d(ctx, time));
   FX.drawWorld(ctx);
   if (state.stats.actions === 0 && !Field.contains(Player.x, Player.y)) {
@@ -2235,13 +3039,15 @@ function frame(now) {
   if (uiTimer > 0.15) {
     uiTimer = 0; UI.refreshLive();
     const u = UPGRADES.map(isUnlocked).join(""); // re-render when an upgrade unlocks
-    if (u !== unlockCheck) { if (unlockCheck && UI.tab === "upgrades") UI.render(); unlockCheck = u; }
+    if (u !== unlockCheck) { if (unlockCheck && ["farmer", "land", "buildings", "transport", "workers", "research"].includes(UI.tab)) UI.render(); unlockCheck = u; }
+    UI.crewT = (UI.crewT || 0) + 0.15; if (UI.isOpen && UI.tab === "workers" && UI.crewT > 1) { UI.crewT = 0; UI.render(); } // live crew status
   }
   saveTimer += dt; if (saveTimer > CONFIG.autosaveSeconds) { saveTimer = 0; Save.save(); }
   requestAnimationFrame(frame);
 }
 
 /* ------------------------------- BOOT -------------------------------- */
+Field.init();
 Save.load();
 onFieldChanged(false);
 UI.init();
@@ -2251,11 +3057,11 @@ document.addEventListener("visibilitychange", () => { if (document.visibilitySta
 requestAnimationFrame(t => { last = t; frame(t); });
 
 // Exposed for testing from the browser console.
-window.__farm = { get state() { return state; }, getStats, Field, Player, Places, Harvester, Cart, UI, TOOLS, buyTool, CARRIERS, buyCarrier, cam, WORLD, UPGRADES, buyUpgrade, barnAction, interact, Save };
+window.__farm = { get state() { return state; }, getStats, Helpers, Sound, Field, Player, Places, Harvester, Cart, UI, TOOLS, buyTool, CARRIERS, buyCarrier, cam, WORLD, UPGRADES, buyUpgrade, barnAction, interact, Save };
 </script>
 <style>/* where the shared menu bar sits in this game: beside the farm's own Farm button on desktop */:root{--spael-left:calc(104px + env(safe-area-inset-left,0px))}</style>
-<script>/* the shared Effects switch turns the farm's sound effects on and off */
-addEventListener('spael:sfx',e=>{try{state.settings.sfxOn=!!e.detail;Sound.applySettings();}catch(_){}});</script>
+<script>/* the shared Effects switch turns the farm's sound effects (and machine engines) on and off */
+addEventListener('spael:sfx',e=>{try{state.settings.sfxOn=state.settings.engineOn=!!e.detail;Sound.applySettings();}catch(_){}});</script>
 <!-- SPAEL-BAR START · shared menu bar: back to the front page, music and sound effects.
      Edit this block in shared/spael-bar.html, then run:  python3 tools/sync-bar.py
      That copies it into every game, so all games stay the same. -->
